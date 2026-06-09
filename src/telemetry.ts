@@ -12,6 +12,7 @@ import { SIGNALS, signalIndex } from './signals';
 import type { SignalVector, SignalName } from './signals';
 import { trafficClassOf, HOURS_PER_DAY } from './calibration';
 import type { TrafficClass } from './calibration';
+import { cholesky } from './covariance';
 import type { FaultDomainSnapshot, PathClassId, ResourceId } from './domain';
 
 export interface DegradationSpec {
@@ -23,12 +24,31 @@ export interface DegradationSpec {
   signal?: SignalName;
   /** 'mean' shifts the signal's level (Family A); 'variance' inflates its noise (Family C). */
   mode?: 'mean' | 'variance';
+  /**
+   * A full per-signal mean-shift vector (mode 'mean'), applied to affected path-classes instead of
+   * the single-signal `delta`. Lets a degradation move several signals jointly — e.g. an
+   * anti-correlated shift that violates the learned cross-signal covariance (ADR-0007).
+   */
+  shiftVector?: number[];
+  /**
+   * A degraded p×p noise correlation applied to affected path-classes from `start_tick` (ADR-0007):
+   * a pure SECOND-ORDER shift — signals keep their marginal mean and variance but their joint
+   * co-movement changes (e.g. a +ρ pair flips to −ρ). Invisible to a per-signal mean detector and
+   * to an identity-Σ test; only a learned-covariance Family C sees it. Must be positive-definite.
+   */
+  degradedNoiseCorr?: number[][];
 }
 
 export interface TelemetryParams {
   seed: number;
   ticks: number;
   degradation?: DegradationSpec;
+  /**
+   * Optional p×p correlation matrix for the per-tick noise innovations (ADR-0007). When set, the
+   * five signals co-move with this structure; when absent the noise is independent per signal
+   * (identity), preserving the v1 byte-for-byte telemetry. Must be positive-definite.
+   */
+  noiseCorr?: number[][];
 }
 
 export interface Telemetry {
@@ -59,15 +79,61 @@ function affectedPathClasses(snapshot: FaultDomainSnapshot, resourceId: Resource
   return affected;
 }
 
+/** Cholesky factor of a correlation matrix, or null if absent; throws if present but not PD. */
+function choleskyOrThrow(corr: number[][] | undefined, name: string): number[][] | null {
+  if (!corr) return null;
+  const L = cholesky(corr);
+  if (!L) throw new RangeError(`${name} must be positive-definite`);
+  return L;
+}
+
+/** The innovation Cholesky factor for one tick: the degraded L on affected path-classes from start. */
+function tickL(isAffected: boolean, t: number, start: number, Lr: number[][] | null, LrDeg: number[][] | null): number[][] | null {
+  return isAffected && LrDeg && t >= start ? LrDeg : Lr;
+}
+
+/** Correlate an iid draw z into innovation L·z; identity (L=null) returns z unchanged. */
+function correlate(z: number[], L: number[][] | null): number[] {
+  if (!L) return z;
+  return z.map((_, i) => {
+    let s = 0;
+    for (let k = 0; k <= i; k++) s += L[i][k] * z[k];
+    return s;
+  });
+}
+
+/** Apply a degradation's mean/variance/covariance effect to one already-noised tick vector. */
+function degradeVector(
+  vec: number[],
+  deg: DegradationSpec,
+  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass },
+): void {
+  if (deg.degradedNoiseCorr) return; // a pure 2nd-order shift — already applied via the innovation L
+  if (deg.shiftVector) {
+    for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i]; // joint multivariate mean shift
+  } else if (ctx.mode === 'variance') {
+    const base = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc);
+    vec[ctx.sigIdx] = base + (vec[ctx.sigIdx] - base) * deg.delta; // inflate noise around the baseline
+  } else {
+    vec[ctx.sigIdx] += deg.delta; // single-signal mean shift
+  }
+}
+
 export function generateTelemetry(snapshot: FaultDomainSnapshot, params: TelemetryParams): Telemetry {
   const rng = makeRng(params.seed);
   const deg = params.degradation;
   const sigIdx = signalIndex(deg?.signal ?? 'p99_latency');
   const mode = deg?.mode ?? 'mean';
+  const start = deg?.start_tick ?? 0;
   const affected = deg ? affectedPathClasses(snapshot, deg.resource_id) : new Set<PathClassId>();
   const series = new Map<PathClassId, SignalVector[]>();
 
   const p = SIGNALS.length;
+  // Innovation = L·z has covariance L·Lᵀ. Baseline L from noiseCorr (absent ⇒ identity, which
+  // reproduces the v1 RNG stream byte-for-byte); affected path-classes swap to the degraded L
+  // from start_tick (a second-order degradation).
+  const Lr = choleskyOrThrow(params.noiseCorr, 'noiseCorr');
+  const LrDeg = choleskyOrThrow(deg?.degradedNoiseCorr, 'degradedNoiseCorr');
   const order = [...snapshot.path_classes].sort();
   for (const pc of order) {
     const tc = trafficClassOf(pc);
@@ -76,22 +142,19 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
     const prevNoise = new Array<number>(p).fill(0);
     for (let t = 0; t < params.ticks; t++) {
       const hour = t % HOURS_PER_DAY;
-      const vec = SIGNALS.map((_, i) => {
-        const z = rng.gaussian();
+      // draw z in signal order (preserves the v1 sequence), then optionally correlate via L.
+      const z = new Array<number>(p);
+      for (let i = 0; i < p; i++) z[i] = rng.gaussian();
+      const innov = correlate(z, tickL(isAffected, t, start, Lr, LrDeg));
+      const vec = new Array<number>(p);
+      for (let i = 0; i < p; i++) {
         // stationary AR(1) noise: var 1 at every tick; t=0 is a stationary draw.
         const phi = AR1_PHI[i];
-        const noise = t === 0 ? z : phi * prevNoise[i] + Math.sqrt(1 - phi * phi) * z;
+        const noise = t === 0 ? innov[i] : phi * prevNoise[i] + Math.sqrt(1 - phi * phi) * innov[i];
         prevNoise[i] = noise;
-        return rawBaseline(i, hour, tc) + noise;
-      });
-      if (isAffected && deg && t >= deg.start_tick) {
-        if (mode === 'variance') {
-          const base = rawBaseline(sigIdx, hour, tc);
-          vec[sigIdx] = base + (vec[sigIdx] - base) * deg.delta; // inflate noise around the baseline
-        } else {
-          vec[sigIdx] += deg.delta; // mean shift
-        }
+        vec[i] = rawBaseline(i, hour, tc) + noise;
       }
+      if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc });
       matrix.push(vec);
     }
     series.set(pc, matrix);

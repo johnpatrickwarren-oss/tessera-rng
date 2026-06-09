@@ -102,11 +102,21 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   breaking FDR at `n ≳ 30`); the default ~400-path-class fabric is untouched. Unblocks small
   operator topologies — clean fabrics from 9 path-classes up select nothing, while a real shift
   still fires on every affected path-class.
+- **Family C learned cross-signal covariance** (ADR-0007): replaces the identity Σ with a
+  covariance LEARNED from the clean calibration residuals via Ledoit-Wolf shrinkage (new module
+  `src/covariance.ts`: cholesky / logDet / sampleCovariance / ledoitWolf — pure, no engine
+  internals). `makeFamilyCCellFromCovariance` recomputes the Safe-Hotelling log-det shrink
+  constant for the real Σ; the pipeline learns Σ and threads it through `detectAll`. Telemetry
+  gains optional cross-signal `noiseCorr` and a pure second-order `degradedNoiseCorr` (correlation
+  flip, no marginal change). A learned Σ catches a correlation-flip degradation on every affected
+  path-class that the identity Σ — and per-signal Family A — are completely blind to, while a
+  clean correlated window still selects 0. New math, 92% mutation score; default telemetry stays
+  byte-for-byte identical to v1.
 
 ## Honest current limitations (NOT hidden)
 
-- Family C uses an identity baseline covariance (residuals are per-cell standardized);
-  cross-signal covariance structure is not yet learned.
+- Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model
+  target, and a scale-invariant τ²=c·trace(Σ)/p remain future refinements (ADR-0007).
 - Calibration models AR(1) only; higher-order AR(p)/seasonal structure (engine `fitArP`/
   `seasonal`) is future work.
 - Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
@@ -119,9 +129,7 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
 Documented future-work queue (each = ADR + tests + green gate + commit):
 
 1. ✅ Min-sample pooled calibration fallback (ADR-0006) — done.
-2. ⏳ Family C learned cross-signal covariance — replace the identity Σ with a covariance
-   estimated from calibration residuals (Ledoit–Wolf shrinkage); recompute the Safe-Hotelling
-   log-det shrink. New math → mutation pass. (ADR-0007)
+2. ✅ Family C learned cross-signal covariance (ADR-0007) — done; 92% mutation on the new math.
 3. ⏳ Higher-order AR(p)/seasonal calibration — extend AR(1) via the engine's `fitArP`
    (AIC/BIC order selection) and optionally `seasonal`. (ADR-0008)
 4. ⏳ (Stretch) Family D (spectral) and/or E (conformal) detectors in `detect.ts`. (ADR-0009)

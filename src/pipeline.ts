@@ -14,6 +14,7 @@ import type { DegradationSpec } from './telemetry';
 import { buildCalibration, standardizeAll } from './calibration';
 import { detectAll, DEFAULT_DETECT } from './detect';
 import type { DetectParams } from './detect';
+import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './family-c';
 import { buildSurface } from './surface';
 import { localize } from './tomography';
 import { simulateDrain } from './drain';
@@ -39,12 +40,18 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Per-cell calibration substrate (AC-7): characterize the "normal" smear from a CLEAN
   // window, then standardize the live (possibly degraded) raw stream against it. Distinct
   // calibration seed → calibration noise is independent of the live window.
-  const calibration = buildCalibration(
-    generateTelemetry(snapshot, { seed: params.telemetry.seed ^ 0xca11b, ticks: params.telemetry.ticks }).series,
-  );
+  const calibRaw = generateTelemetry(snapshot, { seed: params.telemetry.seed ^ 0xca11b, ticks: params.telemetry.ticks });
+  const calibration = buildCalibration(calibRaw.series);
+  // Learn the Family C baseline covariance Σ from the CLEAN calibration residuals (ADR-0007):
+  // cross-signal co-movement the identity-Σ baseline could not see. Uncorrelated signals → Σ≈I.
+  const detect = params.detect ?? DEFAULT_DETECT;
+  const calibResiduals = standardizeAll(calibRaw.series, calibration);
+  const sigma = estimateBaselineCovariance(calibResiduals).sigma;
+  const familyCCell = makeFamilyCCellFromCovariance(sigma, detect.alphaC);
+
   const liveRaw = generateTelemetry(snapshot, params.telemetry);
   const residuals = standardizeAll(liveRaw.series, calibration);
-  const verdicts = detectAll(residuals, params.detect ?? DEFAULT_DETECT);
+  const verdicts = detectAll(residuals, detect, familyCCell);
   const surface = buildSurface(verdicts, params.q);
 
   const loc = localize(snapshot, surface.selected_path_class_ids);

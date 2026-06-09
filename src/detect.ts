@@ -14,6 +14,7 @@ import {
   updateBettingState,
 } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/betting-e-process';
 import { runFamilyC } from './family-c';
+import type { FamilyCPerCell } from '@johnpatrickwarren-oss/deploysignal-engine/types/families/c';
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
@@ -54,9 +55,10 @@ export function detectPathClass(
   pathClassId: PathClassId,
   series: readonly SignalVector[],
   params: DetectParams = DEFAULT_DETECT,
+  familyCCell?: FamilyCPerCell,
 ): PathClassVerdict {
   const a = runFamilyA(series, params.alphaA);
-  const c = runFamilyC(series, params.alphaC);
+  const c = runFamilyC(series, params.alphaC, familyCCell);
   const cResult: DetectorResult = {
     family: 'C',
     e_value: c.e_value,
@@ -74,11 +76,15 @@ export function detectPathClass(
   };
 }
 
-/** Detect across all path-classes in canonical order. */
+/**
+ * Detect across all path-classes in canonical order. An optional learned Family C cell
+ * (ADR-0007) supplies the baseline covariance Σ; omitted ⇒ the identity-Σ default.
+ */
 export function detectAll(
   series: ReadonlyMap<PathClassId, SignalVector[]>,
   params: DetectParams = DEFAULT_DETECT,
+  familyCCell?: FamilyCPerCell,
 ): PathClassVerdict[] {
   const ids = [...series.keys()].sort();
-  return ids.map((id) => detectPathClass(id, series.get(id)!, params));
+  return ids.map((id) => detectPathClass(id, series.get(id)!, params, familyCCell));
 }
