@@ -94,6 +94,14 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   referential integrity); `tools/load-topology.ts` reads+parses the file (fs confined to
   `tools/`, N2 intact) and a CLI prints a summary+hash; `runPipeline` accepts an optional
   `snapshot` that overrides the generated fabric. Closes the Q3 deferral.
+- **Min-sample pooled calibration fallback** (ADR-0006): cells with `n < 30` calibration
+  samples borrow a pooled per-signal `(mean, sd)` (well-estimated over all cells) instead of a
+  noisy per-cell `sd` that, against an independent live window, inflates residual variance and
+  false-selects on a clean fabric. Unseen-at-calibration cells now pool too (were raw
+  pass-through). Threshold 30 is empirical (a sweep: per-cell standardization only stops
+  breaking FDR at `n ≳ 30`); the default ~400-path-class fabric is untouched. Unblocks small
+  operator topologies — clean fabrics from 9 path-classes up select nothing, while a real shift
+  still fires on every affected path-class.
 
 ## Honest current limitations (NOT hidden)
 
@@ -101,8 +109,6 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   cross-signal covariance structure is not yet learned.
 - Calibration models AR(1) only; higher-order AR(p)/seasonal structure (engine `fitArP`/
   `seasonal`) is future work.
-- Per-cell calibration assumes adequately-sampled cells; very small operator topologies
-  (a handful of path-classes) under-sample cells — a min-sample pooled fallback is future work.
 - Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
   remains N2 anti-scope.
 - Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
@@ -110,7 +116,15 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
 
 ## Next (resumable, post-v1)
 
-1. Cold-eye review fixes (in progress) → commit.
-2. Multi-signal Family A; learned cross-signal covariance for Family C.
-3. Wire the engine's production-AR substrate (AR(1)/seasonal) into calibration.
-4. Operator-supplied topology override; later, real-fabric validation phase.
+Documented future-work queue (each = ADR + tests + green gate + commit):
+
+1. ✅ Min-sample pooled calibration fallback (ADR-0006) — done.
+2. ⏳ Family C learned cross-signal covariance — replace the identity Σ with a covariance
+   estimated from calibration residuals (Ledoit–Wolf shrinkage); recompute the Safe-Hotelling
+   log-det shrink. New math → mutation pass. (ADR-0007)
+3. ⏳ Higher-order AR(p)/seasonal calibration — extend AR(1) via the engine's `fitArP`
+   (AIC/BIC order selection) and optionally `seasonal`. (ADR-0008)
+4. ⏳ (Stretch) Family D (spectral) and/or E (conformal) detectors in `detect.ts`. (ADR-0009)
+
+Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
+(N4), the arXiv:2604.15261 signal-contract fidelity question, repo visibility (private→public).

@@ -21,6 +21,20 @@ export type TrafficClass = (typeof TRAFFIC_CLASSES)[number];
 export const HOURS_PER_DAY = 24;
 export const DAYS_PER_WEEK = 7;
 
+/**
+ * Minimum calibration samples a cell needs before its OWN (mean, sd) is trusted (ADR-0006).
+ * Below this, a cell's sd is estimated from too few points: against an INDEPENDENT live window,
+ * a downward-fluctuated sd estimate inflates the standardized residual variance, manufacturing
+ * false positives and breaking e-BH FDR control. Such under-sampled cells fall back to the
+ * pooled per-signal baseline (well-estimated from all cells).
+ *
+ * The value 30 is empirical, not the kickoff's rough "~5": a sweep over clean small topologies
+ * (ADR-0006) shows per-cell standardization only stops false-selecting once n ≳ 30 (sd relative
+ * error ≈ 1/√(2n) ≈ 13%). At 30, clean fabrics from 9 → ∞ path-classes select nothing, while the
+ * default ~400-path-class fabric (n ≈ 130/cell) keeps full per-cell resolution untouched.
+ */
+export const DEFAULT_MIN_CELL_SAMPLES = 30;
+
 /** Deterministic traffic-class assignment per path-class (stable hash of the id). */
 export function trafficClassOf(pathClassId: PathClassId): TrafficClass {
   let h = 0;
@@ -39,6 +53,8 @@ export interface CellStats {
   n: number;
   mean: number[];
   sd: number[];
+  /** true iff (mean, sd) came from the pooled fallback because the cell was under-sampled (ADR-0006). */
+  pooled?: boolean;
 }
 /**
  * The production-AR substrate (ADR-0004): per-cell level baselines (the diurnal/class smear) +
@@ -48,6 +64,11 @@ export interface CellStats {
  */
 export interface CalibrationSubstrate {
   cells: ReadonlyMap<string, CellStats>;
+  /**
+   * Pooled per-signal (mean, sd) over ALL calibration samples — the fallback baseline for
+   * under-sampled cells (n < minCellSamples) and for cells unseen at calibration time (ADR-0006).
+   */
+  pooled: CellStats;
   /** per-signal AR(1) coefficient φ. */
   arPhi: number[];
 }
@@ -58,9 +79,25 @@ interface Acc {
   sumsq: number[];
 }
 
-function buildCells(raw: ReadonlyMap<PathClassId, SignalVector[]>): Map<string, CellStats> {
+/** Finalize an accumulator into (mean, sd), flooring sd to keep standardization finite. */
+function statsOf(a: Acc): { mean: number[]; sd: number[] } {
+  const mean = a.sum.map((s) => s / a.n);
+  const sd = a.sum.map((_, i) => Math.sqrt(Math.max(a.sumsq[i] / a.n - mean[i] * mean[i], 1e-9)));
+  return { mean, sd };
+}
+
+/**
+ * Build per-cell baselines AND the pooled per-signal baseline in one pass. Cells with fewer
+ * than `minCellSamples` observations fall back to the pooled (mean, sd) — their own sd is too
+ * noisy to trust (ADR-0006). The pooled stats are returned too, for cells unseen at calibration.
+ */
+function buildCells(
+  raw: ReadonlyMap<PathClassId, SignalVector[]>,
+  minCellSamples: number,
+): { cells: Map<string, CellStats>; pooled: CellStats } {
   const p = SIGNALS.length;
   const acc = new Map<string, Acc>();
+  const pool: Acc = { n: 0, sum: new Array<number>(p).fill(0), sumsq: new Array<number>(p).fill(0) };
   for (const [pc, series] of raw) {
     const tc = trafficClassOf(pc);
     for (let t = 0; t < series.length; t++) {
@@ -70,43 +107,57 @@ function buildCells(raw: ReadonlyMap<PathClassId, SignalVector[]>): Map<string, 
         a = { n: 0, sum: new Array<number>(p).fill(0), sumsq: new Array<number>(p).fill(0) };
         acc.set(key, a);
       }
-      a.n += 1;
       const v = series[t];
+      a.n += 1;
+      pool.n += 1;
       for (let i = 0; i < p; i++) {
         a.sum[i] += v[i];
         a.sumsq[i] += v[i] * v[i];
+        pool.sum[i] += v[i];
+        pool.sumsq[i] += v[i] * v[i];
       }
     }
   }
+  const pooledStats = pool.n > 0 ? statsOf(pool) : { mean: new Array<number>(p).fill(0), sd: new Array<number>(p).fill(1) };
+  const pooled: CellStats = { n: pool.n, ...pooledStats, pooled: true };
+
   const cells = new Map<string, CellStats>();
   for (const [key, a] of acc) {
-    const mean = a.sum.map((s) => s / a.n);
-    const sd = a.sum.map((_, i) => Math.sqrt(Math.max(a.sumsq[i] / a.n - mean[i] * mean[i], 1e-9)));
-    cells.set(key, { n: a.n, mean, sd });
+    if (a.n < minCellSamples) {
+      // under-sampled: borrow the pooled baseline rather than trust a noisy per-cell sd.
+      cells.set(key, { n: a.n, mean: pooled.mean, sd: pooled.sd, pooled: true });
+    } else {
+      cells.set(key, { n: a.n, ...statsOf(a) });
+    }
   }
-  return cells;
+  return { cells, pooled };
 }
 
 /** Per-cell de-mean/standardize only (no pre-whitening). */
-function deMean(series: readonly SignalVector[], pathClassId: PathClassId, cells: ReadonlyMap<string, CellStats>): number[][] {
+function deMean(
+  series: readonly SignalVector[],
+  pathClassId: PathClassId,
+  cells: ReadonlyMap<string, CellStats>,
+  pooled: CellStats,
+): number[][] {
   const tc = trafficClassOf(pathClassId);
   return series.map((v, t) => {
-    const cell = cells.get(cellKey(t, tc));
-    // Unseen cell: pass through unchanged. v1 calibration windows span the same tick range as the
-    // live window, so every live cell is calibrated and this branch is not exercised; it is a
-    // defensive fallthrough, NOT a surfaced calibration-gap signal (gap reporting is future work).
-    if (!cell) return [...v];
+    // Unseen cell (no calibration sample mapped here): fall back to the pooled per-signal
+    // baseline (ADR-0006) rather than passing the raw value through — a raw level (e.g. ~10ms
+    // latency) treated as a residual would manufacture a false detection. Pooled standardization
+    // is the same fallback under-sampled cells use; gap reporting remains future work.
+    const cell = cells.get(cellKey(t, tc)) ?? pooled;
     return v.map((x, i) => (x - cell.mean[i]) / cell.sd[i]);
   });
 }
 
 /** Pooled per-signal AR(1) φ̂ from the de-meaned calibration residuals (γ̂₁/γ̂₀ over all streams). */
-function estimatePhi(raw: ReadonlyMap<PathClassId, SignalVector[]>, cells: ReadonlyMap<string, CellStats>): number[] {
+function estimatePhi(raw: ReadonlyMap<PathClassId, SignalVector[]>, cells: ReadonlyMap<string, CellStats>, pooled: CellStats): number[] {
   const p = SIGNALS.length;
   const cov1 = new Array<number>(p).fill(0);
   const cov0 = new Array<number>(p).fill(0);
   for (const [pc, series] of raw) {
-    const resid = deMean(series, pc, cells);
+    const resid = deMean(series, pc, cells, pooled);
     for (let j = 0; j < p; j++) {
       const col = resid.map((row) => row[j]);
       cov1[j] += sampleAutocovariance(col, 0, 1);
@@ -116,9 +167,15 @@ function estimatePhi(raw: ReadonlyMap<PathClassId, SignalVector[]>, cells: Reado
   return cov0.map((c0, j) => Math.max(-0.95, Math.min(0.95, c0 > 1e-12 ? cov1[j] / c0 : 0)));
 }
 
-export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>): CalibrationSubstrate {
-  const cells = buildCells(raw);
-  return { cells, arPhi: estimatePhi(raw, cells) };
+export interface CalibrationOptions {
+  /** below this per-cell sample count, fall back to the pooled baseline (ADR-0006). */
+  minCellSamples?: number;
+}
+
+export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>, opts: CalibrationOptions = {}): CalibrationSubstrate {
+  const minCellSamples = opts.minCellSamples ?? DEFAULT_MIN_CELL_SAMPLES;
+  const { cells, pooled } = buildCells(raw, minCellSamples);
+  return { cells, pooled, arPhi: estimatePhi(raw, cells, pooled) };
 }
 
 /** AR(1) pre-whiten each signal column, rescaling innovations back to unit variance. */
@@ -137,7 +194,7 @@ function prewhitenColumns(resid: number[][], arPhi: number[]): number[][] {
 
 /** Standardize a raw stream: per-cell de-mean/sd, then per-signal AR(1) pre-whitening → residuals. */
 export function standardizeStream(series: readonly SignalVector[], pathClassId: PathClassId, sub: CalibrationSubstrate): number[][] {
-  return prewhitenColumns(deMean(series, pathClassId, sub.cells), sub.arPhi);
+  return prewhitenColumns(deMean(series, pathClassId, sub.cells, sub.pooled), sub.arPhi);
 }
 
 export function standardizeAll(raw: ReadonlyMap<PathClassId, SignalVector[]>, sub: CalibrationSubstrate): Map<PathClassId, number[][]> {
