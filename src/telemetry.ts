@@ -49,6 +49,15 @@ export interface TelemetryParams {
    * (identity), preserving the v1 byte-for-byte telemetry. Must be positive-definite.
    */
   noiseCorr?: number[][];
+  /**
+   * Optional per-signal AR coefficient vectors (ADR-0008): signal i's noise follows AR(arCoeffs[i])
+   * with unit-variance innovations, instead of the default AR(1) `AR1_PHI`. Lets telemetry emit
+   * higher-order temporal memory the AR(p) calibrator must recover. Absent ⇒ the v1 AR(1) stream
+   * (byte-for-byte identical). The marginal variance is whatever the AR(p) recursion produces; the
+   * per-cell calibration sd standardizes it, so it need not be 1. Coefficients must be **stationary**
+   * (no guard — a non-stationary set explodes numerically, though per-cell sd keeps residuals finite).
+   */
+  arCoeffs?: number[][];
 }
 
 export interface Telemetry {
@@ -90,6 +99,22 @@ function choleskyOrThrow(corr: number[][] | undefined, name: string): number[][]
 /** The innovation Cholesky factor for one tick: the degraded L on affected path-classes from start. */
 function tickL(isAffected: boolean, t: number, start: number, Lr: number[][] | null, LrDeg: number[][] | null): number[][] | null {
   return isAffected && LrDeg && t >= start ? LrDeg : Lr;
+}
+
+/**
+ * One AR(p) recursion step: noise_t = Σ_k coeffs_k·hist_{t-k} + scale·innov. With an empty history
+ * (t=0) it returns the bare innovation — a stationary-ish start. For the default AR(1) (one coeff,
+ * `unitVar`) the innovation is scaled by √(1−φ²) so the marginal variance is exactly 1, reproducing
+ * the v1 noise byte-for-byte; for AR(p) opt-in (`unitVar` false) the innovation is unit-scaled and
+ * the per-cell calibration sd absorbs whatever marginal variance the recursion yields.
+ */
+function arStep(innov: number, coeffs: number[], hist: number[], unitVar: boolean): number {
+  if (hist.length === 0) return innov;
+  let pred = 0;
+  const avail = Math.min(coeffs.length, hist.length);
+  for (let k = 0; k < avail; k++) pred += coeffs[k] * hist[hist.length - 1 - k];
+  const innovScale = unitVar ? Math.sqrt(Math.max(1 - coeffs[0] * coeffs[0], 1e-9)) : 1;
+  return pred + innovScale * innov;
 }
 
 /** Correlate an iid draw z into innovation L·z; identity (L=null) returns z unchanged. */
@@ -134,12 +159,15 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   // from start_tick (a second-order degradation).
   const Lr = choleskyOrThrow(params.noiseCorr, 'noiseCorr');
   const LrDeg = choleskyOrThrow(deg?.degradedNoiseCorr, 'degradedNoiseCorr');
+  // Per-signal AR coefficients: AR(p) opt-in (arCoeffs) or the default AR(1) (AR1_PHI, unit-variance).
+  const unitVar = params.arCoeffs === undefined;
+  const arc = SIGNALS.map((_, i) => (params.arCoeffs ? params.arCoeffs[i] : [AR1_PHI[i]]));
   const order = [...snapshot.path_classes].sort();
   for (const pc of order) {
     const tc = trafficClassOf(pc);
     const isAffected = affected.has(pc);
     const matrix: number[][] = [];
-    const prevNoise = new Array<number>(p).fill(0);
+    const hist: number[][] = SIGNALS.map(() => []);
     for (let t = 0; t < params.ticks; t++) {
       const hour = t % HOURS_PER_DAY;
       // draw z in signal order (preserves the v1 sequence), then optionally correlate via L.
@@ -148,10 +176,9 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
       const innov = correlate(z, tickL(isAffected, t, start, Lr, LrDeg));
       const vec = new Array<number>(p);
       for (let i = 0; i < p; i++) {
-        // stationary AR(1) noise: var 1 at every tick; t=0 is a stationary draw.
-        const phi = AR1_PHI[i];
-        const noise = t === 0 ? innov[i] : phi * prevNoise[i] + Math.sqrt(1 - phi * phi) * innov[i];
-        prevNoise[i] = noise;
+        const noise = arStep(innov[i], arc[i], hist[i], unitVar);
+        hist[i].push(noise);
+        if (hist[i].length > arc[i].length) hist[i].shift(); // keep only the lags the order needs
         vec[i] = rawBaseline(i, hour, tc) + noise;
       }
       if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc });

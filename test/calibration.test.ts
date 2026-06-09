@@ -19,14 +19,26 @@ const SMALL = { ...DEFAULT_FABRIC, n_path_classes: 150 };
 /** A topology small enough that every (HoD×DoW×class) cell is under-sampled (n ≈ 10 < 30). */
 const TINY = { ...DEFAULT_FABRIC, n_path_classes: 30 };
 
-function lag1Autocorr(col: number[]): number {
+function lagAutocorr(col: number[], k: number): number {
   const n = col.length;
   const mean = col.reduce((s, x) => s + x, 0) / n;
   let c0 = 0;
-  let c1 = 0;
+  let ck = 0;
   for (let t = 0; t < n; t++) c0 += (col[t] - mean) ** 2;
-  for (let t = 0; t < n - 1; t++) c1 += (col[t] - mean) * (col[t + 1] - mean);
-  return c1 / c0;
+  for (let t = 0; t < n - k; t++) ck += (col[t] - mean) * (col[t + k] - mean);
+  return ck / c0;
+}
+const lag1Autocorr = (col: number[]): number => lagAutocorr(col, 1);
+
+/** Pooled lag-k autocorrelation of a signal column across all path-class residual streams. */
+function pooledLagAcf(resid: Map<string, number[][]>, sig: number, k: number): number {
+  let acc = 0;
+  let n = 0;
+  for (const series of resid.values()) {
+    acc += lagAutocorr(series.map((v) => v[sig]), k);
+    n++;
+  }
+  return acc / n;
 }
 
 test('traffic class is deterministic and within the declared set', () => {
@@ -51,12 +63,13 @@ test('calibration characterizes a non-unimodal smear: cells differ by hour', () 
   assert.ok(Math.abs(peak!.mean[p99] - trough!.mean[p99]) > 0.3, 'the normal is a smear, not unimodal');
 });
 
-test('the AR substrate recovers the per-signal AR(1) coefficient (ADR-0004)', () => {
+test('the AR substrate recovers the per-signal AR(1) coefficient (ADR-0004/0008)', () => {
   const snap = generateFabric({ ...SMALL, n_path_classes: 200 });
-  // long contiguous window so γ̂₁/γ̂₀ is well-estimated.
+  // long contiguous window so the AR fit is well-estimated.
   const sub = buildCalibration(generateTelemetry(snap, { seed: 3, ticks: 200 }).series);
   for (let j = 0; j < SIGNALS.length; j++) {
-    assert.ok(Math.abs(sub.arPhi[j] - AR1_PHI[j]) < 0.1, `φ̂[${j}]=${sub.arPhi[j]} should approximate true ${AR1_PHI[j]}`);
+    assert.ok(sub.ar[j].phi.length >= 1, `signal ${j} should select an AR order ≥ 1 on AR(1) telemetry`);
+    assert.ok(Math.abs(sub.ar[j].phi[0] - AR1_PHI[j]) < 0.1, `φ̂[${j}]=${sub.ar[j].phi[0]} should approximate true ${AR1_PHI[j]}`);
   }
 });
 
@@ -72,6 +85,53 @@ test('pre-whitening removes the temporal autocorrelation the AR noise injected',
   for (const series of resid.values()) { acc += lag1Autocorr(series.map((v) => v[p99])); k++; }
   const meanAcf = acc / k;
   assert.ok(Math.abs(meanAcf) < 0.15, `whitened lag-1 autocorr ${meanAcf} should be near 0 (raw φ≈${AR1_PHI[0]})`);
+});
+
+// ───────────────────────── ADR-0008: higher-order AR(p) calibration ─────────────────────────
+
+const AR2_COEFFS = SIGNALS.map((_, i) => (i === 0 ? [0.5, 0.3] : [0])); // AR(2) on p99, white elsewhere
+
+test('the AR(p) substrate selects order 2 and recovers AR(2) coefficients (ADR-0008)', () => {
+  const snap = generateFabric({ ...SMALL, n_path_classes: 200 });
+  const sub = buildCalibration(generateTelemetry(snap, { seed: 3, ticks: 200, arCoeffs: AR2_COEFFS }).series);
+  const p99 = signalIndex('p99_latency');
+  assert.ok(sub.ar[p99].phi.length >= 2, `should select order ≥ 2 (got ${sub.ar[p99].phi.length})`);
+  assert.ok(Math.abs(sub.ar[p99].phi[0] - 0.5) < 0.1, `φ̂₁=${sub.ar[p99].phi[0]} ≈ 0.5`);
+  assert.ok(Math.abs(sub.ar[p99].phi[1] - 0.3) < 0.1, `φ̂₂=${sub.ar[p99].phi[1]} ≈ 0.3`);
+});
+
+test('AR(p) pre-whitening removes higher-order autocorrelation an AR(1) model leaves behind (ADR-0008)', () => {
+  const snap = generateFabric({ ...SMALL, n_path_classes: 200 });
+  const raw = generateTelemetry(snap, { seed: 3, ticks: 200, arCoeffs: AR2_COEFFS });
+  const p99 = signalIndex('p99_latency');
+
+  // AR(p) (order-selected) whitens BOTH lag-1 and lag-2 to ~0.
+  const residP = standardizeAll(raw.series, buildCalibration(raw.series));
+  assert.ok(Math.abs(pooledLagAcf(residP, p99, 1)) < 0.05, `AR(p) lag-1 ${pooledLagAcf(residP, p99, 1)} ≈ 0`);
+  assert.ok(Math.abs(pooledLagAcf(residP, p99, 2)) < 0.05, `AR(p) lag-2 ${pooledLagAcf(residP, p99, 2)} ≈ 0`);
+
+  // An AR(1)-capped model cannot: it leaves clear lag-2 structure — the anti-self-confirming
+  // control proving the order selection (not luck) is what whitens the AR(2) noise.
+  const resid1 = standardizeAll(raw.series, buildCalibration(raw.series, { arPMax: 1 }));
+  assert.ok(Math.abs(pooledLagAcf(resid1, p99, 2)) > 0.1, `AR(1)-cap must leave lag-2 structure (got ${pooledLagAcf(resid1, p99, 2)})`);
+});
+
+test('FDR control holds under AR(2) telemetry: a clean fabric still selects nothing (ADR-0008)', () => {
+  const snap = generateFabric({ ...SMALL, n_path_classes: 200 });
+  const calib = buildCalibration(generateTelemetry(snap, { seed: 5 ^ 0xca11b, ticks: 200, arCoeffs: AR2_COEFFS }).series);
+  const live = standardizeAll(generateTelemetry(snap, { seed: 5, ticks: 200, arCoeffs: AR2_COEFFS }).series, calib);
+  assert.equal(buildSurface(detectAll(live, DEFAULT_DETECT), 0.1).selected_path_class_ids.length, 0);
+});
+
+test('AR(2) telemetry: a real degradation still fires after AR(p) pre-whitening (detection preserved)', () => {
+  const snap = generateFabric({ ...SMALL, n_path_classes: 200 });
+  const target = snap.resources.find((r) => r.kind === 'passive_shuffler')!.id;
+  const affected = new Set(snap.edges.filter((e) => e.resource === target).map((e) => e.path_class));
+  const calib = buildCalibration(generateTelemetry(snap, { seed: 5 ^ 0xca11b, ticks: 200, arCoeffs: AR2_COEFFS }).series);
+  const degraded = generateTelemetry(snap, { seed: 5, ticks: 200, arCoeffs: AR2_COEFFS, degradation: { resource_id: target, delta: 6, start_tick: 0 } });
+  const selected = new Set(buildSurface(detectAll(standardizeAll(degraded.series, calib), DEFAULT_DETECT), 0.1).selected_path_class_ids);
+  const hits = [...affected].filter((pc) => selected.has(pc)).length;
+  assert.ok(hits >= affected.size * 0.5, `most affected path-classes should fire (${hits}/${affected.size})`);
 });
 
 test('standardizing the clean window yields ~zero-mean residuals', () => {
@@ -103,6 +163,7 @@ test('under-sampled cells fall back to the pooled per-signal baseline (ADR-0006)
     }
   }
   assert.ok(tiny.pooled.sd.every((s) => s > 0.5), 'pooled sd is well-estimated (~1), not floored to ~0');
+  assert.equal(tiny.pooled.pooled, true, 'the pooled baseline is flagged as pooled-origin');
 
   // a well-sampled topology keeps full per-cell resolution (no pooling).
   const big = buildCalibration(generateTelemetry(generateFabric(SMALL), { seed: 3, ticks: 48 }).series);

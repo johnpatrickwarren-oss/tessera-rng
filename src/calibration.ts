@@ -11,7 +11,7 @@
  * baselines; the engine's per-shard runtime is signal-agnostic, so standardized residuals
  * feed it unchanged.
  */
-import { sampleAutocovariance, prewhitenAr } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/ar-p';
+import { fitArP, prewhitenAr } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/ar-p';
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
@@ -20,6 +20,18 @@ export const TRAFFIC_CLASSES = ['interactive', 'bulk', 'storage'] as const;
 export type TrafficClass = (typeof TRAFFIC_CLASSES)[number];
 export const HOURS_PER_DAY = 24;
 export const DAYS_PER_WEEK = 7;
+
+/**
+ * Order cap for per-signal AR(p) calibration (ADR-0008). The temporal substrate is no longer a
+ * fixed AR(1): `fitArP` selects the order p ∈ [1, AR_PMAX] per signal by **BIC**, so a signal with
+ * AR(2)/AR(3) memory is whitened at its true order while a near-white signal selects a low order
+ * with φ̂ ≈ 0 (≈ no whitening; fitArP returns p ≥ 1, not 0). BIC (not AIC) because the estimate is
+ * pooled over a very long concatenated stream (N ≈ 10⁴–10⁵): AIC's fixed +2p penalty is not
+ * order-consistent at that N and over-selects spurious high orders (verified: AIC picked [4,1,1,1,3]
+ * on default AR(1) telemetry, the extra coefficients ≈ 0); BIC's log(N)·p penalty stays parsimonious
+ * (the engine's underfit caveat is for N ≈ 600, far below ours). Capped at 6 as a backstop.
+ */
+export const DEFAULT_AR_PMAX = 6;
 
 /**
  * Minimum calibration samples a cell needs before its OWN (mean, sd) is trusted (ADR-0006).
@@ -56,11 +68,20 @@ export interface CellStats {
   /** true iff (mean, sd) came from the pooled fallback because the cell was under-sampled (ADR-0006). */
   pooled?: boolean;
 }
+/** A per-signal AR(p) model: φ̂ coefficients (length = selected order p) + innovation sd (ADR-0008). */
+export interface ArModel {
+  /** AR coefficients φ̂₁..φ̂_p (empty ⇒ AR(0), white residual, no pre-whitening). */
+  phi: number[];
+  /** sd of the AR(p) innovation; pre-whitened residuals are divided by it to restore unit variance. */
+  innovationSd: number;
+}
+
 /**
- * The production-AR substrate (ADR-0004): per-cell level baselines (the diurnal/class smear) +
- * a per-signal AR(1) coefficient (the temporal autocorrelation). Standardization removes the
- * level with the cell baseline, then pre-whitens the temporal correlation with the AR model, so
- * detectors see near-iid residuals and FDR control holds under autocorrelated telemetry.
+ * The production-AR substrate (ADR-0004/0008): per-cell level baselines (the diurnal/class smear) +
+ * a per-signal AR(**p**) model (the temporal autocorrelation, order selected by AIC).
+ * Standardization removes the level with the cell baseline, then pre-whitens the temporal
+ * correlation with the AR(p) model, so detectors see near-iid residuals and FDR control holds under
+ * autocorrelated telemetry — now including higher-order (AR(2)/AR(3)/…) memory, not just AR(1).
  */
 export interface CalibrationSubstrate {
   cells: ReadonlyMap<string, CellStats>;
@@ -69,8 +90,8 @@ export interface CalibrationSubstrate {
    * under-sampled cells (n < minCellSamples) and for cells unseen at calibration time (ADR-0006).
    */
   pooled: CellStats;
-  /** per-signal AR(1) coefficient φ. */
-  arPhi: number[];
+  /** per-signal AR(p) model (ADR-0008). */
+  ar: ArModel[];
 }
 
 interface Acc {
@@ -151,50 +172,61 @@ function deMean(
   });
 }
 
-/** Pooled per-signal AR(1) φ̂ from the de-meaned calibration residuals (γ̂₁/γ̂₀ over all streams). */
-function estimatePhi(raw: ReadonlyMap<PathClassId, SignalVector[]>, cells: ReadonlyMap<string, CellStats>, pooled: CellStats): number[] {
+/**
+ * Per-signal AR(p) model from the de-meaned calibration residuals (ADR-0008). Each signal's
+ * residual columns are concatenated across all path-class streams into one long series and fitted
+ * with the engine's `fitArP` (BIC order selection). The concatenation pools the temporal estimate
+ * across path-classes (φ is a property of the signal type, like the AR(1) substrate before it); the
+ * few cross-stream boundaries contribute mean-zero noise that perturbs only the high-lag tail (the
+ * coefficients are recovered cleanly — verified — and BIC resists ordering up to chase that noise).
+ */
+function estimateAr(
+  raw: ReadonlyMap<PathClassId, SignalVector[]>,
+  cells: ReadonlyMap<string, CellStats>,
+  pooled: CellStats,
+  pMax: number,
+): ArModel[] {
   const p = SIGNALS.length;
-  const cov1 = new Array<number>(p).fill(0);
-  const cov0 = new Array<number>(p).fill(0);
+  const cols: number[][] = SIGNALS.map(() => []);
   for (const [pc, series] of raw) {
     const resid = deMean(series, pc, cells, pooled);
-    for (let j = 0; j < p; j++) {
-      const col = resid.map((row) => row[j]);
-      cov1[j] += sampleAutocovariance(col, 0, 1);
-      cov0[j] += sampleAutocovariance(col, 0, 0);
-    }
+    for (const row of resid) for (let j = 0; j < p; j++) cols[j].push(row[j]);
   }
-  return cov0.map((c0, j) => Math.max(-0.95, Math.min(0.95, c0 > 1e-12 ? cov1[j] / c0 : 0)));
+  return cols.map((col) => {
+    const fit = fitArP(col, 0, { p_max: pMax, ic: 'bic' });
+    return { phi: fit.phi, innovationSd: Math.sqrt(Math.max(fit.sigma2_innovation, 1e-9)) };
+  });
 }
 
 export interface CalibrationOptions {
   /** below this per-cell sample count, fall back to the pooled baseline (ADR-0006). */
   minCellSamples?: number;
+  /** AR(p) order cap for the temporal substrate (ADR-0008). */
+  arPMax?: number;
 }
 
 export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>, opts: CalibrationOptions = {}): CalibrationSubstrate {
   const minCellSamples = opts.minCellSamples ?? DEFAULT_MIN_CELL_SAMPLES;
+  const pMax = opts.arPMax ?? DEFAULT_AR_PMAX;
   const { cells, pooled } = buildCells(raw, minCellSamples);
-  return { cells, pooled, arPhi: estimatePhi(raw, cells, pooled) };
+  return { cells, pooled, ar: estimateAr(raw, cells, pooled, pMax) };
 }
 
-/** AR(1) pre-whiten each signal column, rescaling innovations back to unit variance. */
-function prewhitenColumns(resid: number[][], arPhi: number[]): number[][] {
-  const p = SIGNALS.length;
+/** AR(p) pre-whiten each signal column, rescaling innovations back to unit variance. */
+function prewhitenColumns(resid: number[][], ar: readonly ArModel[]): number[][] {
   const whitened: number[][] = resid.map((row) => [...row]);
-  for (let j = 0; j < p; j++) {
-    const phi = arPhi[j];
+  for (let j = 0; j < ar.length; j++) {
     const col = resid.map((row) => row[j]);
-    const innov = prewhitenAr(col, 0, [phi]);
-    const scale = Math.sqrt(Math.max(1 - phi * phi, 1e-9));
+    const innov = prewhitenAr(col, 0, ar[j].phi); // identity when phi is empty (AR(0))
+    const scale = ar[j].innovationSd;
     for (let t = 0; t < whitened.length; t++) whitened[t][j] = innov[t] / scale;
   }
   return whitened;
 }
 
-/** Standardize a raw stream: per-cell de-mean/sd, then per-signal AR(1) pre-whitening → residuals. */
+/** Standardize a raw stream: per-cell de-mean/sd, then per-signal AR(p) pre-whitening → residuals. */
 export function standardizeStream(series: readonly SignalVector[], pathClassId: PathClassId, sub: CalibrationSubstrate): number[][] {
-  return prewhitenColumns(deMean(series, pathClassId, sub.cells, sub.pooled), sub.arPhi);
+  return prewhitenColumns(deMean(series, pathClassId, sub.cells, sub.pooled), sub.ar);
 }
 
 export function standardizeAll(raw: ReadonlyMap<PathClassId, SignalVector[]>, sub: CalibrationSubstrate): Map<PathClassId, number[][]> {

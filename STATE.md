@@ -88,7 +88,8 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   (pooled γ̂₁/γ̂₀, reusing the engine's `sampleAutocovariance`) and pre-whitens residuals
   (engine `prewhitenAr` + unit-variance rescale) after per-cell de-meaning. Detectors see
   near-iid input → FDR control holds (clean fabric still selects 0) under autocorrelated
-  telemetry; tests verify φ recovery and lag-1 autocorrelation removal.
+  telemetry; tests verify φ recovery and lag-1 autocorrelation removal. (Generalized to
+  per-signal AR(p) with AIC order selection in ADR-0008.)
 - **Operator-supplied topology override** (ADR-0005): `validateFaultDomainSnapshot` (pure, in
   `src/`) validates a parsed incidence object (RNG taxonomy, `traverses` relationship,
   referential integrity); `tools/load-topology.ts` reads+parses the file (fs confined to
@@ -102,6 +103,16 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   breaking FDR at `n ≳ 30`); the default ~400-path-class fabric is untouched. Unblocks small
   operator topologies — clean fabrics from 9 path-classes up select nothing, while a real shift
   still fires on every affected path-class.
+- **Higher-order AR(p) calibration** (ADR-0008): the temporal substrate generalizes from a fixed
+  AR(1) to a per-signal AR(**p**), order-selected by BIC via the engine's `fitArP` (cap 6; BIC over
+  AIC because AIC over-selects spurious orders on the long pooled stream). Each
+  signal's de-meaned residual columns are concatenated across path-classes and fitted; pre-whitening
+  uses multi-lag `prewhitenAr` rescaled by the fitted innovation sd. Telemetry gains an optional
+  per-signal `arCoeffs` (AR(p) noise); the default stays byte-for-byte AR(1). On AR(2) telemetry the
+  substrate recovers φ̂≈[0.5,0.3] and whitens lag-1 AND lag-2 to ~0, where an AR(1)-cap leaves lag-2
+  ≈0.18; FDR holds. **Seasonal is deliberately not wired** — the per-cell HoD×DoW baseline already
+  removes diurnal/weekly seasonality at the level (recorded, not silently absorbed). New math, 92%
+  mutation.
 - **Family C learned cross-signal covariance** (ADR-0007): replaces the identity Σ with a
   covariance LEARNED from the clean calibration residuals via Ledoit-Wolf shrinkage (new module
   `src/covariance.ts`: cholesky / logDet / sampleCovariance / ledoitWolf — pure, no engine
@@ -117,8 +128,9 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
 
 - Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model
   target, and a scale-invariant τ²=c·trace(Σ)/p remain future refinements (ADR-0007).
-- Calibration models AR(1) only; higher-order AR(p)/seasonal structure (engine `fitArP`/
-  `seasonal`) is future work.
+- Calibration now models AR(**p**) (BIC order selection, cap 6); φ is per-signal-global not
+  per-cell, and seasonal decomposition is intentionally omitted (subsumed by the per-cell HoD×DoW
+  baseline) — see ADR-0008.
 - Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
   remains N2 anti-scope.
 - Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
@@ -130,8 +142,7 @@ Documented future-work queue (each = ADR + tests + green gate + commit):
 
 1. ✅ Min-sample pooled calibration fallback (ADR-0006) — done.
 2. ✅ Family C learned cross-signal covariance (ADR-0007) — done; 92% mutation on the new math.
-3. ⏳ Higher-order AR(p)/seasonal calibration — extend AR(1) via the engine's `fitArP`
-   (AIC/BIC order selection) and optionally `seasonal`. (ADR-0008)
+3. ✅ Higher-order AR(p) calibration (ADR-0008) — done; AIC order selection, seasonal subsumed; 92% mutation.
 4. ⏳ (Stretch) Family D (spectral) and/or E (conformal) detectors in `detect.ts`. (ADR-0009)
 
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring

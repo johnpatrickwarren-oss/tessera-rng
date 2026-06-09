@@ -126,3 +126,24 @@ test('degradedNoiseCorr changes only affected path-classes and preserves their m
     assert.ok(Math.abs(a.variance - b.variance) < 0.5, `signal ${sig} marginal variance must be ~unchanged (${a.variance} vs ${b.variance})`);
   }
 });
+
+test('default telemetry noise carries the AR(1) stationary unit-variance contract', () => {
+  // The v1 contract: stationary AR(1) noise with marginal variance ≈ 1 at every tick (the
+  // √(1−φ²) innovation scaling). Strip the diurnal/baseline by removing each (path-class, hour)
+  // mean, then pool the residual variance. A signal with φ=0.6 would sit at 1/(1−0.36)≈1.56 if
+  // the unit-variance scaling were dropped — so this binds the scaling, not just "some noise".
+  const snap = generateFabric(SMALL);
+  const tel = generateTelemetry(snap, { seed: 7, ticks: 240 });
+  const sig = signalIndex('loss_rate'); // φ = 0.6
+  let sq = 0, n = 0;
+  for (const series of tel.series.values()) {
+    const byHour = new Map<number, number[]>();
+    series.forEach((v, t) => { const h = t % 24; const a = byHour.get(h) ?? []; a.push(v[sig]); byHour.set(h, a); });
+    for (const vals of byHour.values()) {
+      const m = vals.reduce((s, x) => s + x, 0) / vals.length;
+      for (const x of vals) { sq += (x - m) ** 2; n++; }
+    }
+  }
+  const variance = sq / n;
+  assert.ok(variance > 0.75 && variance < 1.25, `AR(1) noise marginal variance ${variance} should be ≈ 1`);
+});
