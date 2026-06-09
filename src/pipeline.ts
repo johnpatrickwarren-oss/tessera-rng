@@ -7,6 +7,7 @@
  */
 import { generateFabric, DEFAULT_FABRIC } from './fabric';
 import type { FabricParams } from './fabric';
+import type { FaultDomainSnapshot } from './domain';
 import { StaticFaultDomainSource } from './fault-domain-source';
 import { generateTelemetry } from './telemetry';
 import type { DegradationSpec } from './telemetry';
@@ -20,6 +21,8 @@ import type { AuditRecord, DrainAction } from './verdict';
 
 export interface PipelineParams {
   fabric?: FabricParams;
+  /** operator-supplied incidence model; overrides the generated fabric when provided (ADR-0005). */
+  snapshot?: FaultDomainSnapshot;
   telemetry: { seed: number; ticks: number; degradation?: DegradationSpec };
   detect?: DetectParams;
   /** e-BH FDR target. */
@@ -29,7 +32,7 @@ export interface PipelineParams {
 }
 
 export async function runPipeline(params: PipelineParams): Promise<AuditRecord> {
-  const snapshot = generateFabric(params.fabric ?? DEFAULT_FABRIC);
+  const snapshot = params.snapshot ?? generateFabric(params.fabric ?? DEFAULT_FABRIC);
   const source = new StaticFaultDomainSource(snapshot);
   const snapshot_hash = source.snapshotHash(await source.fetchSnapshot());
 

@@ -89,6 +89,11 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   (engine `prewhitenAr` + unit-variance rescale) after per-cell de-meaning. Detectors see
   near-iid input → FDR control holds (clean fabric still selects 0) under autocorrelated
   telemetry; tests verify φ recovery and lag-1 autocorrelation removal.
+- **Operator-supplied topology override** (ADR-0005): `validateFaultDomainSnapshot` (pure, in
+  `src/`) validates a parsed incidence object (RNG taxonomy, `traverses` relationship,
+  referential integrity); `tools/load-topology.ts` reads+parses the file (fs confined to
+  `tools/`, N2 intact) and a CLI prints a summary+hash; `runPipeline` accepts an optional
+  `snapshot` that overrides the generated fabric. Closes the Q3 deferral.
 
 ## Honest current limitations (NOT hidden)
 
@@ -96,7 +101,10 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   cross-signal covariance structure is not yet learned.
 - Calibration models AR(1) only; higher-order AR(p)/seasonal structure (engine `fitArP`/
   `seasonal`) is future work.
-- No operator-supplied topology override yet — fabric is generated (post-v1 #3).
+- Per-cell calibration assumes adequately-sampled cells; very small operator topologies
+  (a handful of path-classes) under-sample cells — a min-sample pooled fallback is future work.
+- Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
+  remains N2 anti-scope.
 - Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
   contract against — recorded assumption, not a fidelity claim.
 

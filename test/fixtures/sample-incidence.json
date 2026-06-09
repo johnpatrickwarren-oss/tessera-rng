@@ -1,0 +1,23 @@
+{
+  "source_id": "operator-handauthored-example",
+  "source_version": "2026-06",
+  "path_classes": ["tor-a__tor-b", "tor-a__tor-c", "tor-b__tor-d", "tor-c__tor-d"],
+  "resources": [
+    { "id": "optic-ingress-1", "kind": "optic" },
+    { "id": "optic-egress-1", "kind": "optic" },
+    { "id": "shuffle-north", "kind": "passive_shuffler" },
+    { "id": "bundle-spine-7", "kind": "fiber_bundle" },
+    { "id": "pdu-zone-2", "kind": "power_zone" }
+  ],
+  "edges": [
+    { "path_class": "tor-a__tor-b", "resource": "optic-ingress-1", "relationship": "traverses" },
+    { "path_class": "tor-a__tor-b", "resource": "shuffle-north", "relationship": "traverses" },
+    { "path_class": "tor-a__tor-b", "resource": "pdu-zone-2", "relationship": "traverses" },
+    { "path_class": "tor-a__tor-c", "resource": "shuffle-north", "relationship": "traverses" },
+    { "path_class": "tor-a__tor-c", "resource": "bundle-spine-7", "relationship": "traverses" },
+    { "path_class": "tor-b__tor-d", "resource": "shuffle-north", "relationship": "traverses" },
+    { "path_class": "tor-b__tor-d", "resource": "optic-egress-1", "relationship": "traverses" },
+    { "path_class": "tor-c__tor-d", "resource": "bundle-spine-7", "relationship": "traverses" },
+    { "path_class": "tor-c__tor-d", "resource": "pdu-zone-2", "relationship": "traverses" }
+  ]
+}
