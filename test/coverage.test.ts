@@ -37,6 +37,10 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
     floor_rate: 0.9,
     cells: cells(),
     floors: [{ kind: 'optic', detection_floor: 1.0, attribution_floor: 2.0 }],
+    per_signal: [
+      { signal: 'loss_rate', mode: 'mean', delta: 3, n: 4, detection_rate: 1, attribution_rate: 1 },
+      { signal: 'loss_rate', mode: 'variance', delta: 4, n: 4, detection_rate: 0.75, attribution_rate: 0.75 },
+    ],
     clean: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
   };
   const md = renderMarkdown(rep);
@@ -44,7 +48,10 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /detection floor/);
   assert.match(md, /attribution floor/);
   assert.match(md, /FDR control/);
-  // the p99-only scope must be disclosed prominently, not hidden (instrumented-caveat).
+  // scope must be disclosed prominently, not hidden (instrumented-caveat).
   assert.match(md, /Perturbation model & scope/);
-  assert.match(md, /single-signal mean shift/);
+  assert.match(md, /p99_latency.* mean shift|p99 mean shift/);
+  // the per-signal section + variance row demonstrate the full contract is exercised.
+  assert.match(md, /Per-signal coverage/);
+  assert.match(md, /loss_rate \| variance/);
 });

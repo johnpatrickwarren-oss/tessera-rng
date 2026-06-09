@@ -52,6 +52,20 @@ test('neither family fires on a clean stream; NO α is spent (not just "fired=fa
   assert.ok(shifted.e_value > clean.e_value * 10, 'a real shift must dominate the null stream');
 });
 
+test('Family A now catches a mean shift on a NON-p99 signal (multi-signal, ADR-0003)', () => {
+  const r = makeRng(21);
+  const loss = signalIndex('loss_rate');
+  const ticks = 150;
+  const s: number[][] = [];
+  for (let t = 0; t < ticks; t++) {
+    const v = SIGNALS.map(() => r.gaussian());
+    v[loss] += 3; // mean shift on loss_rate only
+    s.push(v);
+  }
+  const v = detectPathClass('pc-loss', s, P);
+  assert.ok(family(v, 'A').fired, 'Family A must fire on a loss_rate mean shift, not only p99');
+});
+
 test('Family C (distributional) fires on a variance shift Family A can miss', () => {
   // Inflate variance on a non-p99 signal: A (watching p99 mean) stays quiet, C should fire.
   const r = makeRng(5);

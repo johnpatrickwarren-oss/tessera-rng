@@ -14,7 +14,7 @@ import {
   updateBettingState,
 } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/betting-e-process';
 import { runFamilyC } from './family-c';
-import { signalIndex } from './signals';
+import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
 import type { PathClassVerdict, DetectorResult } from './verdict';
@@ -28,19 +28,26 @@ export interface DetectParams {
 
 export const DEFAULT_DETECT: DetectParams = { alphaA: 0.01, alphaC: 0.01 };
 
-/** Family A over one path-class's standardized p99_latency residual stream. */
+/**
+ * Family A (mean-shift) over ALL signals (ADR-0003): one betting e-process per signal, family
+ * e-value = mean of per-signal e-values. Averaging e-values preserves the e-value property under
+ * arbitrary dependence, so the family fires validly at M ≥ 1/α_A and a mean shift on ANY signal
+ * is caught — at the honest cost of an ≈p× higher single-signal detection floor.
+ */
 function runFamilyA(series: readonly SignalVector[], alphaA: number): DetectorResult {
-  const p99 = signalIndex('p99_latency');
-  const state = freshBettingState();
-  let M = 1;
+  const p = SIGNALS.length;
+  const states = SIGNALS.map(() => freshBettingState());
+  const M = new Array<number>(p).fill(1);
   for (const vec of series) {
-    M = updateBettingState(state, vec[p99], /*baselineMean*/ 0, /*sigma^2*/ 1, alphaA);
+    for (let i = 0; i < p; i++) {
+      M[i] = updateBettingState(states[i], vec[i], /*baselineMean*/ 0, /*sigma^2*/ 1, alphaA);
+    }
   }
-  // NB: the engine's betting state.alphaConsumed is a CUMULATIVE per-tick allocation (it grows
-  // every tick regardless of firing), not the α we "spend" by rejecting. For an honest, e-value
-  // accounting that matches Family C's spent-on-fire convention, we book α as spent iff fired.
-  const fired = M >= 1 / alphaA;
-  return { family: 'A', e_value: M, fired, alpha_allocated: alphaA, alpha_spent: fired ? alphaA : 0 };
+  const familyE = M.reduce((s, x) => s + x, 0) / p;
+  // α is booked as spent iff the family rejects (spent-on-fire), matching Family C; the engine's
+  // betting state.alphaConsumed is a cumulative per-tick allocation and is deliberately not used.
+  const fired = familyE >= 1 / alphaA;
+  return { family: 'A', e_value: familyE, fired, alpha_allocated: alphaA, alpha_spent: fired ? alphaA : 0 };
 }
 
 export function detectPathClass(

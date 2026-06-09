@@ -76,14 +76,21 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   detection+attribution parallel columns, floor table, and clean-fabric FDR-control evidence
   (AC-10).
 
+## Post-v1 progress (branch `post-v1`)
+
+- **Multi-signal Family A** (ADR-0003): Family A runs a betting e-process per signal, family
+  e-value = mean of per-signal e-values (AoE, valid under dependence). Degradations can target
+  any signal in `'mean'` or `'variance'` mode. Coverage now has a per-signal section showing
+  detection+attribution across all five signals (100%) plus a variance row caught by Family C
+  — the full signal contract is exercised end-to-end, not just disclosed.
+
 ## Honest current limitations (NOT hidden)
 
-- Family A monitors `p99_latency`; the other four signals feed Family C (distributional) but
-  not a per-signal Family A. Multi-signal Family A is a thickening target.
 - Family C uses an identity baseline covariance (residuals are per-cell standardized);
   cross-signal covariance structure is not yet learned.
 - Calibration estimates per-cell (mean, sd); the full production-AR temporal model (AR(1)
-  pre-whitening, seasonal) from the engine substrate is not yet wired.
+  pre-whitening, seasonal) from the engine substrate is not yet wired (post-v1 #2).
+- No operator-supplied topology override yet — fabric is generated (post-v1 #3).
 - Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
   contract against — recorded assumption, not a fidelity claim.
 

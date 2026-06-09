@@ -9,16 +9,20 @@
  */
 import { makeRng } from './rng';
 import { SIGNALS, signalIndex } from './signals';
-import type { SignalVector } from './signals';
+import type { SignalVector, SignalName } from './signals';
 import { trafficClassOf, HOURS_PER_DAY } from './calibration';
 import type { TrafficClass } from './calibration';
 import type { FaultDomainSnapshot, PathClassId, ResourceId } from './domain';
 
 export interface DegradationSpec {
   resource_id: ResourceId;
-  /** raw mean shift applied to p99_latency after start_tick. */
+  /** magnitude: a mean shift (mode 'mean') or a noise std multiplier (mode 'variance'). */
   delta: number;
   start_tick: number;
+  /** which signal degrades (default p99_latency). */
+  signal?: SignalName;
+  /** 'mean' shifts the signal's level (Family A); 'variance' inflates its noise (Family C). */
+  mode?: 'mean' | 'variance';
 }
 
 export interface TelemetryParams {
@@ -50,8 +54,10 @@ function affectedPathClasses(snapshot: FaultDomainSnapshot, resourceId: Resource
 
 export function generateTelemetry(snapshot: FaultDomainSnapshot, params: TelemetryParams): Telemetry {
   const rng = makeRng(params.seed);
-  const p99 = signalIndex('p99_latency');
-  const affected = params.degradation ? affectedPathClasses(snapshot, params.degradation.resource_id) : new Set<PathClassId>();
+  const deg = params.degradation;
+  const sigIdx = signalIndex(deg?.signal ?? 'p99_latency');
+  const mode = deg?.mode ?? 'mean';
+  const affected = deg ? affectedPathClasses(snapshot, deg.resource_id) : new Set<PathClassId>();
   const series = new Map<PathClassId, SignalVector[]>();
 
   const order = [...snapshot.path_classes].sort();
@@ -62,8 +68,13 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
     for (let t = 0; t < params.ticks; t++) {
       const hour = t % HOURS_PER_DAY;
       const vec = SIGNALS.map((_, i) => rawBaseline(i, hour, tc) + rng.gaussian());
-      if (isAffected && params.degradation && t >= params.degradation.start_tick) {
-        vec[p99] += params.degradation.delta;
+      if (isAffected && deg && t >= deg.start_tick) {
+        if (mode === 'variance') {
+          const base = rawBaseline(sigIdx, hour, tc);
+          vec[sigIdx] = base + (vec[sigIdx] - base) * deg.delta; // inflate noise around the baseline
+        } else {
+          vec[sigIdx] += deg.delta; // mean shift
+        }
       }
       matrix.push(vec);
     }
