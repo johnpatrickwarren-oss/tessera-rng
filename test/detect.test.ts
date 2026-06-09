@@ -19,7 +19,7 @@ function series(seed: number, ticks: number, delta: number): number[][] {
 
 const P = { alphaA: 0.01, alphaC: 0.01 };
 
-function family(v: ReturnType<typeof detectPathClass>, f: 'A' | 'C') {
+function family(v: ReturnType<typeof detectPathClass>, f: 'A' | 'C' | 'D') {
   return v.detectors.find((d) => d.family === f)!;
 }
 
@@ -37,6 +37,21 @@ test('both Family A and Family C fire on a sustained shift; each α-budget is re
   assert.equal(c.alpha_spent, 0.01);
   assert.ok(v.fired);
   assert.equal(v.alpha_spent, a.alpha_spent + c.alpha_spent);
+});
+
+test('a Family D context adds a third detector and averages its e-value into the verdict (ADR-0009)', () => {
+  // a neutral (disabled) Family D context: D contributes a no-op e-value of 1 but IS recorded.
+  const disabledD = SIGNALS.map(() => null);
+  const shifted = detectPathClass('pc-s', series(11, 120, 2.5), P, { familyDCells: disabledD });
+  assert.equal(shifted.detectors.length, 3, 'A + C + D recorded when a D context is supplied');
+  const d = family(shifted, 'D');
+  assert.equal(d.e_value, 1);
+  assert.equal(d.fired, false);
+  // combined e-value is the mean over all three present detectors.
+  const mean = shifted.detectors.reduce((s, dt) => s + dt.e_value, 0) / 3;
+  assert.ok(Math.abs(shifted.e_value - mean) < 1e-9, 'verdict e-value averages all present detectors');
+  // without a D context the verdict is A+C only (backward-compatible).
+  assert.equal(detectPathClass('pc-s', series(11, 120, 2.5), P).detectors.length, 2);
 });
 
 test('neither family fires on a clean stream; NO α is spent (not just "fired=false")', () => {

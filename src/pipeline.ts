@@ -15,6 +15,7 @@ import { buildCalibration, standardizeAll } from './calibration';
 import { detectAll, DEFAULT_DETECT } from './detect';
 import type { DetectParams } from './detect';
 import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './family-c';
+import { estimateFamilyDNull } from './family-d';
 import { buildSurface } from './surface';
 import { localize } from './tomography';
 import { simulateDrain } from './drain';
@@ -48,10 +49,13 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const calibResiduals = standardizeAll(calibRaw.series, calibration);
   const sigma = estimateBaselineCovariance(calibResiduals).sigma;
   const familyCCell = makeFamilyCCellFromCovariance(sigma, detect.alphaC);
+  // Family D (spectral) nulls from the clean residuals (ADR-0009): the peak-|ACF| baseline each
+  // signal's live oscillation must exceed to fire. Silent for signals with too short a window.
+  const familyDCells = estimateFamilyDNull(calibResiduals);
 
   const liveRaw = generateTelemetry(snapshot, params.telemetry);
   const residuals = standardizeAll(liveRaw.series, calibration);
-  const verdicts = detectAll(residuals, detect, familyCCell);
+  const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells });
   const surface = buildSurface(verdicts, params.q);
 
   const loc = localize(snapshot, surface.selected_path_class_ids);

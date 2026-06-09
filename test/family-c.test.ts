@@ -103,8 +103,8 @@ test('learned Σ catches a pure covariance-flip that identity Σ is blind to (AD
   // live: affected path-classes flip their correlation — NO marginal mean/variance change.
   const live = generateTelemetry(snap, { seed: 7, ticks: 96, noiseCorr: R, degradation: { resource_id: target, delta: 0, start_tick: 0, degradedNoiseCorr: Rflip } });
   const resid = standardizeAll(live.series, calib);
-  const selLearned = new Set(buildSurface(detectAll(resid, DEFAULT_DETECT, learned), 0.1).selected_path_class_ids);
-  const selIdentity = new Set(buildSurface(detectAll(resid, DEFAULT_DETECT, identity), 0.1).selected_path_class_ids);
+  const selLearned = new Set(buildSurface(detectAll(resid, DEFAULT_DETECT, { familyCCell: learned }), 0.1).selected_path_class_ids);
+  const selIdentity = new Set(buildSurface(detectAll(resid, DEFAULT_DETECT, { familyCCell: identity }), 0.1).selected_path_class_ids);
 
   // learned Σ flags every affected path-class; identity Σ (and Family A) see nothing.
   for (const pc of affected) assert.ok(selLearned.has(pc), `learned Σ must catch the covariance shift on ${pc}`);
@@ -113,5 +113,5 @@ test('learned Σ catches a pure covariance-flip that identity Σ is blind to (AD
 
   // FDR: the same learned Σ on a CLEAN correlated window selects nothing (no inflated null).
   const clean = standardizeAll(generateTelemetry(snap, { seed: 7, ticks: 96, noiseCorr: R }).series, calib);
-  assert.equal(buildSurface(detectAll(clean, DEFAULT_DETECT, learned), 0.1).selected_path_class_ids.length, 0);
+  assert.equal(buildSurface(detectAll(clean, DEFAULT_DETECT, { familyCCell: learned }), 0.1).selected_path_class_ids.length, 0);
 });

@@ -9,9 +9,9 @@
  */
 import type { PathClassId, ResourceId, ResourceKind } from './domain';
 
-/** One family's anytime-valid result for a path-class, with its α-budget (v1 spec AC-2a/2b). */
+/** One family's anytime-valid result for a path-class, with its α-budget (v1 spec AC-2a/2b; +D ADR-0009). */
 export interface DetectorResult {
-  family: 'A' | 'C';
+  family: 'A' | 'C' | 'D';
   e_value: number;
   fired: boolean;
   /** α allocated to this detector. */

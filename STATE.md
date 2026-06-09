@@ -67,8 +67,10 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   shape; hash via engine `pureJsSha256`).
 - `telemetry` raw per-cell-smear signals + degradation injection · `calibration` per-cell
   (HoD × DoW × traffic-class) baselines → residuals (AC-7).
-- `detect` Family A (mean-shift) **and** Family C (Safe-Hotelling distributional), per-detector
-  α-budget (AC-2a/2b) · `surface` hierarchical combine + e-BH FDR (AC-3) · `tomography`
+- `detect` Family A (mean-shift), Family C (Safe-Hotelling distributional) **and** Family D
+  (spectral/periodicity, ADR-0009, opt-in via DetectorContext), per-detector α-budget (AC-2a/2b) ·
+  `family-d` spectral e-detector · `covariance` cholesky/logDet/Ledoit-Wolf (ADR-0007) ·
+  `surface` hierarchical combine + e-BH FDR (AC-3) · `tomography`
   noisy-OR set-cover MAP (AC-5, **100% mutation score**) · `drain` simulated (AC-6) ·
   `pipeline` → replay-clean `AuditRecord` (AC-9).
 - `tools/scenarios` six deterministic scenarios · `tools/build-demo` → `demos/demo.html`
@@ -103,6 +105,20 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   breaking FDR at `n ≳ 30`); the default ~400-path-class fabric is untouched. Unblocks small
   operator topologies — clean fabrics from 9 path-classes up select nothing, while a real shift
   still fires on every affected path-class.
+- **Family D (spectral) detector** (ADR-0009): a THIRD anytime-valid family beyond A (mean) and C
+  (covariance), catching temporal PERIODICITY — a signal that develops an oscillation with no change
+  in marginal mean or variance. `src/family-d.ts` runs the engine's mixture-prior spectral
+  e-detector over the peak |ACF| of NON-overlapping windows (overlapping breaks e-validity) of each
+  pre-whitened residual; per-signal wealths averaged into the family e-value. Nulls (μ₀,σ₀)
+  calibrated from clean residuals; `detectAll` takes a `DetectorContext {familyCCell?, familyDCells?}`
+  so Family D runs only when calibrated (A+C-only callers unchanged; combined e-value = mean over
+  present detectors). Telemetry gains a variance-preserving `oscillationPeriod/Amp` degradation. On a
+  clean fabric a period-7 oscillation is caught on every affected path-class while A+C select zero;
+  the clean A+C+D stack is FDR-controlled (not literally zero on every seed — e-BH bounds the rate).
+  Power needs ~15 windows (~600 ticks); near-inert at short scenarios (0 false selections over 40
+  clean 60-tick seeds). Degenerate-σ₀ nulls are disabled and wealth is capped finite (a cold-eye
+  review closed an overflow→NaN path). New math; lone surviving mutant = the benign fire boundary.
+  Family E (conformal) intentionally not added (Mahalanobis-based, overlaps C).
 - **Higher-order AR(p) calibration** (ADR-0008): the temporal substrate generalizes from a fixed
   AR(1) to a per-signal AR(**p**), order-selected by BIC via the engine's `fitArP` (cap 6; BIC over
   AIC because AIC over-selects spurious orders on the long pooled stream). Each
@@ -142,8 +158,12 @@ Documented future-work queue (each = ADR + tests + green gate + commit):
 
 1. ✅ Min-sample pooled calibration fallback (ADR-0006) — done.
 2. ✅ Family C learned cross-signal covariance (ADR-0007) — done; 92% mutation on the new math.
-3. ✅ Higher-order AR(p) calibration (ADR-0008) — done; AIC order selection, seasonal subsumed; 92% mutation.
-4. ⏳ (Stretch) Family D (spectral) and/or E (conformal) detectors in `detect.ts`. (ADR-0009)
+3. ✅ Higher-order AR(p) calibration (ADR-0008) — done; BIC order selection, seasonal subsumed; 92% mutation.
+4. ✅ Family D (spectral) detector (ADR-0009) — done; catches periodicity A+C miss; 75% mutation. (Family E not added — overlaps C.)
+
+All four documented future-work items are complete. Possible further work (none started): per-cell
+Family C Σ, per-cell AR(p), Family E if a non-Gaussian-tail mode is needed, Family D in the coverage
+matrix, real-fabric validation.
 
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
 (N4), the arXiv:2604.15261 signal-contract fidelity question, repo visibility (private→public).

@@ -37,6 +37,16 @@ export interface DegradationSpec {
    * to an identity-Σ test; only a learned-covariance Family C sees it. Must be positive-definite.
    */
   degradedNoiseCorr?: number[][];
+  /**
+   * A periodic oscillation injected into the degraded `signal` of affected path-classes from
+   * `start_tick` (ADR-0009): `oscillationAmp·sin(2π·t/oscillationPeriod)` replaces an equal slice of
+   * the white noise variance, so the marginal mean AND variance are unchanged — a pure SPECTRAL
+   * shift. Invisible to Family A (zero-mean) and Family C (unchanged magnitude); only Family D's
+   * windowed-ACF detector sees the temporal periodicity. Avoid period 24 (the per-cell hour-of-day
+   * baseline fully absorbs it) and 12 (partially absorbed); other periods in the lag band are fine.
+   */
+  oscillationPeriod?: number;
+  oscillationAmp?: number;
 }
 
 export interface TelemetryParams {
@@ -127,13 +137,21 @@ function correlate(z: number[], L: number[][] | null): number[] {
   });
 }
 
-/** Apply a degradation's mean/variance/covariance effect to one already-noised tick vector. */
+/** Apply a degradation's mean/variance/covariance/spectral effect to one already-noised tick vector. */
 function degradeVector(
   vec: number[],
   deg: DegradationSpec,
-  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass },
+  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number },
 ): void {
   if (deg.degradedNoiseCorr) return; // a pure 2nd-order shift — already applied via the innovation L
+  if (deg.oscillationPeriod) {
+    // swap a slice of the white noise for a coherent oscillation — mean and variance unchanged.
+    const base = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc);
+    const amp = deg.oscillationAmp ?? 0;
+    const osc = amp * Math.sin((2 * Math.PI * ctx.t) / deg.oscillationPeriod);
+    vec[ctx.sigIdx] = base + osc + Math.sqrt(Math.max(1 - (amp * amp) / 2, 0)) * (vec[ctx.sigIdx] - base);
+    return;
+  }
   if (deg.shiftVector) {
     for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i]; // joint multivariate mean shift
   } else if (ctx.mode === 'variance') {
@@ -181,7 +199,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
         if (hist[i].length > arc[i].length) hist[i].shift(); // keep only the lags the order needs
         vec[i] = rawBaseline(i, hour, tc) + noise;
       }
-      if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc });
+      if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc, t });
       matrix.push(vec);
     }
     series.set(pc, matrix);
