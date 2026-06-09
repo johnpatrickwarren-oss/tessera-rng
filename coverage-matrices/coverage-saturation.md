@@ -16,20 +16,20 @@ A). Cross-signal covariance shifts remain future work — stated here, not in a 
 
 | resource kind | Δ (mean shift) | detection | attribution |
 |---|---|---|---|
-| optic | 0.5 | 50% (2/4) | 0% (0/4) |
-| optic | 1 | 100% (4/4) | 100% (4/4) |
+| optic | 0.5 | 0% (0/4) | 0% (0/4) |
+| optic | 1 | 75% (3/4) | 25% (1/4) |
 | optic | 2 | 100% (4/4) | 100% (4/4) |
 | optic | 3 | 100% (4/4) | 100% (4/4) |
-| passive_shuffler | 0.5 | 50% (2/4) | 0% (0/4) |
-| passive_shuffler | 1 | 100% (4/4) | 100% (4/4) |
+| passive_shuffler | 0.5 | 0% (0/4) | 0% (0/4) |
+| passive_shuffler | 1 | 100% (4/4) | 25% (1/4) |
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
-| fiber_bundle | 0.5 | 50% (2/4) | 0% (0/4) |
-| fiber_bundle | 1 | 100% (4/4) | 100% (4/4) |
+| fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
+| fiber_bundle | 1 | 100% (4/4) | 25% (1/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
-| power_zone | 0.5 | 100% (4/4) | 0% (0/4) |
-| power_zone | 1 | 100% (4/4) | 100% (4/4) |
+| power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
+| power_zone | 1 | 100% (4/4) | 75% (3/4) |
 | power_zone | 2 | 100% (4/4) | 100% (4/4) |
 | power_zone | 3 | 100% (4/4) | 100% (4/4) |
 
@@ -37,10 +37,10 @@ A). Cross-signal covariance shifts remain future work — stated here, not in a 
 
 | resource kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
-| optic | 1 | 1 |
-| passive_shuffler | 1 | 1 |
-| fiber_bundle | 1 | 1 |
-| power_zone | 0.5 | 1 |
+| optic | 2 | 2 |
+| passive_shuffler | 1 | 2 |
+| fiber_bundle | 1 | 2 |
+| power_zone | 1 | 2 |
 
 ## Per-signal coverage (kind=passive_shuffler, mean Δ=3 unless noted)
 

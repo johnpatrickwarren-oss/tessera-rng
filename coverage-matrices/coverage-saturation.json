@@ -14,19 +14,19 @@
       "kind": "optic",
       "delta": 0.5,
       "n": 4,
-      "detected": 2,
+      "detected": 0,
       "attributed": 0,
-      "detection_rate": 0.5,
+      "detection_rate": 0,
       "attribution_rate": 0
     },
     {
       "kind": "optic",
       "delta": 1,
       "n": 4,
-      "detected": 4,
-      "attributed": 4,
-      "detection_rate": 1,
-      "attribution_rate": 1
+      "detected": 3,
+      "attributed": 1,
+      "detection_rate": 0.75,
+      "attribution_rate": 0.25
     },
     {
       "kind": "optic",
@@ -50,9 +50,9 @@
       "kind": "passive_shuffler",
       "delta": 0.5,
       "n": 4,
-      "detected": 2,
+      "detected": 0,
       "attributed": 0,
-      "detection_rate": 0.5,
+      "detection_rate": 0,
       "attribution_rate": 0
     },
     {
@@ -60,9 +60,9 @@
       "delta": 1,
       "n": 4,
       "detected": 4,
-      "attributed": 4,
+      "attributed": 1,
       "detection_rate": 1,
-      "attribution_rate": 1
+      "attribution_rate": 0.25
     },
     {
       "kind": "passive_shuffler",
@@ -86,9 +86,9 @@
       "kind": "fiber_bundle",
       "delta": 0.5,
       "n": 4,
-      "detected": 2,
+      "detected": 0,
       "attributed": 0,
-      "detection_rate": 0.5,
+      "detection_rate": 0,
       "attribution_rate": 0
     },
     {
@@ -96,9 +96,9 @@
       "delta": 1,
       "n": 4,
       "detected": 4,
-      "attributed": 4,
+      "attributed": 1,
       "detection_rate": 1,
-      "attribution_rate": 1
+      "attribution_rate": 0.25
     },
     {
       "kind": "fiber_bundle",
@@ -122,9 +122,9 @@
       "kind": "power_zone",
       "delta": 0.5,
       "n": 4,
-      "detected": 4,
+      "detected": 0,
       "attributed": 0,
-      "detection_rate": 1,
+      "detection_rate": 0,
       "attribution_rate": 0
     },
     {
@@ -132,9 +132,9 @@
       "delta": 1,
       "n": 4,
       "detected": 4,
-      "attributed": 4,
+      "attributed": 3,
       "detection_rate": 1,
-      "attribution_rate": 1
+      "attribution_rate": 0.75
     },
     {
       "kind": "power_zone",
@@ -158,23 +158,23 @@
   "floors": [
     {
       "kind": "optic",
-      "detection_floor": 1,
-      "attribution_floor": 1
+      "detection_floor": 2,
+      "attribution_floor": 2
     },
     {
       "kind": "passive_shuffler",
       "detection_floor": 1,
-      "attribution_floor": 1
+      "attribution_floor": 2
     },
     {
       "kind": "fiber_bundle",
       "detection_floor": 1,
-      "attribution_floor": 1
+      "attribution_floor": 2
     },
     {
       "kind": "power_zone",
-      "detection_floor": 0.5,
-      "attribution_floor": 1
+      "detection_floor": 1,
+      "attribution_floor": 2
     }
   ],
   "per_signal": [

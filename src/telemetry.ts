@@ -40,6 +40,13 @@ export interface Telemetry {
 /** Per-signal baseline "normal" for a cell — the smear calibration must learn. */
 const SIGNAL_BASE = [10, 0.5, 0.1, 0.2, 0.99]; // p99_latency, retransmit, loss, ecmp_imbalance, completion
 
+/**
+ * Per-signal AR(1) coefficient of the synthetic noise (real network signals are temporally
+ * autocorrelated). The production-AR substrate calibrator estimates and removes this (ADR-0004);
+ * left in, it would inflate false positives by breaking the detectors' near-iid assumption.
+ */
+export const AR1_PHI = [0.5, 0.4, 0.6, 0.3, 0.45];
+
 function rawBaseline(signalIdx: number, hour: number, tc: TrafficClass): number {
   const diurnal = 0.5 * Math.sin((2 * Math.PI * hour) / HOURS_PER_DAY);
   const classOffset = 0.3 * (['interactive', 'bulk', 'storage'].indexOf(tc));
@@ -60,14 +67,23 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   const affected = deg ? affectedPathClasses(snapshot, deg.resource_id) : new Set<PathClassId>();
   const series = new Map<PathClassId, SignalVector[]>();
 
+  const p = SIGNALS.length;
   const order = [...snapshot.path_classes].sort();
   for (const pc of order) {
     const tc = trafficClassOf(pc);
     const isAffected = affected.has(pc);
     const matrix: number[][] = [];
+    const prevNoise = new Array<number>(p).fill(0);
     for (let t = 0; t < params.ticks; t++) {
       const hour = t % HOURS_PER_DAY;
-      const vec = SIGNALS.map((_, i) => rawBaseline(i, hour, tc) + rng.gaussian());
+      const vec = SIGNALS.map((_, i) => {
+        const z = rng.gaussian();
+        // stationary AR(1) noise: var 1 at every tick; t=0 is a stationary draw.
+        const phi = AR1_PHI[i];
+        const noise = t === 0 ? z : phi * prevNoise[i] + Math.sqrt(1 - phi * phi) * z;
+        prevNoise[i] = noise;
+        return rawBaseline(i, hour, tc) + noise;
+      });
       if (isAffected && deg && t >= deg.start_tick) {
         if (mode === 'variance') {
           const base = rawBaseline(sigIdx, hour, tc);

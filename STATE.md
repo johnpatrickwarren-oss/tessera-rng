@@ -83,13 +83,19 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   any signal in `'mean'` or `'variance'` mode. Coverage now has a per-signal section showing
   detection+attribution across all five signals (100%) plus a variance row caught by Family C
   — the full signal contract is exercised end-to-end, not just disclosed.
+- **Production-AR substrate calibration** (ADR-0004): telemetry now emits AR(1)-autocorrelated
+  noise (real signals are temporally correlated); calibration estimates a per-signal AR(1) φ
+  (pooled γ̂₁/γ̂₀, reusing the engine's `sampleAutocovariance`) and pre-whitens residuals
+  (engine `prewhitenAr` + unit-variance rescale) after per-cell de-meaning. Detectors see
+  near-iid input → FDR control holds (clean fabric still selects 0) under autocorrelated
+  telemetry; tests verify φ recovery and lag-1 autocorrelation removal.
 
 ## Honest current limitations (NOT hidden)
 
 - Family C uses an identity baseline covariance (residuals are per-cell standardized);
   cross-signal covariance structure is not yet learned.
-- Calibration estimates per-cell (mean, sd); the full production-AR temporal model (AR(1)
-  pre-whitening, seasonal) from the engine substrate is not yet wired (post-v1 #2).
+- Calibration models AR(1) only; higher-order AR(p)/seasonal structure (engine `fitArP`/
+  `seasonal`) is future work.
 - No operator-supplied topology override yet — fabric is generated (post-v1 #3).
 - Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
   contract against — recorded assumption, not a fidelity claim.

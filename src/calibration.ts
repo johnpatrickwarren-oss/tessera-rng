@@ -11,6 +11,7 @@
  * baselines; the engine's per-shard runtime is signal-agnostic, so standardized residuals
  * feed it unchanged.
  */
+import { sampleAutocovariance, prewhitenAr } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/ar-p';
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
@@ -39,7 +40,17 @@ export interface CellStats {
   mean: number[];
   sd: number[];
 }
-export type CalibrationSubstrate = ReadonlyMap<string, CellStats>;
+/**
+ * The production-AR substrate (ADR-0004): per-cell level baselines (the diurnal/class smear) +
+ * a per-signal AR(1) coefficient (the temporal autocorrelation). Standardization removes the
+ * level with the cell baseline, then pre-whitens the temporal correlation with the AR model, so
+ * detectors see near-iid residuals and FDR control holds under autocorrelated telemetry.
+ */
+export interface CalibrationSubstrate {
+  cells: ReadonlyMap<string, CellStats>;
+  /** per-signal AR(1) coefficient φ. */
+  arPhi: number[];
+}
 
 interface Acc {
   n: number;
@@ -47,8 +58,7 @@ interface Acc {
   sumsq: number[];
 }
 
-/** Build per-cell per-signal (mean, sd) from a clean calibration window. */
-export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>): CalibrationSubstrate {
+function buildCells(raw: ReadonlyMap<PathClassId, SignalVector[]>): Map<string, CellStats> {
   const p = SIGNALS.length;
   const acc = new Map<string, Acc>();
   for (const [pc, series] of raw) {
@@ -68,27 +78,66 @@ export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>):
       }
     }
   }
-  const sub = new Map<string, CellStats>();
+  const cells = new Map<string, CellStats>();
   for (const [key, a] of acc) {
     const mean = a.sum.map((s) => s / a.n);
     const sd = a.sum.map((_, i) => Math.sqrt(Math.max(a.sumsq[i] / a.n - mean[i] * mean[i], 1e-9)));
-    sub.set(key, { n: a.n, mean, sd });
+    cells.set(key, { n: a.n, mean, sd });
   }
-  return sub;
+  return cells;
 }
 
-/** Standardize one path-class's raw stream against its per-cell baseline → residuals. */
-export function standardizeStream(series: readonly SignalVector[], pathClassId: PathClassId, sub: CalibrationSubstrate): number[][] {
+/** Per-cell de-mean/standardize only (no pre-whitening). */
+function deMean(series: readonly SignalVector[], pathClassId: PathClassId, cells: ReadonlyMap<string, CellStats>): number[][] {
   const tc = trafficClassOf(pathClassId);
   return series.map((v, t) => {
-    const cell = sub.get(cellKey(t, tc));
-    // Unseen cell: pass the raw vector through unchanged. v1 calibration windows span the same
-    // tick range as the live window, so every live cell is calibrated and this branch is not
-    // exercised; it is a defensive fallthrough, NOT a surfaced calibration-gap signal (emitting
-    // a gap report is future work — see STATE.md limitations).
+    const cell = cells.get(cellKey(t, tc));
+    // Unseen cell: pass through unchanged. v1 calibration windows span the same tick range as the
+    // live window, so every live cell is calibrated and this branch is not exercised; it is a
+    // defensive fallthrough, NOT a surfaced calibration-gap signal (gap reporting is future work).
     if (!cell) return [...v];
     return v.map((x, i) => (x - cell.mean[i]) / cell.sd[i]);
   });
+}
+
+/** Pooled per-signal AR(1) φ̂ from the de-meaned calibration residuals (γ̂₁/γ̂₀ over all streams). */
+function estimatePhi(raw: ReadonlyMap<PathClassId, SignalVector[]>, cells: ReadonlyMap<string, CellStats>): number[] {
+  const p = SIGNALS.length;
+  const cov1 = new Array<number>(p).fill(0);
+  const cov0 = new Array<number>(p).fill(0);
+  for (const [pc, series] of raw) {
+    const resid = deMean(series, pc, cells);
+    for (let j = 0; j < p; j++) {
+      const col = resid.map((row) => row[j]);
+      cov1[j] += sampleAutocovariance(col, 0, 1);
+      cov0[j] += sampleAutocovariance(col, 0, 0);
+    }
+  }
+  return cov0.map((c0, j) => Math.max(-0.95, Math.min(0.95, c0 > 1e-12 ? cov1[j] / c0 : 0)));
+}
+
+export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>): CalibrationSubstrate {
+  const cells = buildCells(raw);
+  return { cells, arPhi: estimatePhi(raw, cells) };
+}
+
+/** AR(1) pre-whiten each signal column, rescaling innovations back to unit variance. */
+function prewhitenColumns(resid: number[][], arPhi: number[]): number[][] {
+  const p = SIGNALS.length;
+  const whitened: number[][] = resid.map((row) => [...row]);
+  for (let j = 0; j < p; j++) {
+    const phi = arPhi[j];
+    const col = resid.map((row) => row[j]);
+    const innov = prewhitenAr(col, 0, [phi]);
+    const scale = Math.sqrt(Math.max(1 - phi * phi, 1e-9));
+    for (let t = 0; t < whitened.length; t++) whitened[t][j] = innov[t] / scale;
+  }
+  return whitened;
+}
+
+/** Standardize a raw stream: per-cell de-mean/sd, then per-signal AR(1) pre-whitening → residuals. */
+export function standardizeStream(series: readonly SignalVector[], pathClassId: PathClassId, sub: CalibrationSubstrate): number[][] {
+  return prewhitenColumns(deMean(series, pathClassId, sub.cells), sub.arPhi);
 }
 
 export function standardizeAll(raw: ReadonlyMap<PathClassId, SignalVector[]>, sub: CalibrationSubstrate): Map<PathClassId, number[][]> {
