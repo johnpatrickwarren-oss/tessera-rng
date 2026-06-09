@@ -1,0 +1,8 @@
+{
+  "no-god-files": 0,
+  "no-complex-functions": 0,
+  "no-god-functions": 0,
+  "no-god-module": 0,
+  "require-tests": 0,
+  "no-time-bomb-tests": 0
+}

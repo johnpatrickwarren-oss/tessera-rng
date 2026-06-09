@@ -1,0 +1,34 @@
+{
+  "name": "@johnpatrickwarren-oss/tessera-rng",
+  "version": "0.1.0-pre",
+  "description": "Operational observability for flat random-graph (RNG-family) datacenter networks: anytime-valid per-path-class verdicts, e-BH FDR over correlated entities, and tomographic localization of shared physical fault domains.",
+  "license": "Apache-2.0",
+  "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "build": "tsc",
+    "pretest": "tsc -p tsconfig.test.json",
+    "test": "node --test test/*.test.js",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "predemo": "tsc -p tsconfig.test.json",
+    "demo": "node tools/build-demo.js",
+    "precoverage": "tsc -p tsconfig.test.json",
+    "coverage": "node tools/coverage.js",
+    "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json"
+  },
+  "dependencies": {
+    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.3.1-pre"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnpatrickwarren-oss/tessera-rng.git"
+  }
+}
