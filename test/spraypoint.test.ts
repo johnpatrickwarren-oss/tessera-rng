@@ -72,33 +72,48 @@ test('PINNED BAND (ADR-0016): the leaky-LLR holds the true optic at rank-1 acros
   }
 });
 
-test('C1 RESIDUE CANARY (ADR-0016, documented limitation): at high δ the UNION flips while the per-ToR view alone does not', async () => {
-  // At δ=128 the optic fault saturates the entire per_panel_pair view (leakage past e-BH), and a
-  // coarse panel/room — which genuinely carries those pair leaves at w=1 — out-explains the optic
-  // (w=1/nTors there). No per-resource scorer on this incidence can see that tor-3's firing
-  // causally explains away the pair-view firing; the residue is STRUCTURAL (union of dependent
-  // views), recorded in ADR-0016, NOT a bug in the scorer. If this canary ever fails because the
-  // flip got FIXED (e.g. an explain-away scorer), update ADR-0016 — do not delete the test.
-  // δ=64 — the band edge: the flip is already present (binds the ADR's "flip begins at δ ≥ 64").
-  const edge = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 64, start_tick: 0 } } });
-  assert.match(edge.culprits[0]?.resource_id ?? '', /^(panel|room)-/, 'the flip begins at δ=64');
-
+test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across the full δ sweep — the controls still flip', async () => {
+  // The ADR-0016 canary documented the δ≥64 cross-view flip as a residue and instructed: if this
+  // fails because the flip got FIXED, update the ADR — the exposure-saturating noisy-OR
+  // (ADR-0019) is that fix. At extreme δ the optic's leakage into the 1/64-diluted pair leaves is
+  // EXPECTED (high-κ mixture cells), and the coarse pair-view resources are falsified by their
+  // quiet per-ToR members. The old failure modes survive as controls: the legacy linear scorer
+  // AND a saturation-disabled κ grid both still flip — the κ mixture is the mechanism, not luck.
+  for (const delta of [64, 128]) {
+    const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
+    assert.equal(a.culprits[0]?.resource_id, 'optic-3', `the saturating LLR holds the true optic at δ=${delta}`);
+  }
   const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 128, start_tick: 0 } } });
   const sel = a.selected_path_class_ids;
-  assert.ok(sel.length > 30, 'the high-δ fault must have saturated the pair view (leakage premise)');
-  assert.notEqual(a.culprits[0]?.resource_id, 'optic-3', 'the union flips at δ=128 — the documented residue');
-  assert.match(a.culprits[0]?.resource_id ?? '', /^(panel|room)-/, 'the usurper is a coarse pair-view resource');
+  assert.ok(sel.length > 30, 'the leakage premise still holds — the pair view saturates at δ=128');
+  const q0 = q0Of(sel.length, SNAP.path_classes.length);
+  // CONTROL 1: the legacy linear scorer still flips (the original C1 failure mode).
+  const linear = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, legacy: true, collateralWeight: 1.0 });
+  assert.notEqual(linear.culprits[0]?.resource_id, 'optic-3', 'the linear control still flips at δ=128');
+  // CONTROL 2: saturation DISABLED (κ = {1}). Negative finding recorded in ADR-0019: the exact
+  // noisy-OR form ALONE already holds rank-1 here (the old flip needed the linear-leak
+  // parameterization), so the κ-mixture bind is QUANTITATIVE — saturation supplies the decisive
+  // evidence margin (observed 33.3 vs 2.1). A mutant that ignores κ (k·w → w) collapses the
+  // default to the κ=1 score and fails the floor assert.
+  const noSat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, kappas: [1] });
+  assert.equal(noSat.culprits[0]?.resource_id, 'optic-3');
+  assert.ok(noSat.culprits[0].score < 5, `κ=1 score stays small (got ${noSat.culprits[0].score})`);
+  const sat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0 });
+  assert.ok(sat.culprits[0].score > 20, `the κ mixture supplies the saturation margin (got ${sat.culprits[0].score})`);
+});
 
-  // The same evidence restricted to the per_tor view localizes cleanly — the residue is a UNION
-  // artifact, not a detection failure (the basis for the ADR-0016 "document + pin" resolution).
-  const torLeaves = new Set(SNAP.views![0].leaf_ids);
-  const torOnly = sel.filter((l) => torLeaves.has(l));
-  const single = localize(SNAP, torOnly, { ...DEFAULT_LOCALIZE, q0: q0Of(torOnly.length, torLeaves.size) });
-  assert.equal(single.culprits[0]?.resource_id, 'optic-3', 'the per-ToR view alone still localizes the true optic');
+test('a ROOM fault localizes to the room — not a panel (the latent defect the ADR-0019 probe surfaced)', async () => {
+  // Under the ADR-0016 non-saturating leak a room-0 fault mislocalized to panel-1 at EVERY δ
+  // (recorded in ADR-0019); the saturating model picks room-0 across the sweep. Bind both ends.
+  for (const delta of [4, 128]) {
+    const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'room-0', delta, start_tick: 0 } } });
+    assert.equal(a.culprits[0]?.resource_id, 'room-0', `a room fault localizes to the room at δ=${delta}`);
+  }
+});
 
-  // The ORIGINAL C1 evidence: the legacy linear scorer also flips here (it was never a fix either).
-  const linear = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, legacy: true, collateralWeight: 1.0 });
-  assert.notEqual(linear.culprits[0]?.resource_id, 'optic-3', 'the linear control flips at δ=128 (original C1)');
+test('a PANEL fault at extreme δ still localizes to the panel (no symmetric regression from saturation)', async () => {
+  const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'panel-2', delta: 128, start_tick: 0 } } });
+  assert.equal(a.culprits[0]?.resource_id, 'panel-2');
 });
 
 test('NEGATIVE FINDING (ADR-0016): in the pinned band the union does NOT distort rank vs a single view — no view-multiplicity knob', async () => {

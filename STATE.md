@@ -28,9 +28,9 @@ the C and D modes. Round 3 (ADR-0013..0018, same branch): the RNG-paper reconcil
 paper verified, weighted incidence, Spraypoint two-view leaves, the leaky-LLR scorer, and
 reconvergence epochs (source + detector sides). **All five work-order items done**, each closed
 with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
-a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). The repo is **public**.
-**153 tests, gate PASS.** A mid-round handoff (now historical) lives at
-`design/handoff-round3.md`.
+a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds 2+3 merged to
+`main` via PR #2. Round 4 (branch `post-v1-round4`, ADR-0019..): owner-authorized; headline =
+closing the C1 residue structurally. The repo is **public**. **155 tests, gate PASS.**
 
 ## Built so far
 
@@ -280,3 +280,18 @@ routed to the owner, not changed unilaterally.
   (ii-b, cold-eye C1) evidence accruing AFTER the reroute localizes against epoch 1 — each
   headline behavior verified to kill its hand-made constant mutant; (iii) replay-clean across
   epochs. Unchanged leaves never reset. Smarter wealth carryover = recorded future work.
+
+## Post-v1 round 4 (branch `post-v1-round4`, off merged main)
+
+- **Exposure-saturating noisy-OR** (ADR-0019): the tomography member model becomes the true
+  noisy-OR `P(quiet) = (1−q₀)(1−δ)^{κ·w}` mixed over δ ∈ {0.3,0.6,0.9} × κ ∈ {1,16,256} with a
+  **1/κ scale prior** (fixed form, not a knob — a uniform κ prior loses the ADR-0014
+  follow-the-traffic discrimination, recorded). Root cause of the ADR-0016 C1 residue was the
+  non-saturating linear leak, not cross-view structure: at extreme δ the optic's leakage into
+  1/64-diluted pair leaves is *expected* under high κ, and the coarse pair-view resources are
+  falsified by their quiet per-ToR members. **C1 closed** (optic-3 rank-1 across the full sweep,
+  33.3 at δ=128), **no symmetric regression** (panel margins grow), and a **latent defect fixed**:
+  a true ROOM fault mislocalized to a panel at every δ under the old model — now room-0
+  everywhere. The owner's explain-away discount and set-completion candidates were analyzed and
+  rejected on the record (symmetric failure / needs a parsimony knob). The ADR-0016 canary was
+  retired per its own instruction into the C1-CLOSED test with two failure-mode controls.

@@ -1,6 +1,8 @@
 # ADR 0016 — Leaky noisy-OR mixture LLR scorer; the C1 residue pinned + documented
 
-- **Status:** Accepted
+- **Status:** Accepted. _Annotation (2026-06-10): the pinned C1 residue is CLOSED by ADR-0019
+  (exposure-saturating noisy-OR); the canary test was updated per its own instruction. The
+  member fire-probability model here is superseded; the LLR/set-cover machinery stands._
 - **Date:** 2026-06-10
 - **Decision owner:** owner-directed spec; empirical contradiction routed back and resolved by the
   owner (Q1: pin + document; Q2: test q₀ = FDR target q; Q3: commit LLR as default)
