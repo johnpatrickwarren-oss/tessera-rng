@@ -214,6 +214,18 @@ routed to the owner, not changed unilaterally.
   (hop distance is dead) and the path-diversity raw material, but treats telemetry as out of scope —
   the five-signal contract is now *unfalsified, not validated*. Motivates the weighted-incidence,
   leaky-scorer, and epoch items (ADR-0014..0016) and the HALT-CLASS granularity question. Docs only.
+- **Spraypoint two-view aggregation leaves** (ADR-0015, resolves the HALT-CLASS item 5): at
+  production scale (~460K ToR-pairs) the monitored leaf becomes an **aggregation-view class** — the
+  union of a `per_tor` view (~nTors) and a `per_panel_pair` view (~C(nPanels,2)) over the underlying
+  ToR-pair traffic (~109 leaves at the 64×10×2 default, inside AC-1). The owner corrected the framing:
+  the scale problem is per-leaf **heterogeneity** (misspecified shared baselines), not sample budget;
+  and aggregating m fault-sharing leaves cuts noise by √m, which adds power in the diluted spray
+  regime. The two views have **complementary blind spots** — optic faults concentrate in `per_tor`
+  (blind in `per_panel_pair`), panel faults in `per_panel_pair` (blind in `per_tor`), room faults in
+  both — published as a per-view coverage column and bound by anti-self-confirming tests. Views are
+  dependent (e-BH/AoE handle it; clean still selects 0). `src/spraypoint.ts`; `shuffle_panel`/`room`
+  taxonomy added; AC-1 amended (leaf = view-class; view defs in the snapshot/hash). ToR-pair stays the
+  underlying entity (drill-down = future scope).
 - **Weighted (fractional) incidence** (ADR-0014): the incidence edge gains an optional traffic
   weight `w ∈ (0,1]` (Spraypoint dilution); absent ⇒ 1 ⇒ byte-identical v1. A fault shifts a leaf by
   `delta·w` (honest dilution); tomography scores explanation/collateral by `w`. Hash + validation

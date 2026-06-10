@@ -70,6 +70,18 @@ The **firing family** column is the firing-mode attribution: which detector actu
 | covariance_flip | Δρ (corr change) | 0.2 | 0.4 | C | 0→0%/none, 0.1→0%/none, 0.2→100%/C, 0.4→100%/C, 0.9→100%/C, 1.4→100%/C, 1.8→100%/C |
 | oscillation | amplitude (period 7) | 0.9 | 0.9 | D | 0.3→0%/none, 0.5→0%/none, 0.7→50%/D, 0.9→100%/D |
 
+## Spraypoint per-view detection (ADR-0015) — which view concentrates each fault kind
+
+On the two-view Spraypoint fabric (`per_tor` ∪ `per_panel_pair`, weighted/diluted incidence),
+the views have COMPLEMENTARY blind spots — published here, not implied. An optic fault is
+1/nTors-diluted in pair leaves; a panel fault is 1/nPanels-diluted in ToR leaves.
+
+| fault kind | resource | per-view detected | concentrated by |
+|---|---|---|---|
+| optic | optic-3 | per_tor:1 | per_tor |
+| shuffle_panel | panel-2 | per_panel_pair:9 | per_panel_pair |
+| room | room-1 | per_panel_pair:35, per_tor:64 | per_panel_pair+per_tor |
+
 ## FDR control (clean fabric, no degradation)
 
 Across 4 clean trials over 300 path-classes: mean selected = **0**, false-positive rate = **0%** — e-BH holds the surface quiet under heavy correlation.

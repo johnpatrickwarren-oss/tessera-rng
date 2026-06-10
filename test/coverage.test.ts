@@ -57,6 +57,10 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
       { mode: 'covariance_flip', unit: 'Δρ (corr change)', detection_floor: 1.0, attribution_floor: 1.0, detecting_family: 'C', points: [{ magnitude: 1.0, detection_rate: 1, attribution_rate: 1, family: 'C' }] },
       { mode: 'oscillation', unit: 'amplitude (period 7)', detection_floor: 0.9, attribution_floor: 0.9, detecting_family: 'D', points: [{ magnitude: 0.9, detection_rate: 1, attribution_rate: 1, family: 'D' }] },
     ],
+    spraypoint_views: [
+      { fault_kind: 'optic', resource: 'optic-3', per_view_detected: { per_tor: 1 }, concentrated_by: 'per_tor' },
+      { fault_kind: 'shuffle_panel', resource: 'panel-2', per_view_detected: { per_panel_pair: 9 }, concentrated_by: 'per_panel_pair' },
+    ],
     clean: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
   };
   const md = renderMarkdown(rep);
@@ -75,4 +79,8 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /covariance_flip/);
   assert.match(md, /oscillation/);
   assert.match(md, /detecting family/);
+  // the Spraypoint per-view blind-spot map (ADR-0015) is published, not implied.
+  assert.match(md, /Spraypoint per-view detection/);
+  assert.match(md, /concentrated by/);
+  assert.match(md, /per_tor/);
 });

@@ -29,12 +29,17 @@ export function computeFaultDomainHash(snapshot: FaultDomainSnapshot): string {
     if (a.resource !== b.resource) return a.resource < b.resource ? -1 : 1;
     return 0;
   });
+  // aggregation views are part of the measurement design (ADR-0015) ⇒ part of replay; canonicalize.
+  const views = snapshot.views
+    ? [...snapshot.views].sort((a, b) => (a.view < b.view ? -1 : a.view > b.view ? 1 : 0)).map((v) => [v.view, [...v.leaf_ids].sort()])
+    : null;
   const canonical = JSON.stringify({
     source_id: snapshot.source_id,
     source_version: snapshot.source_version,
     nodes: nodes.map((n) => [n.id, n.kind]),
     // weight is part of the measurement design (ADR-0014) ⇒ part of the replay identity; absent ⇒ 1.
     edges: edges.map((e) => [e.path_class, e.resource, e.weight ?? 1]),
+    views,
   });
   return pureJsSha256(canonical);
 }

@@ -12,7 +12,7 @@
 export type PathClassId = string;
 export type ResourceId = string;
 
-/** Open RNG fault-domain taxonomy (v1 spec §3.3). */
+/** Open RNG fault-domain taxonomy (v1 spec §3.3; `shuffle_panel`/`room` added in ADR-0015). */
 export const RESOURCE_KINDS = [
   'optic',
   'passive_shuffler',
@@ -21,6 +21,8 @@ export const RESOURCE_KINDS = [
   'switch',
   'power_zone',
   'cooling_zone',
+  'shuffle_panel',
+  'room',
 ] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
@@ -49,6 +51,17 @@ export interface FaultDomainEdge {
   weight?: number;
 }
 
+/**
+ * An aggregation VIEW over the underlying ToR-pair traffic (ADR-0015). The monitored leaf
+ * (`path_class`) is a view-class; each view names the axis it aggregates along (e.g. `per_tor`,
+ * `per_panel_pair`). Recorded in the snapshot because it is part of the measurement design (hence
+ * part of replay) and lets honest measurement report per-view detection/blind-spots.
+ */
+export interface AggregationView {
+  view: string;
+  leaf_ids: readonly PathClassId[];
+}
+
 export interface FaultDomainSnapshot {
   nodes: readonly FaultDomainNode[];
   edges: readonly FaultDomainEdge[]; // path-class -> resource incidence
@@ -57,4 +70,6 @@ export interface FaultDomainSnapshot {
   fetched_at_ts: number;
   source_id: string;
   source_version: string;
+  /** aggregation-view leaf grouping (ADR-0015); absent ⇒ a single implicit path-class view (v1). */
+  views?: readonly AggregationView[];
 }

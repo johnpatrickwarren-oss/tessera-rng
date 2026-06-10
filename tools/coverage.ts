@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { runPipeline } from '../src/pipeline';
 import type { PipelineParams } from '../src/pipeline';
 import { generateFabric } from '../src/fabric';
+import { generateSpraypointFabric, DEFAULT_SPRAYPOINT, viewOfLeaf } from '../src/spraypoint';
 import type { ResourceKind } from '../src/domain';
 import { SIGNALS } from '../src/signals';
 import type { SignalName } from '../src/signals';
@@ -94,7 +95,18 @@ export interface CoverageReport {
   per_signal: SignalCoverageRow[];
   /** per-mode floors (A=mean, C=covariance, D=spectral) — the three anomaly modes, each measured. */
   mode_floors: ModeFloorRow[];
+  /** per-view detection on the Spraypoint fabric — which aggregation view concentrates each fault kind (ADR-0015). */
+  spraypoint_views: SpraypointViewRow[];
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
+}
+
+export interface SpraypointViewRow {
+  fault_kind: string;
+  resource: string;
+  /** view → number of that view's leaves selected. */
+  per_view_detected: Record<string, number>;
+  /** the view(s) that concentrated the fault, or 'none' — the published blind-spot map. */
+  concentrated_by: string;
 }
 
 async function cell(kind: ResourceKind, delta: number, targets: string[]): Promise<CoverageCell> {
@@ -239,6 +251,29 @@ async function modeFloors(): Promise<ModeFloorRow[]> {
   return rows;
 }
 
+/**
+ * Per-view detection on the Spraypoint two-view fabric (ADR-0015): for each fault kind, which
+ * aggregation view concentrates it and which is blind. Publishes the complementary blind-spot map
+ * rather than implying any one view covers everything (honest measurement).
+ */
+async function spraypointViewCoverage(): Promise<SpraypointViewRow[]> {
+  const snap = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
+  const faults = [
+    { fault_kind: 'optic', resource: 'optic-3' },
+    { fault_kind: 'shuffle_panel', resource: 'panel-2' },
+    { fault_kind: 'room', resource: 'room-1' },
+  ];
+  const rows: SpraypointViewRow[] = [];
+  for (const f of faults) {
+    const audit = await runPipeline({ snapshot: snap, q: Q, telemetry: { seed: 1, ticks: TICKS, degradation: { resource_id: f.resource, delta: 4, start_tick: 0 } } });
+    const by: Record<string, number> = {};
+    for (const leaf of audit.selected_path_class_ids) { const v = viewOfLeaf(snap, leaf) ?? '?'; by[v] = (by[v] ?? 0) + 1; }
+    const on = Object.entries(by).filter(([, n]) => n > 0).map(([v]) => v).sort();
+    rows.push({ fault_kind: f.fault_kind, resource: f.resource, per_view_detected: by, concentrated_by: on.length ? on.join('+') : 'none' });
+  }
+  return rows;
+}
+
 export async function computeCoverage(): Promise<CoverageReport> {
   const cells: CoverageCell[] = [];
   for (const kind of KINDS) {
@@ -260,6 +295,7 @@ export async function computeCoverage(): Promise<CoverageReport> {
     floors,
     per_signal: await perSignalCoverage(),
     mode_floors: await modeFloors(),
+    spraypoint_views: await spraypointViewCoverage(),
     clean: await cleanFalsePositives(),
   };
 }
@@ -319,6 +355,19 @@ export function renderMarkdown(rep: CoverageReport): string {
     const big = `>${Math.max(...m.points.map((p) => p.magnitude))}`;
     const trail = m.points.map((p) => `${p.magnitude}→${pct(p.detection_rate)}/${p.family}`).join(', ');
     L.push(`| ${m.mode} | ${m.unit} | ${m.detection_floor ?? big} | ${m.attribution_floor ?? big} | ${m.detecting_family} | ${trail} |`);
+  }
+  L.push('');
+  L.push('## Spraypoint per-view detection (ADR-0015) — which view concentrates each fault kind');
+  L.push('');
+  L.push('On the two-view Spraypoint fabric (`per_tor` ∪ `per_panel_pair`, weighted/diluted incidence),');
+  L.push('the views have COMPLEMENTARY blind spots — published here, not implied. An optic fault is');
+  L.push('1/nTors-diluted in pair leaves; a panel fault is 1/nPanels-diluted in ToR leaves.');
+  L.push('');
+  L.push('| fault kind | resource | per-view detected | concentrated by |');
+  L.push('|---|---|---|---|');
+  for (const v of rep.spraypoint_views) {
+    const cells = Object.entries(v.per_view_detected).map(([view, n]) => `${view}:${n}`).join(', ') || '—';
+    L.push(`| ${v.fault_kind} | ${v.resource} | ${cells} | ${v.concentrated_by} |`);
   }
   L.push('');
   L.push('## FDR control (clean fabric, no degradation)');

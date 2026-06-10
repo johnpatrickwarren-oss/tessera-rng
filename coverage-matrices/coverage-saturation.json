@@ -346,6 +346,33 @@
       ]
     }
   ],
+  "spraypoint_views": [
+    {
+      "fault_kind": "optic",
+      "resource": "optic-3",
+      "per_view_detected": {
+        "per_tor": 1
+      },
+      "concentrated_by": "per_tor"
+    },
+    {
+      "fault_kind": "shuffle_panel",
+      "resource": "panel-2",
+      "per_view_detected": {
+        "per_panel_pair": 9
+      },
+      "concentrated_by": "per_panel_pair"
+    },
+    {
+      "fault_kind": "room",
+      "resource": "room-1",
+      "per_view_detected": {
+        "per_panel_pair": 35,
+        "per_tor": 64
+      },
+      "concentrated_by": "per_panel_pair+per_tor"
+    }
+  ],
   "clean": {
     "trials": 4,
     "mean_selected": 0,
