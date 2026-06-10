@@ -92,9 +92,10 @@ function rawBaseline(signalIdx: number, hour: number, tc: TrafficClass): number 
   return (SIGNAL_BASE[signalIdx] ?? 0) + diurnal + classOffset;
 }
 
-function affectedPathClasses(snapshot: FaultDomainSnapshot, resourceId: ResourceId): Set<PathClassId> {
-  const affected = new Set<PathClassId>();
-  for (const e of snapshot.edges) if (e.resource === resourceId) affected.add(e.path_class);
+/** Path-classes traversing a resource, mapped to their traffic weight w(pc, r) ∈ (0, 1] (ADR-0014). */
+function affectedWeights(snapshot: FaultDomainSnapshot, resourceId: ResourceId): Map<PathClassId, number> {
+  const affected = new Map<PathClassId, number>();
+  for (const e of snapshot.edges) if (e.resource === resourceId) affected.set(e.path_class, e.weight ?? 1);
   return affected;
 }
 
@@ -137,11 +138,17 @@ function correlate(z: number[], L: number[][] | null): number[] {
   });
 }
 
-/** Apply a degradation's mean/variance/covariance/spectral effect to one already-noised tick vector. */
+/**
+ * Apply a degradation's mean/variance/covariance/spectral effect to one already-noised tick vector.
+ * The mean-shift magnitude is DILUTED by the leaf's traffic weight `ctx.weight` ∈ (0, 1] (ADR-0014):
+ * a fault on a resource shifts a leaf by `delta·w`, the honest Spraypoint dilution. Weight 1 (the v1
+ * binary fabric) ⇒ byte-identical. The 2nd-order modes (variance/covariance/oscillation) run on the
+ * weight-1 demo fabric, so they are not diluted here.
+ */
 function degradeVector(
   vec: number[],
   deg: DegradationSpec,
-  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number },
+  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number; weight: number },
 ): void {
   if (deg.degradedNoiseCorr) return; // a pure 2nd-order shift — already applied via the innovation L
   if (deg.oscillationPeriod) {
@@ -153,12 +160,12 @@ function degradeVector(
     return;
   }
   if (deg.shiftVector) {
-    for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i]; // joint multivariate mean shift
+    for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i] * ctx.weight; // diluted joint mean shift
   } else if (ctx.mode === 'variance') {
     const base = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc);
     vec[ctx.sigIdx] = base + (vec[ctx.sigIdx] - base) * deg.delta; // inflate noise around the baseline
   } else {
-    vec[ctx.sigIdx] += deg.delta; // single-signal mean shift
+    vec[ctx.sigIdx] += deg.delta * ctx.weight; // diluted single-signal mean shift
   }
 }
 
@@ -168,7 +175,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   const sigIdx = signalIndex(deg?.signal ?? 'p99_latency');
   const mode = deg?.mode ?? 'mean';
   const start = deg?.start_tick ?? 0;
-  const affected = deg ? affectedPathClasses(snapshot, deg.resource_id) : new Set<PathClassId>();
+  const affected = deg ? affectedWeights(snapshot, deg.resource_id) : new Map<PathClassId, number>();
   const series = new Map<PathClassId, SignalVector[]>();
 
   const p = SIGNALS.length;
@@ -199,7 +206,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
         if (hist[i].length > arc[i].length) hist[i].shift(); // keep only the lags the order needs
         vec[i] = rawBaseline(i, hour, tc) + noise;
       }
-      if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc, t });
+      if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc, t, weight: affected.get(pc) ?? 1 });
       matrix.push(vec);
     }
     series.set(pc, matrix);

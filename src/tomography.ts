@@ -8,13 +8,16 @@
  * we run deterministically:
  *
  *   repeatedly pick the resource with the greatest marginal gain
- *       gain(r) = |newly-explained firing paths| − λ·|quiet paths it would implicate|
+ *       gain(r) = Σ_{newly firing} w − λ·Σ_{quiet} w
  *   until the firing set is explained, gain ≤ 0, or the parsimony cap is hit.
  *
- * The λ·collateral term is what makes RNG's path diversity pay off: a true common-mode
- * resource has ALL its traversing paths firing (collateral ≈ 0) and wins; an incidentally
- * shared resource drags in many quiet paths (high collateral) and is rejected. A resource
- * whose failure would have degraded paths that are demonstrably healthy is a poor explanation.
+ * Incidence is WEIGHTED (ADR-0014): a resource explains a firing path proportionally to the path's
+ * traffic weight w(pc, r) through it, and a quiet path costs collateral proportionally to its weight
+ * (a quiet path sending 2% of its traffic through r is weak evidence against r; one sending 60% is
+ * strong). With the v1 binary fabric every weight is 1 and this reduces to the unweighted counts —
+ * byte-identical. The λ·collateral term is what makes RNG's path diversity pay off: a true
+ * common-mode resource has ALL its traversing paths firing (collateral ≈ 0) and wins; an
+ * incidentally shared resource drags in many quiet paths (high collateral) and is rejected.
  *
  * MUST-NEVER (N1): output is a shared-resource GROUP with a correlational-not-causal flag,
  * never a single-component hardware root cause. Unexplained firing paths are reported, not
@@ -40,8 +43,13 @@ export interface LocalizationResult {
   unexplained_path_class_ids: PathClassId[];
 }
 
+interface Member {
+  pc: PathClassId;
+  weight: number;
+  fired: boolean;
+}
 interface Acc {
-  members: PathClassId[];
+  members: Member[];
   firing: PathClassId[];
 }
 
@@ -53,8 +61,9 @@ function accumulate(snapshot: FaultDomainSnapshot, fired: ReadonlySet<PathClassI
       a = { members: [], firing: [] };
       acc.set(e.resource, a);
     }
-    a.members.push(e.path_class);
-    if (fired.has(e.path_class)) a.firing.push(e.path_class);
+    const isFiring = fired.has(e.path_class);
+    a.members.push({ pc: e.path_class, weight: e.weight ?? 1, fired: isFiring });
+    if (isFiring) a.firing.push(e.path_class);
   }
   return acc;
 }
@@ -65,14 +74,19 @@ interface Pick {
   newly: PathClassId[];
 }
 
-/** Best marginal resource given what is already explained; null if none has positive gain. */
+/** Best marginal resource given what is already explained; null if none has positive (weighted) gain. */
 function bestResource(acc: Map<ResourceId, Acc>, explained: ReadonlySet<PathClassId>, lambda: number): Pick | null {
   let best: Pick | null = null;
   for (const [resource, a] of acc) {
-    const newly = a.firing.filter((pc) => !explained.has(pc));
+    let wNewly = 0;
+    let wQuiet = 0;
+    const newly: PathClassId[] = [];
+    for (const m of a.members) {
+      if (!m.fired) wQuiet += m.weight;
+      else if (!explained.has(m.pc)) { wNewly += m.weight; newly.push(m.pc); }
+    }
     if (newly.length === 0) continue;
-    const quiet = a.members.length - a.firing.length;
-    const gain = newly.length - lambda * quiet;
+    const gain = wNewly - lambda * wQuiet;
     if (gain <= 0) continue;
     const better = !best || gain > best.gain || (gain === best.gain && resource < best.resource);
     if (better) best = { resource, gain, newly };

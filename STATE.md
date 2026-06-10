@@ -214,3 +214,9 @@ routed to the owner, not changed unilaterally.
   (hop distance is dead) and the path-diversity raw material, but treats telemetry as out of scope —
   the five-signal contract is now *unfalsified, not validated*. Motivates the weighted-incidence,
   leaky-scorer, and epoch items (ADR-0014..0016) and the HALT-CLASS granularity question. Docs only.
+- **Weighted (fractional) incidence** (ADR-0014): the incidence edge gains an optional traffic
+  weight `w ∈ (0,1]` (Spraypoint dilution); absent ⇒ 1 ⇒ byte-identical v1. A fault shifts a leaf by
+  `delta·w` (honest dilution); tomography scores explanation/collateral by `w`. Hash + validation
+  incorporate the weight. Anti-self-confirming fixture: where the unweighted scorer picks an
+  incidental decoy resource, the weighted scorer follows the traffic to the true one. Weighted
+  solver holds 100% mutation; default unchanged.

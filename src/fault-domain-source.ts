@@ -33,7 +33,8 @@ export function computeFaultDomainHash(snapshot: FaultDomainSnapshot): string {
     source_id: snapshot.source_id,
     source_version: snapshot.source_version,
     nodes: nodes.map((n) => [n.id, n.kind]),
-    edges: edges.map((e) => [e.path_class, e.resource]),
+    // weight is part of the measurement design (ADR-0014) ⇒ part of the replay identity; absent ⇒ 1.
+    edges: edges.map((e) => [e.path_class, e.resource, e.weight ?? 1]),
   });
   return pureJsSha256(canonical);
 }
@@ -59,7 +60,13 @@ function asEdges(x: unknown, pcs: ReadonlySet<string>, resIds: ReadonlySet<strin
     if (o?.relationship !== 'traverses') throw new TypeError(`edges[${i}].relationship must be 'traverses'`);
     if (typeof o.path_class !== 'string' || !pcs.has(o.path_class)) throw new TypeError(`edges[${i}].path_class '${String(o.path_class)}' is not a declared path_class`);
     if (typeof o.resource !== 'string' || !resIds.has(o.resource)) throw new TypeError(`edges[${i}].resource '${String(o.resource)}' is not a declared resource`);
-    return { path_class: o.path_class, resource: o.resource, relationship: 'traverses' };
+    // optional fractional weight ∈ (0, 1] (ADR-0014); absent ⇒ full traversal.
+    let weight: number | undefined;
+    if (o.weight !== undefined) {
+      if (typeof o.weight !== 'number' || !(o.weight > 0) || o.weight > 1) throw new TypeError(`edges[${i}].weight must be a number in (0, 1]`);
+      weight = o.weight;
+    }
+    return { path_class: o.path_class, resource: o.resource, relationship: 'traverses', ...(weight !== undefined ? { weight } : {}) };
   });
 }
 

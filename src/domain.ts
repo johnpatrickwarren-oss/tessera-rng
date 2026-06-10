@@ -41,6 +41,12 @@ export interface FaultDomainEdge {
   path_class: PathClassId;
   resource: ResourceId;
   relationship: 'traverses';
+  /**
+   * Fraction of the path-class's traffic traversing this resource, ∈ (0, 1] (ADR-0014). Models the
+   * Spraypoint regime where a ToR-pair spreads fractionally across a large resource set (arXiv
+   * 2604.15261; ADR-0013). Absent ⇒ 1 (full traversal) — the v1 binary incidence, byte-identical.
+   */
+  weight?: number;
 }
 
 export interface FaultDomainSnapshot {
