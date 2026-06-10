@@ -249,3 +249,16 @@ routed to the owner, not changed unilaterally.
   one-view-vs-union double-count check came back negative in the band → no view-multiplicity knob.
   Cold-eye L1 folded in: operator-supplied `views` now survive validation (they were silently
   dropped, breaking the operator replay-hash identity). Explain-away scorer = recorded future work.
+- **Epoch'd snapshots + synthetic reroute events** (ADR-0017, work-order item 4 part 1 — source
+  side): Spraypoint reconverges, so the incidence model becomes a SEQUENCE of epochs
+  (`src/epoch.ts`: `SnapshotEpoch {snapshot, valid_from_tick, hash}` — per-epoch hash versions the
+  full measurement design including the ADR-0015 views). A synthetic `RerouteEvent` models a
+  drain/reconvergence: at `at_tick` a seeded `floor(fraction·|candidates|)` of the path-classes
+  traversing `resource_id` remap onto same-kind alternates (weight merged, capped at 1; no
+  alternate ⇒ throw; pure + deterministic, AC-9). Telemetry's degradation follows the ACTIVE epoch
+  per tick (a leaf rerouted off a faulty resource stops shifting at the boundary); the noise
+  process is deliberately continuous across epochs. No epochs ⇒ byte-identical v1 (guard test).
+  N2 intact: synthetic events only, no live fetchSnapshot. Gate loosening on the record:
+  `no-god-module` 16→20 (`domain.ts` is the invariant-admitted zero-behavior type contract; intent
+  updated in place, ADR-0017). Detector side (resets, evidence epochs, per-epoch tomography) =
+  ADR-0018, next.
