@@ -93,7 +93,7 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   (engine `prewhitenAr` + unit-variance rescale) after per-cell de-meaning. Detectors see
   near-iid input → FDR control holds (clean fabric still selects 0) under autocorrelated
   telemetry; tests verify φ recovery and lag-1 autocorrelation removal. (Generalized to
-  per-signal AR(p) with AIC order selection in ADR-0008.)
+  per-signal AR(p) with BIC order selection in ADR-0008.)
 - **Operator-supplied topology override** (ADR-0005): `validateFaultDomainSnapshot` (pure, in
   `src/`) validates a parsed incidence object (RNG taxonomy, `traverses` relationship,
   referential integrity); `tools/load-topology.ts` reads+parses the file (fs confined to
@@ -152,6 +152,13 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   now threads baseline `noiseCorr`/`arCoeffs` into the calibration window too. Measured floors
   (passive_shuffler, q=0.05): mean Δ=1 (A; A+C at Δ≥2), covariance Δρ=0.2 (C), oscillation amp=0.9
   (D).
+- **No per-cell second-order structure** (ADR-0011): evidence-gated — measured whether per-cell
+  (HoD×DoW×class) Σ and φ structure exists before building it. It does **not**: per-cell Σ spread
+  sits below the pure-sampling-noise floor (0.09 vs 0.12), per-cell estimates are *attenuated*
+  (0.78 vs global 0.90; small-sample shrinkage, the ADR-0006 lesson), per-class φ is flat, and
+  per-cell AR(p) is structurally ill-posed (cells are non-contiguous in time). Decision: **keep
+  global Σ/φ, build nothing.** A durable evidence test (`test/percell-second-order.test.ts`) guards
+  the call.
 
 ## Honest current limitations (NOT hidden)
 
