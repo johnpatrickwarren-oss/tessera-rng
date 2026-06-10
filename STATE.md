@@ -17,13 +17,14 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**Fuller v1 complete + all four documented post-v1 items landed** (branch `post-v1`, PR #1).
-v1: all ten acceptance-criteria clusters implemented and tested, Q1–Q3 ratified, cold-eye
-findings addressed (Family A α spent-on-fire, anti-scope guards N1/N2/N5, AC-8 demo test,
-honest single-signal coverage scope). Post-v1 (ADR-0006..0009): min-sample pooled calibration
-fallback, Family C learned cross-signal covariance, higher-order AR(p) calibration, and the
-Family D spectral detector — each with an ADR, anti-self-confirming tests, a mutation pass on the
-new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate PASS.**
+**v1 + post-v1 round 1 merged to `main`; round 2 on `post-v1-round2`.** v1: all ten
+acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
+min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
+AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a
+mutation pass on the new math, a fresh-context cold-eye review, and a green gate. Round 2
+(ADR-0010..0012): per-mode honest measurement (A+C+D floors + firing-mode attribution), the
+evidence-gated decision to keep Σ/φ global (no per-cell structure exists), and demo scenarios for
+the C and D modes. The repo is **public**. **112 tests, gate PASS.**
 
 ## Built so far
 
