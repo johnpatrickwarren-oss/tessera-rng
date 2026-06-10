@@ -99,6 +99,8 @@ export interface CoverageReport {
   spraypoint_views: SpraypointViewRow[];
   /** detection/attribution floors UNDER DILUTION on the Spraypoint two-view fabric (ADR-0020) — closes the ADR-0014 deferral. */
   spraypoint_floors: { deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] };
+  /** FDR control on the SAME fabric the dilution floors characterize (ADR-0020 cold-eye L5). */
+  clean_spraypoint: { trials: number; mean_selected: number; false_positive_rate: number };
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
 }
 
@@ -277,8 +279,9 @@ async function spraypointViewCoverage(): Promise<SpraypointViewRow[]> {
 }
 
 const SPRAYPOINT_DELTAS = [0.5, 1, 2, 3, 4];
+const SPRAYPOINT_KINDS = ['optic', 'shuffle_panel', 'room'] as const;
 /** Deterministic Spraypoint floor targets — two per kind (the fabric is symmetric within a kind). */
-export const SPRAYPOINT_FLOOR_TARGETS: Record<string, string[]> = {
+export const SPRAYPOINT_FLOOR_TARGETS: Record<(typeof SPRAYPOINT_KINDS)[number], string[]> = {
   optic: ['optic-3', 'optic-40'],
   shuffle_panel: ['panel-2', 'panel-7'],
   room: ['room-0', 'room-1'],
@@ -304,7 +307,7 @@ export async function spraypointCell(kind: ResourceKind, delta: number, targets:
 
 /** The Spraypoint dilution floor table (ADR-0020): floors per fault kind on the two-view fabric. */
 async function spraypointFloors(): Promise<{ deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] }> {
-  const kinds: ResourceKind[] = ['optic', 'shuffle_panel', 'room'];
+  const kinds = SPRAYPOINT_KINDS;
   const cells: CoverageCell[] = [];
   for (const kind of kinds) {
     for (const delta of SPRAYPOINT_DELTAS) cells.push(await spraypointCell(kind, delta, SPRAYPOINT_FLOOR_TARGETS[kind]));
@@ -315,6 +318,21 @@ async function spraypointFloors(): Promise<{ deltas: number[]; cells: CoverageCe
     attribution_floor: floorFor(cells, kind, 'attribution_rate'),
   }));
   return { deltas: SPRAYPOINT_DELTAS, cells, floors };
+}
+
+/** Clean-fabric FDR control on the Spraypoint fabric itself — the new detection column must not
+ *  borrow its false-alarm baseline from a different fabric (ADR-0020 cold-eye L5). */
+async function cleanSpraypoint(): Promise<{ trials: number; mean_selected: number; false_positive_rate: number }> {
+  const snap = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
+  const seeds = [0xc1ea0, 0xc1ea1, 0xc1ea2, 0xc1ea3];
+  let selected = 0;
+  let fp = 0;
+  for (const seed of seeds) {
+    const audit = await runPipeline({ snapshot: snap, telemetry: { seed, ticks: TICKS }, q: Q });
+    selected += audit.selected_path_class_ids.length;
+    if (audit.selected_path_class_ids.length > 0) fp += 1;
+  }
+  return { trials: seeds.length, mean_selected: selected / seeds.length, false_positive_rate: fp / seeds.length };
 }
 
 export async function computeCoverage(): Promise<CoverageReport> {
@@ -340,6 +358,7 @@ export async function computeCoverage(): Promise<CoverageReport> {
     mode_floors: await modeFloors(),
     spraypoint_views: await spraypointViewCoverage(),
     spraypoint_floors: await spraypointFloors(),
+    clean_spraypoint: await cleanSpraypoint(),
     clean: await cleanFalsePositives(),
   };
 }
@@ -365,7 +384,12 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('The **per-mode floor table** (ADR-0010) goes further: it reports a separate detection/attribution');
   L.push('floor for EACH of the three anomaly modes — mean shift (Family A), covariance flip (Family C), and');
   L.push('periodicity (Family D) — with the firing family that caught it, so a detection number is never');
-  L.push('published without naming its mode. No mode is left in a footnote.');
+  L.push('published without naming its mode. No mode is left in a footnote. The binary tables above are');
+  L.push('the generated quasi-random fabric; the **Spraypoint sections** below measure the two-view');
+  L.push('FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, and its own');
+  L.push('clean-fabric FDR control. All floors here are the first Δ reaching ≥90% on an n=4 grid');
+  L.push('(2 targets × 2 seeds): with n=4 a floor means "first unanimous Δ" — a coarse, honest estimator,');
+  L.push('and floors are grid-resolution-limited (reported at grid points, not interpolated).');
   L.push('');
   L.push('## Coverage / saturation');
   L.push('');
@@ -418,8 +442,12 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('');
   L.push('Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a');
   L.push('`p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary');
-  L.push('table above (smallest Δ reaching ≥ 90 %). Detection rides each kind\'s w=1 view, so dilution');
-  L.push('does not raise the detection floor; the honest cost appears where attribution lags detection.');
+  L.push('table above. Read against the binary fabric\'s nearest-analogue kinds (optic↔optic,');
+  L.push('shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the comparison is');
+  L.push('indicative, not a controlled dilution-only experiment): **detection** floors match the binary');
+  L.push('analogues (each kind has a w=1 view), but the **room attribution floor RISES 1 → 2** vs');
+  L.push('power_zone 1/1 — a room fault at Δ=1 is detected 4/4 yet attributed 0/4 (the ADR-0019');
+  L.push('wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 2/4).');
   L.push('');
   L.push('| fault kind | detection floor (Δ) | attribution floor (Δ) |');
   L.push('|---|---|---|');
@@ -435,6 +463,8 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('## FDR control (clean fabric, no degradation)');
   L.push('');
   L.push(`Across ${rep.clean.trials} clean trials over ${SCENARIO_FABRIC.n_path_classes} path-classes: mean selected = **${rep.clean.mean_selected}**, false-positive rate = **${pct(rep.clean.false_positive_rate)}** — e-BH holds the surface quiet under heavy correlation.`);
+  L.push('');
+  L.push(`Spraypoint fabric (the one the dilution floors characterize): ${rep.clean_spraypoint.trials} clean trials, mean selected = **${rep.clean_spraypoint.mean_selected}**, false-positive rate = **${pct(rep.clean_spraypoint.false_positive_rate)}** — the dilution detection column does not borrow its false-alarm baseline from another fabric.`);
   L.push('');
   return L.join('\n');
 }

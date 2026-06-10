@@ -58,10 +58,12 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
       { mode: 'oscillation', unit: 'amplitude (period 7)', detection_floor: 0.9, attribution_floor: 0.9, detecting_family: 'D', points: [{ magnitude: 0.9, detection_rate: 1, attribution_rate: 1, family: 'D' }] },
     ],
     spraypoint_floors: {
+      // floors follow from the cells via floorFor semantics (only a Δ=2 cell ⇒ both floors 2).
       deltas: [0.5, 2],
       cells: [{ kind: 'room', delta: 2, n: 4, detected: 4, attributed: 4, detection_rate: 1, attribution_rate: 1 }],
-      floors: [{ kind: 'room', detection_floor: 0.5, attribution_floor: 2 }],
+      floors: [{ kind: 'room', detection_floor: 2, attribution_floor: 2 }],
     },
+    clean_spraypoint: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
     spraypoint_views: [
       { fault_kind: 'optic', resource: 'optic-3', per_view_detected: { per_tor: 1 }, concentrated_by: 'per_tor' },
       { fault_kind: 'shuffle_panel', resource: 'panel-2', per_view_detected: { per_panel_pair: 9 }, concentrated_by: 'per_panel_pair' },
@@ -86,6 +88,11 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /detecting family/);
   // the Spraypoint per-view blind-spot map (ADR-0015) is published, not implied.
   assert.match(md, /Spraypoint per-view detection/);
+  // the ADR-0020 dilution section must be EMITTED, not just typed (cold-eye C2: deleting the
+  // renderer block previously kept the whole suite green).
+  assert.match(md, /Spraypoint dilution floors/);
+  assert.match(md, /\| room \| 2 \| 2 \|/, 'the dilution floors row renders from the report');
+  assert.match(md, /Spraypoint fabric \(the one the dilution floors characterize\)/, 'the Spraypoint clean control is published');
   assert.match(md, /concentrated by/);
   assert.match(md, /per_tor/);
 });

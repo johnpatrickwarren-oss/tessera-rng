@@ -13,7 +13,12 @@ signal (Family A is multi-signal, ADR-0003) plus a pure variance shift (caught b
 The **per-mode floor table** (ADR-0010) goes further: it reports a separate detection/attribution
 floor for EACH of the three anomaly modes — mean shift (Family A), covariance flip (Family C), and
 periodicity (Family D) — with the firing family that caught it, so a detection number is never
-published without naming its mode. No mode is left in a footnote.
+published without naming its mode. No mode is left in a footnote. The binary tables above are
+the generated quasi-random fabric; the **Spraypoint sections** below measure the two-view
+FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, and its own
+clean-fabric FDR control. All floors here are the first Δ reaching ≥90% on an n=4 grid
+(2 targets × 2 seeds): with n=4 a floor means "first unanimous Δ" — a coarse, honest estimator,
+and floors are grid-resolution-limited (reported at grid points, not interpolated).
 
 ## Coverage / saturation
 
@@ -86,8 +91,12 @@ the views have COMPLEMENTARY blind spots — published here, not implied. An opt
 
 Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a
 `p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary
-table above (smallest Δ reaching ≥ 90 %). Detection rides each kind's w=1 view, so dilution
-does not raise the detection floor; the honest cost appears where attribution lags detection.
+table above. Read against the binary fabric's nearest-analogue kinds (optic↔optic,
+shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the comparison is
+indicative, not a controlled dilution-only experiment): **detection** floors match the binary
+analogues (each kind has a w=1 view), but the **room attribution floor RISES 1 → 2** vs
+power_zone 1/1 — a room fault at Δ=1 is detected 4/4 yet attributed 0/4 (the ADR-0019
+wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 2/4).
 
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
@@ -116,3 +125,5 @@ does not raise the detection floor; the honest cost appears where attribution la
 ## FDR control (clean fabric, no degradation)
 
 Across 4 clean trials over 300 path-classes: mean selected = **0**, false-positive rate = **0%** — e-BH holds the surface quiet under heavy correlation.
+
+Spraypoint fabric (the one the dilution floors characterize): 4 clean trials, mean selected = **0**, false-positive rate = **0%** — the dilution detection column does not borrow its false-alarm baseline from another fabric.

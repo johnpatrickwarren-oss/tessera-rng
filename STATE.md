@@ -190,8 +190,8 @@ closing the C1 residue structurally. The repo is **public**. **159 tests, gate P
   distance is structurally dead (P2). But the paper treats telemetry/operations as out of scope, so
   the §3.2 five-signal contract stays a working assumption — now **unfalsified, not validated**. The
   published floors now cover BOTH regimes: the v1 binary/fixed-set injection model AND the
-  Spraypoint fractional-dilution fabric (ADR-0020 closed the ADR-0014 deferral — dilution does not
-  raise the floors; room attribution lags detection, published).
+  Spraypoint fractional-dilution fabric (ADR-0020 closed the ADR-0014 deferral — detection floors
+  unchanged; the room ATTRIBUTION floor rises 1→2 vs its binary analogue, published).
 
 ## Next (resumable, post-v1)
 
@@ -304,9 +304,12 @@ routed to the owner, not changed unilaterally.
 - **Spraypoint dilution floors** (ADR-0020, round-4 item 2): the honest-measurement matrix gains
   a dilution floor table on the two-view fabric (3 kinds × Δ∈{0.5..4} × 2 targets × 2 seeds),
   closing the ADR-0014 "binary regime only" deferral. Measured: optic 2/2, shuffle_panel 1/2,
-  room 1/2 — **dilution does not raise the floors** (each kind's w=1 view carries detection,
-  matching the binary regime's corresponding kinds), and the honest cost is the room
-  **attribution lag** (Δ=1: detection 4/4, attribution 0/4 — the ADR-0019 wrong-kind band,
-  now published, not implied away). A pre-measurement draft predicted lower floors and was wrong —
-  replaced with observed numbers on the record. Bound by a second freshness spot-check (the room
-  Δ=2 cell) + structural floor assertions on the committed JSON.
+  room 1/2 — **detection floors are not raised by dilution** (each kind's w=1 view carries
+  detection, matching the binary analogues), but the **room attribution floor rises 1→2** vs its
+  binary reference (power_zone 1/1): Δ=1 detects 4/4 yet attributes 0/4 (the ADR-0019 wrong-kind
+  band — a reliable alarm with an unreliable culprit, published, not implied away; true boundary
+  ≈1.5–2). A pre-measurement draft predicted lower floors and was wrong — replaced with observed
+  numbers on the record; the first published reading ALSO overclaimed ("dilution does not raise
+  the floors") and was corrected by the round-4 cold-eye. Bound by a second freshness spot-check
+  (the room Δ=2 cell), structural floor assertions, markdown-section emission asserts, and a
+  Spraypoint clean-fabric FDR control (0% FP) so the detection column owns its baseline.
