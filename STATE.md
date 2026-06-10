@@ -142,6 +142,17 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   clean correlated window still selects 0. New math, 92% mutation score; default telemetry stays
   byte-for-byte identical to v1.
 
+## Post-v1 round 2 (branch `post-v1-round2`, off merged main)
+
+- **Per-mode honest measurement** (ADR-0010): the audit gains `firing_families {A,C,D}` (the
+  firing-mode attribution — which family caught the selected set), and the coverage tool gains a
+  **per-mode floor table** measuring detection+attribution floors for all three anomaly modes
+  (mean-shift Δ→A, covariance-flip Δρ→C, oscillation amp→D) with the firing family per mode. The
+  scope note no longer defers covariance/spectral to a footnote — they are measured. `runPipeline`
+  now threads baseline `noiseCorr`/`arCoeffs` into the calibration window too. Measured floors
+  (passive_shuffler, q=0.05): mean Δ=1 (A; A+C at Δ≥2), covariance Δρ=0.2 (C), oscillation amp=0.9
+  (D).
+
 ## Honest current limitations (NOT hidden)
 
 - Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model

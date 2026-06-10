@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { floorFor, renderMarkdown } from '../tools/coverage';
-import type { CoverageCell, CoverageReport } from '../tools/coverage';
+import { floorFor, modeFloorOf, renderMarkdown } from '../tools/coverage';
+import type { CoverageCell, CoverageReport, ModePoint } from '../tools/coverage';
 
 function cells(): CoverageCell[] {
   // detection reaches >=0.9 at Δ=1.0; attribution only at Δ=2.0 (you must detect before you attribute).
@@ -28,6 +28,17 @@ test('floor is null when the rate is never reached', () => {
   assert.equal(floorFor(weak, 'optic', 'detection_rate'), null);
 });
 
+test('modeFloorOf returns the smallest magnitude reaching the rate (mode floors, ADR-0010)', () => {
+  const pts: ModePoint[] = [
+    { magnitude: 0.3, detection_rate: 0.25, attribution_rate: 0, family: 'none' },
+    { magnitude: 0.7, detection_rate: 1.0, attribution_rate: 0.5, family: 'D' },
+    { magnitude: 0.9, detection_rate: 1.0, attribution_rate: 1.0, family: 'D' },
+  ];
+  assert.equal(modeFloorOf(pts, 'detection_rate'), 0.7);
+  assert.equal(modeFloorOf(pts, 'attribution_rate'), 0.9);
+  assert.equal(modeFloorOf([pts[0]], 'detection_rate'), null);
+});
+
 test('markdown exposes detection AND attribution columns plus the FDR-control line', () => {
   const rep: CoverageReport = {
     generated_for: 'x',
@@ -40,6 +51,11 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
     per_signal: [
       { signal: 'loss_rate', mode: 'mean', delta: 3, n: 4, detection_rate: 1, attribution_rate: 1 },
       { signal: 'loss_rate', mode: 'variance', delta: 4, n: 4, detection_rate: 0.75, attribution_rate: 0.75 },
+    ],
+    mode_floors: [
+      { mode: 'mean_shift', unit: 'Δ (p99 mean)', detection_floor: 1.0, attribution_floor: 2.0, detecting_family: 'A', points: [{ magnitude: 1.0, detection_rate: 1, attribution_rate: 0.5, family: 'A+C' }] },
+      { mode: 'covariance_flip', unit: 'Δρ (corr change)', detection_floor: 1.0, attribution_floor: 1.0, detecting_family: 'C', points: [{ magnitude: 1.0, detection_rate: 1, attribution_rate: 1, family: 'C' }] },
+      { mode: 'oscillation', unit: 'amplitude (period 7)', detection_floor: 0.9, attribution_floor: 0.9, detecting_family: 'D', points: [{ magnitude: 0.9, detection_rate: 1, attribution_rate: 1, family: 'D' }] },
     ],
     clean: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
   };
@@ -54,4 +70,9 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   // the per-signal section + variance row demonstrate the full contract is exercised.
   assert.match(md, /Per-signal coverage/);
   assert.match(md, /loss_rate \| variance/);
+  // the per-mode floor table covers all three modes with their firing family (ADR-0010).
+  assert.match(md, /Per-mode detection floors/);
+  assert.match(md, /covariance_flip/);
+  assert.match(md, /oscillation/);
+  assert.match(md, /detecting family/);
 });

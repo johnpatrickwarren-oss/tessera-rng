@@ -51,6 +51,13 @@ export interface DrainAction {
   simulated: true;
 }
 
+/** Count of SELECTED path-classes each family fired on — the firing-mode attribution (ADR-0010). */
+export interface FiringFamilies {
+  A: number;
+  C: number;
+  D: number;
+}
+
 export interface AuditRecord {
   snapshot_hash: string;
   q: number;
@@ -61,4 +68,10 @@ export interface AuditRecord {
   /** firing paths the parsimonious culprit set does not explain (honest measurement). */
   unexplained_path_class_ids: readonly PathClassId[];
   drain_actions: readonly DrainAction[];
+  /**
+   * Which detector family drove the firings on the SELECTED set (ADR-0010): a degradation's anomaly
+   * MODE is attributed to the family that caught it (mean → A, covariance → C, periodicity → D), so a
+   * detection number is never published without saying which mode produced it.
+   */
+  firing_families: FiringFamilies;
 }

@@ -11,6 +11,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { runPipeline } from '../src/pipeline';
+import type { PipelineParams } from '../src/pipeline';
 import { generateFabric } from '../src/fabric';
 import type { ResourceKind } from '../src/domain';
 import { SIGNALS } from '../src/signals';
@@ -62,6 +63,25 @@ export interface SignalCoverageRow {
   attribution_rate: number;
 }
 
+/** One swept magnitude of one anomaly mode: detection + attribution + which family caught it. */
+export interface ModePoint {
+  magnitude: number;
+  detection_rate: number;
+  attribution_rate: number;
+  /** the family(ies) that fired on the selected set ('A+C', 'C', 'D', …) — firing-mode attribution. */
+  family: string;
+}
+
+export interface ModeFloorRow {
+  mode: 'mean_shift' | 'covariance_flip' | 'oscillation';
+  unit: string;
+  detection_floor: number | null;
+  attribution_floor: number | null;
+  /** the expected detecting family for this mode (A=mean, C=covariance, D=spectral). */
+  detecting_family: string;
+  points: ModePoint[];
+}
+
 export interface CoverageReport {
   generated_for: string;
   deltas: number[];
@@ -72,6 +92,8 @@ export interface CoverageReport {
   floors: FloorRow[];
   /** per-signal detection sweep (fixed kind+Δ) demonstrating all five signals are exercised. */
   per_signal: SignalCoverageRow[];
+  /** per-mode floors (A=mean, C=covariance, D=spectral) — the three anomaly modes, each measured. */
+  mode_floors: ModeFloorRow[];
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
 }
 
@@ -144,6 +166,79 @@ async function cleanFalsePositives(): Promise<CoverageReport['clean']> {
   return { trials, mean_selected: total / trials, false_positive_rate: total / (trials * SCENARIO_FABRIC.n_path_classes) };
 }
 
+// ───────────────────────── per-mode floors (A=mean, C=covariance, D=spectral) ─────────────────────────
+
+const MODE_KIND: ResourceKind = 'passive_shuffler';
+const MEAN_MAGNITUDES = [0.5, 1.0, 2.0, 3.0]; // Δ on p99 (mode A)
+const COV_BASE_RHO = 0.9; // baseline correlation of signals 0,2 …
+// … flipped to these; magnitude = base − degraded. Includes sub-floor points (0.1, 0.2) so the
+// detection knee is BRACKETED (a below-floor sample precedes the floor), not just lower-bounded.
+const COV_DEGRADED_RHO = [0.9, 0.8, 0.7, 0.5, 0.0, -0.5, -0.9];
+const OSC_AMPLITUDES = [0.3, 0.5, 0.7, 0.9]; // period-7 oscillation amplitude (mode D)
+const COV_TICKS = 96;
+const OSC_TICKS = 600; // Family D needs ~15 non-overlapping windows for power
+
+/** A p×p correlation matrix: ρ between signals (i,j), identity elsewhere. */
+function corrMatrix(i: number, j: number, rho: number): number[][] {
+  const p = SIGNALS.length;
+  return Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => (a === b ? 1 : (a === i && b === j) || (a === j && b === i) ? rho : 0)));
+}
+
+/** Families that fired across the trials, joined ('A+C', 'C', 'D'); 'none' if silent. */
+function firedFamilies(fam: { A: number; C: number; D: number }): string {
+  const on = (['A', 'C', 'D'] as const).filter((k) => fam[k] > 0);
+  return on.length ? on.join('+') : 'none';
+}
+
+/** Run one magnitude of a mode over the targets×seeds and aggregate the rates + firing families. */
+async function modePoint(magnitude: number, targets: string[], paramsFor: (resource: string, seed: number, magnitude: number) => PipelineParams): Promise<ModePoint> {
+  let detected = 0;
+  let attributed = 0;
+  let n = 0;
+  const fam = { A: 0, C: 0, D: 0 };
+  for (const resource of targets) {
+    for (const seed of SEEDS) {
+      const audit = await runPipeline(paramsFor(resource, seed, magnitude));
+      n += 1;
+      const isDetected = audit.selected_path_class_ids.length > 0;
+      if (isDetected) detected += 1;
+      if (isDetected && audit.culprits[0]?.resource_id === resource) attributed += 1;
+      fam.A += audit.firing_families.A;
+      fam.C += audit.firing_families.C;
+      fam.D += audit.firing_families.D;
+    }
+  }
+  return { magnitude, detection_rate: detected / n, attribution_rate: attributed / n, family: firedFamilies(fam) };
+}
+
+/** Smallest magnitude whose rate reaches the floor (points must be magnitude-ascending). */
+export function modeFloorOf(points: ModePoint[], key: 'detection_rate' | 'attribution_rate'): number | null {
+  for (const p of [...points].sort((a, b) => a.magnitude - b.magnitude)) if (p[key] >= FLOOR_RATE) return p.magnitude;
+  return null;
+}
+
+async function modeFloors(): Promise<ModeFloorRow[]> {
+  const targets = topTargets(MODE_KIND, TARGETS_PER_KIND);
+  const rows: ModeFloorRow[] = [];
+
+  const meanPts = await Promise.all(MEAN_MAGNITUDES.map((d) => modePoint(d, targets, (resource, seed, delta) => ({
+    fabric: SCENARIO_FABRIC, q: Q, telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0, signal: 'p99_latency' } },
+  }))));
+  rows.push({ mode: 'mean_shift', unit: 'Δ (p99 mean)', detection_floor: modeFloorOf(meanPts, 'detection_rate'), attribution_floor: modeFloorOf(meanPts, 'attribution_rate'), detecting_family: 'A', points: meanPts });
+
+  const covPts = await Promise.all(COV_DEGRADED_RHO.map((degRho) => modePoint(Math.round((COV_BASE_RHO - degRho) * 100) / 100, targets, (resource, seed) => ({
+    fabric: SCENARIO_FABRIC, q: Q, telemetry: { seed, ticks: COV_TICKS, noiseCorr: corrMatrix(0, 2, COV_BASE_RHO), degradation: { resource_id: resource, delta: 0, start_tick: 0, degradedNoiseCorr: corrMatrix(0, 2, degRho) } },
+  }))));
+  rows.push({ mode: 'covariance_flip', unit: 'Δρ (corr change)', detection_floor: modeFloorOf(covPts, 'detection_rate'), attribution_floor: modeFloorOf(covPts, 'attribution_rate'), detecting_family: 'C', points: covPts });
+
+  const oscPts = await Promise.all(OSC_AMPLITUDES.map((amp) => modePoint(amp, targets, (resource, seed, magnitude) => ({
+    fabric: SCENARIO_FABRIC, q: Q, telemetry: { seed, ticks: OSC_TICKS, degradation: { resource_id: resource, delta: 0, start_tick: 0, signal: 'p99_latency', oscillationPeriod: 7, oscillationAmp: magnitude } },
+  }))));
+  rows.push({ mode: 'oscillation', unit: 'amplitude (period 7)', detection_floor: modeFloorOf(oscPts, 'detection_rate'), attribution_floor: modeFloorOf(oscPts, 'attribution_rate'), detecting_family: 'D', points: oscPts });
+
+  return rows;
+}
+
 export async function computeCoverage(): Promise<CoverageReport> {
   const cells: CoverageCell[] = [];
   for (const kind of KINDS) {
@@ -164,6 +259,7 @@ export async function computeCoverage(): Promise<CoverageReport> {
     cells,
     floors,
     per_signal: await perSignalCoverage(),
+    mode_floors: await modeFloors(),
     clean: await cleanFalsePositives(),
   };
 }
@@ -181,12 +277,15 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('');
   L.push('## Perturbation model & scope (read before the numbers)');
   L.push('');
-  L.push('The **floor table** characterizes a single-signal **`p99_latency` mean shift** (Δ added to the');
-  L.push('p99 residual of every path-class traversing the target resource) — it is the calibrated reference');
+  L.push('The first **floor table** characterizes a single-signal **`p99_latency` mean shift** (Δ added to');
+  L.push('the p99 residual of every path-class traversing the target resource) — the calibrated reference');
   L.push('response, so its floors are floors *for a p99 mean shift*, not a blanket "any degradation"');
-  L.push('guarantee. The **per-signal section** below exercises the full five-signal contract: a mean shift on');
-  L.push('each signal (Family A is multi-signal, ADR-0003) plus a pure variance shift (caught by Family C, not');
-  L.push('A). Cross-signal covariance shifts remain future work — stated here, not in a footnote.');
+  L.push('guarantee. The **per-signal section** exercises the full five-signal contract: a mean shift on each');
+  L.push('signal (Family A is multi-signal, ADR-0003) plus a pure variance shift (caught by Family C, not A).');
+  L.push('The **per-mode floor table** (ADR-0010) goes further: it reports a separate detection/attribution');
+  L.push('floor for EACH of the three anomaly modes — mean shift (Family A), covariance flip (Family C), and');
+  L.push('periodicity (Family D) — with the firing family that caught it, so a detection number is never');
+  L.push('published without naming its mode. No mode is left in a footnote.');
   L.push('');
   L.push('## Coverage / saturation');
   L.push('');
@@ -208,6 +307,19 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('| signal | mode | Δ | detection | attribution |');
   L.push('|---|---|---|---|---|');
   for (const r of rep.per_signal) L.push(`| ${r.signal} | ${r.mode} | ${r.delta} | ${pct(r.detection_rate)} | ${pct(r.attribution_rate)} |`);
+  L.push('');
+  L.push('## Per-mode detection floors — A + C + D (ADR-0010)');
+  L.push('');
+  L.push(`Each of the three anomaly modes swept independently (kind=${MODE_KIND}, ${rep.seeds_per_cell} seeds × ${rep.targets_per_kind} targets).`);
+  L.push('The **firing family** column is the firing-mode attribution: which detector actually caught each mode.');
+  L.push('');
+  L.push(`| mode | unit | detection floor | attribution floor | detecting family | per-magnitude (mag → det / family) |`);
+  L.push('|---|---|---|---|---|---|');
+  for (const m of rep.mode_floors) {
+    const big = `>${Math.max(...m.points.map((p) => p.magnitude))}`;
+    const trail = m.points.map((p) => `${p.magnitude}→${pct(p.detection_rate)}/${p.family}`).join(', ');
+    L.push(`| ${m.mode} | ${m.unit} | ${m.detection_floor ?? big} | ${m.attribution_floor ?? big} | ${m.detecting_family} | ${trail} |`);
+  }
   L.push('');
   L.push('## FDR control (clean fabric, no degradation)');
   L.push('');

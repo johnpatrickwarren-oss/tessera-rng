@@ -95,10 +95,10 @@
       "kind": "fiber_bundle",
       "delta": 1,
       "n": 4,
-      "detected": 4,
-      "attributed": 1,
-      "detection_rate": 1,
-      "attribution_rate": 0.25
+      "detected": 3,
+      "attributed": 0,
+      "detection_rate": 0.75,
+      "attribution_rate": 0
     },
     {
       "kind": "fiber_bundle",
@@ -132,9 +132,9 @@
       "delta": 1,
       "n": 4,
       "detected": 4,
-      "attributed": 3,
+      "attributed": 2,
       "detection_rate": 1,
-      "attribution_rate": 0.75
+      "attribution_rate": 0.5
     },
     {
       "kind": "power_zone",
@@ -168,7 +168,7 @@
     },
     {
       "kind": "fiber_bundle",
-      "detection_floor": 1,
+      "detection_floor": 2,
       "attribution_floor": 2
     },
     {
@@ -225,6 +225,125 @@
       "n": 4,
       "detection_rate": 1,
       "attribution_rate": 1
+    }
+  ],
+  "mode_floors": [
+    {
+      "mode": "mean_shift",
+      "unit": "Δ (p99 mean)",
+      "detection_floor": 1,
+      "attribution_floor": 2,
+      "detecting_family": "A",
+      "points": [
+        {
+          "magnitude": 0.5,
+          "detection_rate": 0,
+          "attribution_rate": 0,
+          "family": "none"
+        },
+        {
+          "magnitude": 1,
+          "detection_rate": 1,
+          "attribution_rate": 0.25,
+          "family": "A"
+        },
+        {
+          "magnitude": 2,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "A+C"
+        },
+        {
+          "magnitude": 3,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "A+C"
+        }
+      ]
+    },
+    {
+      "mode": "covariance_flip",
+      "unit": "Δρ (corr change)",
+      "detection_floor": 0.2,
+      "attribution_floor": 0.4,
+      "detecting_family": "C",
+      "points": [
+        {
+          "magnitude": 0,
+          "detection_rate": 0,
+          "attribution_rate": 0,
+          "family": "none"
+        },
+        {
+          "magnitude": 0.1,
+          "detection_rate": 0,
+          "attribution_rate": 0,
+          "family": "none"
+        },
+        {
+          "magnitude": 0.2,
+          "detection_rate": 1,
+          "attribution_rate": 0,
+          "family": "C"
+        },
+        {
+          "magnitude": 0.4,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "C"
+        },
+        {
+          "magnitude": 0.9,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "C"
+        },
+        {
+          "magnitude": 1.4,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "C"
+        },
+        {
+          "magnitude": 1.8,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "C"
+        }
+      ]
+    },
+    {
+      "mode": "oscillation",
+      "unit": "amplitude (period 7)",
+      "detection_floor": 0.9,
+      "attribution_floor": 0.9,
+      "detecting_family": "D",
+      "points": [
+        {
+          "magnitude": 0.3,
+          "detection_rate": 0,
+          "attribution_rate": 0,
+          "family": "none"
+        },
+        {
+          "magnitude": 0.5,
+          "detection_rate": 0,
+          "attribution_rate": 0,
+          "family": "none"
+        },
+        {
+          "magnitude": 0.7,
+          "detection_rate": 0.5,
+          "attribution_rate": 0,
+          "family": "D"
+        },
+        {
+          "magnitude": 0.9,
+          "detection_rate": 1,
+          "attribution_rate": 1,
+          "family": "D"
+        }
+      ]
     }
   ],
   "clean": {
