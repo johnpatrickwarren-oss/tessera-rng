@@ -159,8 +159,9 @@ uncovered. If a prescription gained no binding AC, it would move to anti-scope.
   payload; the hash reuses the engine's public `pureJsSha256`.
 - **Q2 (telemetry granularity):** RESOLVED — the §3.2 five-signal vector
   (`p99_latency`, `retransmit_rate`, `loss_rate`, `ecmp_imbalance`, `path_completion`) is the
-  v1 synthetic contract. Operator-overridable. (arXiv:2604.15261 remains unavailable to
-  verify against; this is the recorded working assumption, not a claim of fidelity.)
+  v1 synthetic contract. Operator-overridable. (arXiv:2604.15261 is **now available and verified** —
+  ADR-0013 — but it treats telemetry/operations as out of scope, so this contract remains a working
+  assumption: **unfalsified, not validated**. The paper *does* use latency when picking flowlets.)
 - **Q3 (topology-parameter source):** RESOLVED — a seeded generator produces the quasi-random
   fabric + cabling/shuffle map from named parameters with **documented defaults**; operator
   override is a later thickening, not a v1 blocker.

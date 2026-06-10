@@ -178,8 +178,14 @@ the C and D modes. The repo is **public**. **112 tests, gate PASS.**
   baseline) — see ADR-0008.
 - Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
   remains N2 anti-scope.
-- Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
-  contract against — recorded assumption, not a fidelity claim.
+- Synthetic fabric/telemetry only (N2). **arXiv:2604.15261 is now available and verified**
+  (ADR-0013): topology/routing/ShuffleBox/scale confirmed (quasi-random expander, d=64, max path
+  5, >50 edge-disjoint paths, Spraypoint ECMP, 960 ToRs/61.4K servers), and the paper confirms hop
+  distance is structurally dead (P2). But the paper treats telemetry/operations as out of scope, so
+  the §3.2 five-signal contract stays a working assumption — now **unfalsified, not validated**. The
+  published floors are floors for the v1 binary/fixed-set injection model; the paper's Spraypoint
+  spreads traffic fractionally (motivates the weighted-incidence + leaky-scorer + epoch work,
+  ADR-0014..0016).
 
 ## Next (resumable, post-v1)
 
@@ -195,4 +201,16 @@ Family C Σ, per-cell AR(p), Family E if a non-Gaussian-tail mode is needed, Fam
 matrix, real-fabric validation.
 
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
-(N4), the arXiv:2604.15261 signal-contract fidelity question, repo visibility (private→public).
+(N4), the §3.2 signal-contract *fidelity* question (paper now read — ADR-0013 — but telemetry is
+out of its scope, so fidelity stays unprovable without real data). **Open spec decision (WO item 5,
+HALT-CLASS):** path-class granularity — 960 ToRs ⇒ ~460K ToR-pairs vs AC-1's [100,10000] bound;
+routed to the owner, not changed unilaterally.
+
+## Post-v1 round 3 — RNG-paper reconciliation work order (branch `post-v1-round2`)
+
+- **RNG-paper reconciliation** (ADR-0013): arXiv:2604.15261 is now available; I self-fetched and
+  verified its topology/routing/ShuffleBox/scale (quasi-random expander, d=64, max path 5, >50
+  edge-disjoint paths, Spraypoint ECMP+waypoints, 960 ToRs/61.4K servers). The paper confirms P2
+  (hop distance is dead) and the path-diversity raw material, but treats telemetry as out of scope —
+  the five-signal contract is now *unfalsified, not validated*. Motivates the weighted-incidence,
+  leaky-scorer, and epoch items (ADR-0014..0016) and the HALT-CLASS granularity question. Docs only.
