@@ -13,6 +13,8 @@ import { join } from 'node:path';
 import { runPipeline } from '../src/pipeline';
 import { generateFabric } from '../src/fabric';
 import type { ResourceKind } from '../src/domain';
+import { SIGNALS } from '../src/signals';
+import type { SignalName } from '../src/signals';
 import { SCENARIO_FABRIC } from './scenarios';
 
 const KINDS: ResourceKind[] = ['optic', 'passive_shuffler', 'fiber_bundle', 'power_zone'];
@@ -51,6 +53,15 @@ export interface FloorRow {
   attribution_floor: number | null;
 }
 
+export interface SignalCoverageRow {
+  signal: SignalName;
+  mode: 'mean' | 'variance';
+  delta: number;
+  n: number;
+  detection_rate: number;
+  attribution_rate: number;
+}
+
 export interface CoverageReport {
   generated_for: string;
   deltas: number[];
@@ -59,6 +70,8 @@ export interface CoverageReport {
   floor_rate: number;
   cells: CoverageCell[];
   floors: FloorRow[];
+  /** per-signal detection sweep (fixed kind+Δ) demonstrating all five signals are exercised. */
+  per_signal: SignalCoverageRow[];
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
 }
 
@@ -86,6 +99,39 @@ export function floorFor(cells: CoverageCell[], kind: ResourceKind, key: 'detect
   const rows = cells.filter((c) => c.kind === kind).sort((a, b) => a.delta - b.delta);
   for (const r of rows) if (r[key] >= FLOOR_RATE) return r.delta;
   return null;
+}
+
+const PER_SIGNAL_KIND: ResourceKind = 'passive_shuffler';
+const PER_SIGNAL_DELTA = 3.0;
+
+/** Detection + attribution for a degradation on one signal in one mode (fixed kind + Δ). */
+async function signalRow(targets: string[], signal: SignalName, mode: 'mean' | 'variance', delta: number): Promise<SignalCoverageRow> {
+  let detected = 0;
+  let attributed = 0;
+  let n = 0;
+  for (const resource of targets) {
+    for (const seed of SEEDS) {
+      const audit = await runPipeline({
+        fabric: SCENARIO_FABRIC,
+        telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0, signal, mode } },
+        q: Q,
+      });
+      n += 1;
+      const isDetected = audit.selected_path_class_ids.length > 0;
+      if (isDetected) detected += 1;
+      if (isDetected && audit.culprits[0]?.resource_id === resource) attributed += 1;
+    }
+  }
+  return { signal, mode, delta, n, detection_rate: detected / n, attribution_rate: attributed / n };
+}
+
+async function perSignalCoverage(): Promise<SignalCoverageRow[]> {
+  const targets = topTargets(PER_SIGNAL_KIND, TARGETS_PER_KIND);
+  const rows: SignalCoverageRow[] = [];
+  for (const signal of SIGNALS) rows.push(await signalRow(targets, signal, 'mean', PER_SIGNAL_DELTA));
+  // a distributional (variance) shift demonstrates Family C catches what Family A cannot.
+  rows.push(await signalRow(targets, 'loss_rate', 'variance', 4.0));
+  return rows;
 }
 
 async function cleanFalsePositives(): Promise<CoverageReport['clean']> {
@@ -117,6 +163,7 @@ export async function computeCoverage(): Promise<CoverageReport> {
     floor_rate: FLOOR_RATE,
     cells,
     floors,
+    per_signal: await perSignalCoverage(),
     clean: await cleanFalsePositives(),
   };
 }
@@ -134,13 +181,12 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('');
   L.push('## Perturbation model & scope (read before the numbers)');
   L.push('');
-  L.push('These floors characterize a **single-signal mean shift**: each injected degradation adds Δ to the');
-  L.push('`p99_latency` residual of every path-class traversing the target resource. The full five-signal');
-  L.push('vector is plumbed end-to-end and Family C (distributional) consumes all five, but **this sweep does');
-  L.push('not perturb the other four signals**, nor inject pure variance/covariance shifts. So the detection');
-  L.push('and attribution floors below are floors *for a p99-latency mean shift*, not a general "any');
-  L.push('degradation" guarantee. Multi-signal and distributional-shift coverage is future work — stated here,');
-  L.push('not in a footnote.');
+  L.push('The **floor table** characterizes a single-signal **`p99_latency` mean shift** (Δ added to the');
+  L.push('p99 residual of every path-class traversing the target resource) — it is the calibrated reference');
+  L.push('response, so its floors are floors *for a p99 mean shift*, not a blanket "any degradation"');
+  L.push('guarantee. The **per-signal section** below exercises the full five-signal contract: a mean shift on');
+  L.push('each signal (Family A is multi-signal, ADR-0003) plus a pure variance shift (caught by Family C, not');
+  L.push('A). Cross-signal covariance shifts remain future work — stated here, not in a footnote.');
   L.push('');
   L.push('## Coverage / saturation');
   L.push('');
@@ -153,6 +199,15 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('| resource kind | detection floor (Δ) | attribution floor (Δ) |');
   L.push('|---|---|---|');
   for (const f of rep.floors) L.push(`| ${f.kind} | ${f.detection_floor ?? `>${Math.max(...rep.deltas)}`} | ${f.attribution_floor ?? `>${Math.max(...rep.deltas)}`} |`);
+  L.push('');
+  L.push(`## Per-signal coverage (kind=${PER_SIGNAL_KIND}, mean Δ=${PER_SIGNAL_DELTA} unless noted)`);
+  L.push('');
+  L.push('Demonstrates the system responds to a degradation on **every** signal, and that a variance');
+  L.push('(distributional) shift is caught by Family C where Family A is silent.');
+  L.push('');
+  L.push('| signal | mode | Δ | detection | attribution |');
+  L.push('|---|---|---|---|---|');
+  for (const r of rep.per_signal) L.push(`| ${r.signal} | ${r.mode} | ${r.delta} | ${pct(r.detection_rate)} | ${pct(r.attribution_rate)} |`);
   L.push('');
   L.push('## FDR control (clean fabric, no degradation)');
   L.push('');

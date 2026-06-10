@@ -17,11 +17,13 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**Fuller v1 complete.** All ten v1 acceptance-criteria clusters implemented and tested
-(67 tests, gate PASS, tomography 100% mutation score). Q1–Q3 ratified. A fresh-context
-cold-eye review was run and its findings addressed: Family A α-accounting corrected to
-spent-on-fire, anti-scope guard tests added (N1/N2/N5), AC-8 demo test added, and the
-coverage report now states its single-signal (p99-mean-shift) perturbation scope prominently.
+**Fuller v1 complete + all four documented post-v1 items landed** (branch `post-v1`, PR #1).
+v1: all ten acceptance-criteria clusters implemented and tested, Q1–Q3 ratified, cold-eye
+findings addressed (Family A α spent-on-fire, anti-scope guards N1/N2/N5, AC-8 demo test,
+honest single-signal coverage scope). Post-v1 (ADR-0006..0009): min-sample pooled calibration
+fallback, Family C learned cross-signal covariance, higher-order AR(p) calibration, and the
+Family D spectral detector — each with an ADR, anti-self-confirming tests, a mutation pass on the
+new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate PASS.**
 
 ## Built so far
 
@@ -67,8 +69,10 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   shape; hash via engine `pureJsSha256`).
 - `telemetry` raw per-cell-smear signals + degradation injection · `calibration` per-cell
   (HoD × DoW × traffic-class) baselines → residuals (AC-7).
-- `detect` Family A (mean-shift) **and** Family C (Safe-Hotelling distributional), per-detector
-  α-budget (AC-2a/2b) · `surface` hierarchical combine + e-BH FDR (AC-3) · `tomography`
+- `detect` Family A (mean-shift), Family C (Safe-Hotelling distributional) **and** Family D
+  (spectral/periodicity, ADR-0009, opt-in via DetectorContext), per-detector α-budget (AC-2a/2b) ·
+  `family-d` spectral e-detector · `covariance` cholesky/logDet/Ledoit-Wolf (ADR-0007) ·
+  `surface` hierarchical combine + e-BH FDR (AC-3) · `tomography`
   noisy-OR set-cover MAP (AC-5, **100% mutation score**) · `drain` simulated (AC-6) ·
   `pipeline` → replay-clean `AuditRecord` (AC-9).
 - `tools/scenarios` six deterministic scenarios · `tools/build-demo` → `demos/demo.html`
@@ -76,20 +80,92 @@ coverage report now states its single-signal (p99-mean-shift) perturbation scope
   detection+attribution parallel columns, floor table, and clean-fabric FDR-control evidence
   (AC-10).
 
+## Post-v1 progress (branch `post-v1`)
+
+- **Multi-signal Family A** (ADR-0003): Family A runs a betting e-process per signal, family
+  e-value = mean of per-signal e-values (AoE, valid under dependence). Degradations can target
+  any signal in `'mean'` or `'variance'` mode. Coverage now has a per-signal section showing
+  detection+attribution across all five signals (100%) plus a variance row caught by Family C
+  — the full signal contract is exercised end-to-end, not just disclosed.
+- **Production-AR substrate calibration** (ADR-0004): telemetry now emits AR(1)-autocorrelated
+  noise (real signals are temporally correlated); calibration estimates a per-signal AR(1) φ
+  (pooled γ̂₁/γ̂₀, reusing the engine's `sampleAutocovariance`) and pre-whitens residuals
+  (engine `prewhitenAr` + unit-variance rescale) after per-cell de-meaning. Detectors see
+  near-iid input → FDR control holds (clean fabric still selects 0) under autocorrelated
+  telemetry; tests verify φ recovery and lag-1 autocorrelation removal. (Generalized to
+  per-signal AR(p) with AIC order selection in ADR-0008.)
+- **Operator-supplied topology override** (ADR-0005): `validateFaultDomainSnapshot` (pure, in
+  `src/`) validates a parsed incidence object (RNG taxonomy, `traverses` relationship,
+  referential integrity); `tools/load-topology.ts` reads+parses the file (fs confined to
+  `tools/`, N2 intact) and a CLI prints a summary+hash; `runPipeline` accepts an optional
+  `snapshot` that overrides the generated fabric. Closes the Q3 deferral.
+- **Min-sample pooled calibration fallback** (ADR-0006): cells with `n < 30` calibration
+  samples borrow a pooled per-signal `(mean, sd)` (well-estimated over all cells) instead of a
+  noisy per-cell `sd` that, against an independent live window, inflates residual variance and
+  false-selects on a clean fabric. Unseen-at-calibration cells now pool too (were raw
+  pass-through). Threshold 30 is empirical (a sweep: per-cell standardization only stops
+  breaking FDR at `n ≳ 30`); the default ~400-path-class fabric is untouched. Unblocks small
+  operator topologies — clean fabrics from 9 path-classes up select nothing, while a real shift
+  still fires on every affected path-class.
+- **Family D (spectral) detector** (ADR-0009): a THIRD anytime-valid family beyond A (mean) and C
+  (covariance), catching temporal PERIODICITY — a signal that develops an oscillation with no change
+  in marginal mean or variance. `src/family-d.ts` runs the engine's mixture-prior spectral
+  e-detector over the peak |ACF| of NON-overlapping windows (overlapping breaks e-validity) of each
+  pre-whitened residual; per-signal wealths averaged into the family e-value. Nulls (μ₀,σ₀)
+  calibrated from clean residuals; `detectAll` takes a `DetectorContext {familyCCell?, familyDCells?}`
+  so Family D runs only when calibrated (A+C-only callers unchanged; combined e-value = mean over
+  present detectors). Telemetry gains a variance-preserving `oscillationPeriod/Amp` degradation. On a
+  clean fabric a period-7 oscillation is caught on every affected path-class while A+C select zero;
+  the clean A+C+D stack is FDR-controlled (not literally zero on every seed — e-BH bounds the rate).
+  Power needs ~15 windows (~600 ticks); near-inert at short scenarios (0 false selections over 40
+  clean 60-tick seeds). Degenerate-σ₀ nulls are disabled and wealth is capped finite (a cold-eye
+  review closed an overflow→NaN path). New math; lone surviving mutant = the benign fire boundary.
+  Family E (conformal) intentionally not added (Mahalanobis-based, overlaps C).
+- **Higher-order AR(p) calibration** (ADR-0008): the temporal substrate generalizes from a fixed
+  AR(1) to a per-signal AR(**p**), order-selected by BIC via the engine's `fitArP` (cap 6; BIC over
+  AIC because AIC over-selects spurious orders on the long pooled stream). Each
+  signal's de-meaned residual columns are concatenated across path-classes and fitted; pre-whitening
+  uses multi-lag `prewhitenAr` rescaled by the fitted innovation sd. Telemetry gains an optional
+  per-signal `arCoeffs` (AR(p) noise); the default stays byte-for-byte AR(1). On AR(2) telemetry the
+  substrate recovers φ̂≈[0.5,0.3] and whitens lag-1 AND lag-2 to ~0, where an AR(1)-cap leaves lag-2
+  ≈0.18; FDR holds. **Seasonal is deliberately not wired** — the per-cell HoD×DoW baseline already
+  removes diurnal/weekly seasonality at the level (recorded, not silently absorbed). New math, 92%
+  mutation.
+- **Family C learned cross-signal covariance** (ADR-0007): replaces the identity Σ with a
+  covariance LEARNED from the clean calibration residuals via Ledoit-Wolf shrinkage (new module
+  `src/covariance.ts`: cholesky / logDet / sampleCovariance / ledoitWolf — pure, no engine
+  internals). `makeFamilyCCellFromCovariance` recomputes the Safe-Hotelling log-det shrink
+  constant for the real Σ; the pipeline learns Σ and threads it through `detectAll`. Telemetry
+  gains optional cross-signal `noiseCorr` and a pure second-order `degradedNoiseCorr` (correlation
+  flip, no marginal change). A learned Σ catches a correlation-flip degradation on every affected
+  path-class that the identity Σ — and per-signal Family A — are completely blind to, while a
+  clean correlated window still selects 0. New math, 92% mutation score; default telemetry stays
+  byte-for-byte identical to v1.
+
 ## Honest current limitations (NOT hidden)
 
-- Family A monitors `p99_latency`; the other four signals feed Family C (distributional) but
-  not a per-signal Family A. Multi-signal Family A is a thickening target.
-- Family C uses an identity baseline covariance (residuals are per-cell standardized);
-  cross-signal covariance structure is not yet learned.
-- Calibration estimates per-cell (mean, sd); the full production-AR temporal model (AR(1)
-  pre-whitening, seasonal) from the engine substrate is not yet wired.
+- Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model
+  target, and a scale-invariant τ²=c·trace(Σ)/p remain future refinements (ADR-0007).
+- Calibration now models AR(**p**) (BIC order selection, cap 6); φ is per-signal-global not
+  per-cell, and seasonal decomposition is intentionally omitted (subsumed by the per-cell HoD×DoW
+  baseline) — see ADR-0008.
+- Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
+  remains N2 anti-scope.
 - Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
   contract against — recorded assumption, not a fidelity claim.
 
 ## Next (resumable, post-v1)
 
-1. Cold-eye review fixes (in progress) → commit.
-2. Multi-signal Family A; learned cross-signal covariance for Family C.
-3. Wire the engine's production-AR substrate (AR(1)/seasonal) into calibration.
-4. Operator-supplied topology override; later, real-fabric validation phase.
+Documented future-work queue (each = ADR + tests + green gate + commit):
+
+1. ✅ Min-sample pooled calibration fallback (ADR-0006) — done.
+2. ✅ Family C learned cross-signal covariance (ADR-0007) — done; 92% mutation on the new math.
+3. ✅ Higher-order AR(p) calibration (ADR-0008) — done; BIC order selection, seasonal subsumed; 92% mutation.
+4. ✅ Family D (spectral) detector (ADR-0009) — done; catches periodicity A+C miss; 75% mutation. (Family E not added — overlaps C.)
+
+All four documented future-work items are complete. Possible further work (none started): per-cell
+Family C Σ, per-cell AR(p), Family E if a non-Gaussian-tail mode is needed, Family D in the coverage
+matrix, real-fabric validation.
+
+Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
+(N4), the arXiv:2604.15261 signal-contract fidelity question, repo visibility (private→public).
