@@ -56,6 +56,14 @@ export interface TelemetryParams {
   ticks: number;
   degradation?: DegradationSpec;
   /**
+   * SIMULTANEOUS degradations (ADR-0021): each entry carries its own resource/δ/start/signal/
+   * mode and applies in ARRAY ORDER per tick (mean shifts add). The noise stream is untouched by
+   * how many degradations exist. `degradations: [x]` is byte-identical to `degradation: x`;
+   * supplying BOTH throws; at most one entry may carry `degradedNoiseCorr` (the innovation
+   * Cholesky swap is a whole-vector transform — composing two has no defined semantics here).
+   */
+  degradations?: readonly DegradationSpec[];
+  /**
    * Optional p×p correlation matrix for the per-tick noise innovations (ADR-0007). When set, the
    * five signals co-move with this structure; when absent the noise is independent per signal
    * (identity), preserving the v1 byte-for-byte telemetry. Must be positive-definite.
@@ -110,19 +118,52 @@ function affectedWeights(snapshot: FaultDomainSnapshot, resourceId: ResourceId):
   return affected;
 }
 
+/** Normalize the degradation surface (ADR-0021): singular and plural are exclusive. */
+function normalizeDegradations(params: TelemetryParams): DegradationSpec[] {
+  if (params.degradation && params.degradations) throw new RangeError('supply degradation OR degradations, not both');
+  const degs = params.degradations ? [...params.degradations] : params.degradation ? [params.degradation] : [];
+  if (degs.filter((d) => d.degradedNoiseCorr).length > 1) {
+    throw new RangeError('at most one degradation may carry degradedNoiseCorr');
+  }
+  return degs;
+}
+
+/** One degradation's per-tick context: resolved signal/mode/start + per-epoch affected weights (ADR-0017/0021). */
+interface DegCtx {
+  deg: DegradationSpec;
+  sigIdx: number;
+  mode: 'mean' | 'variance';
+  start: number;
+  affectedBy: Map<PathClassId, number>[];
+}
+
 /**
- * Per-epoch affected-weight maps + the active-epoch resolver (ADR-0017). With no epochs this is a
+ * Per-degradation contexts + the active-epoch resolver. With no epochs each context holds a
  * single constant map over the static snapshot — the byte-identical v1 path.
  */
-function epochAffected(
+function buildDegCtxs(
   snapshot: FaultDomainSnapshot,
-  deg: DegradationSpec | undefined,
+  degs: readonly DegradationSpec[],
   epochsIn: readonly SnapshotEpoch[] | undefined,
-): { affectedBy: Map<PathClassId, number>[]; epochOf: (t: number) => number } {
+): { ctxs: DegCtx[]; epochOf: (t: number) => number } {
   const epochs = epochsIn?.length ? epochsIn : null;
   const snapshots = epochs ? epochs.map((e) => e.snapshot) : [snapshot];
-  const affectedBy = snapshots.map((s) => (deg ? affectedWeights(s, deg.resource_id) : new Map<PathClassId, number>()));
-  return { affectedBy, epochOf: (t: number) => (epochs ? epochIndexAt(epochs, t) : 0) };
+  const ctxs = degs.map((deg) => ({
+    deg,
+    sigIdx: signalIndex(deg.signal ?? 'p99_latency'),
+    mode: deg.mode ?? ('mean' as const),
+    start: deg.start_tick ?? 0,
+    affectedBy: snapshots.map((s) => affectedWeights(s, deg.resource_id)),
+  }));
+  return { ctxs, epochOf: (t: number) => (epochs ? epochIndexAt(epochs, t) : 0) };
+}
+
+/** Apply every degradation affecting this leaf at this tick, in array order (ADR-0021). */
+function applyDegradations(vec: number[], ctxs: readonly DegCtx[], pc: PathClassId, e: number, t: number, hour: number, tc: TrafficClass): void {
+  for (const c of ctxs) {
+    const w = c.affectedBy[e].get(pc);
+    if (w !== undefined && t >= c.start) degradeVector(vec, c.deg, { sigIdx: c.sigIdx, mode: c.mode, hour, tc, t, weight: w });
+  }
 }
 
 /** Cholesky factor of a correlation matrix, or null if absent; throws if present but not PD. */
@@ -197,11 +238,9 @@ function degradeVector(
 
 export function generateTelemetry(snapshot: FaultDomainSnapshot, params: TelemetryParams): Telemetry {
   const rng = makeRng(params.seed);
-  const deg = params.degradation;
-  const sigIdx = signalIndex(deg?.signal ?? 'p99_latency');
-  const mode = deg?.mode ?? 'mean';
-  const start = deg?.start_tick ?? 0;
-  const { affectedBy, epochOf } = epochAffected(snapshot, deg, params.epochs);
+  const { ctxs, epochOf } = buildDegCtxs(snapshot, normalizeDegradations(params), params.epochs);
+  // the (at most one, validated) degradation carrying the second-order correlation swap.
+  const corrCtx = ctxs.find((c) => c.deg.degradedNoiseCorr) ?? null;
   const series = new Map<PathClassId, SignalVector[]>();
 
   const p = SIGNALS.length;
@@ -209,7 +248,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   // reproduces the v1 RNG stream byte-for-byte); affected path-classes swap to the degraded L
   // from start_tick (a second-order degradation).
   const Lr = choleskyOrThrow(params.noiseCorr, 'noiseCorr');
-  const LrDeg = choleskyOrThrow(deg?.degradedNoiseCorr, 'degradedNoiseCorr');
+  const LrDeg = choleskyOrThrow(corrCtx?.deg.degradedNoiseCorr, 'degradedNoiseCorr');
   // Per-signal AR coefficients: AR(p) opt-in (arCoeffs) or the default AR(1) (AR1_PHI, unit-variance).
   const unitVar = params.arCoeffs === undefined;
   const arc = SIGNALS.map((_, i) => (params.arCoeffs ? params.arCoeffs[i] : [AR1_PHI[i]]));
@@ -220,12 +259,13 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
     const hist: number[][] = SIGNALS.map(() => []);
     for (let t = 0; t < params.ticks; t++) {
       const hour = t % HOURS_PER_DAY;
-      // the affected set follows the ACTIVE epoch (ADR-0017); constant when no epochs are given.
-      const w = affectedBy[epochOf(t)].get(pc);
+      // affected sets follow the ACTIVE epoch (ADR-0017); constant when no epochs are given.
+      const e = epochOf(t);
+      const corrOn = corrCtx !== null && corrCtx.affectedBy[e].get(pc) !== undefined;
       // draw z in signal order (preserves the v1 sequence), then optionally correlate via L.
       const z = new Array<number>(p);
       for (let i = 0; i < p; i++) z[i] = rng.gaussian();
-      const innov = correlate(z, tickL(w !== undefined, t, start, Lr, LrDeg));
+      const innov = correlate(z, tickL(corrOn, t, corrCtx?.start ?? 0, Lr, LrDeg));
       const vec = new Array<number>(p);
       for (let i = 0; i < p; i++) {
         const noise = arStep(innov[i], arc[i], hist[i], unitVar);
@@ -233,7 +273,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
         if (hist[i].length > arc[i].length) hist[i].shift(); // keep only the lags the order needs
         vec[i] = rawBaseline(i, hour, tc) + noise;
       }
-      if (w !== undefined && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc, t, weight: w });
+      applyDegradations(vec, ctxs, pc, e, t, hour, tc);
       matrix.push(vec);
     }
     series.set(pc, matrix);

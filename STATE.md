@@ -29,8 +29,11 @@ paper verified, weighted incidence, Spraypoint two-view leaves, the leaky-LLR sc
 reconvergence epochs (source + detector sides). **All five work-order items done**, each closed
 with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
 a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds 2+3 merged to
-`main` via PR #2. Round 4 (branch `post-v1-round4`, ADR-0019..): owner-authorized; headline =
-closing the C1 residue structurally. The repo is **public**. **159 tests, gate PASS.**
+`main` via PR #2. Round 4 (ADR-0019/0020, merged via PR #3): the exposure-saturating noisy-OR
+(C1 closed; latent room-fault defect fixed) + Spraypoint dilution floors, each with a cold-eye
+fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection — whose e2e test
+immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
+**public**. **165 tests, gate PASS.**
 
 ## Built so far
 
@@ -174,6 +177,23 @@ closing the C1 residue structurally. The repo is **public**. **159 tests, gate P
   per-cell AR(p) is structurally ill-posed (cells are non-contiguous in time). Decision: **keep
   global Σ/φ, build nothing.** A durable evidence test (`test/percell-second-order.test.ts`) guards
   the call.
+
+## Post-v1 round 5 (branch `post-v1-round5`, off merged main)
+
+- **Multi-fault injection** (ADR-0021): `TelemetryParams.degradations?` — simultaneous
+  degradations compose in array order (mean shifts add exactly: δ₁w₁+δ₂w₂, bound per tick);
+  `[x]` ≡ singular `x` byte-identical; both forms throw; at most one `degradedNoiseCorr`
+  (validated narrowing). The set-cover's "minimal explaining SET" claim is finally exercised by
+  real telemetry: two shufflers end-to-end ⇒ both culprits, both drained, replay-clean.
+- **Marginal-LLR set construction** (ADR-0022, forced by ADR-0021's cross-kind fixture per
+  halt-on-contradiction): the binary explained-set let a panel claim a ToR leaf through a w=0.1
+  membership (ONE culprit for two faults, observed). The cover now scores candidates by MARGINAL
+  LLR against the picked set's per-leaf residual quiet factors, folding each pick's (δ,κ)
+  POSTERIOR into its members — knob-free, reduces exactly to ADR-0019 at first pick (score
+  bounds pass untouched), recovers both cross-kind faults, and keeps the saturated single-fault
+  minimal set (one culprit at δ=128, binding the posterior fold against deletion/prior mutants).
+  `explained` is now "more likely than not under a picked set that touches the leaf" (display
+  binarization, not mechanism); legacy linear keeps the historic binary cover as the control.
 
 ## Honest current limitations (NOT hidden)
 

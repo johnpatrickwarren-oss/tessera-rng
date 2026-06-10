@@ -46,3 +46,29 @@ test('single-shuffler common-mode: that shuffler is the rank-1 culprit and is (s
   const again = await runPipeline(params);
   assert.equal(JSON.stringify(rec), JSON.stringify(again));
 });
+
+test('TWO simultaneous faults: the set-cover returns BOTH culprits end-to-end, each with its own members; top-2 drains both (ADR-0021)', async () => {
+  // the set-cover's "minimal explaining SET" claim, finally exercised by real telemetry rather
+  // than a hand-built firing set (the gap recorded in ADR-0019's cold-eye).
+  const snap = generateFabric(FABRIC);
+  const counts = new Map<string, number>();
+  for (const e of snap.edges) if (e.resource.startsWith('shuffler-')) counts.set(e.resource, (counts.get(e.resource) ?? 0) + 1);
+  const [s1, s2] = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  const params: PipelineParams = {
+    fabric: FABRIC,
+    telemetry: { seed: 7, ticks: 80, degradations: [
+      { resource_id: s1, delta: 4, start_tick: 0 },
+      { resource_id: s2, delta: 4, start_tick: 0 },
+    ] },
+    q: 0.05,
+    drain_top_k: 2,
+  };
+  const a = await runPipeline(params);
+  const ids = a.culprits.map((c) => c.resource_id);
+  assert.ok(ids.includes(s1) && ids.includes(s2), `both injected faults must be culprits (got ${ids.join(', ')})`);
+  assert.equal(a.unexplained_path_class_ids.length, 0, 'the two-resource cover explains the firing set');
+  const drained = a.drain_actions.map((d) => d.resource_id).sort();
+  assert.deepEqual(drained, [s1, s2].sort(), 'drain_top_k: 2 drains both culprits');
+  // replay-clean across the multi-fault path (AC-9).
+  assert.equal(JSON.stringify(a), JSON.stringify(await runPipeline(params)));
+});
