@@ -11,8 +11,9 @@
  * exposure scale κ (ADR-0019):
  *   - clean (null):  P(fire) = q₀  (the floored fleet base rate from the surface, ADR-0016).
  *   - faulty:        P(quiet) = (1−q₀)·(1−δ)^{κ·wᵢ}  — the true noisy-OR: κ·wᵢ independent
- *     exposure "trials" each failing with probability δ. At κ·w small this is ≈ the ADR-0016
- *     linear leak q₀+(δ−q₀)·κw; at κ·w large the fire probability SATURATES toward 1.
+ *     exposure "trials" each failing with probability δ. At κ·w small the fire probability is
+ *     ≈ q₀ + κw·δ·(1−q₀) (first order — near the ADR-0016 linear leak when q₀δ is negligible);
+ *     at κ·w large it SATURATES toward 1.
  * The true (δ, κ) are unknown, so we MIX over the deterministic product grid δ ∈ {0.3, 0.6, 0.9} ×
  * κ ∈ {1, 16, 256} (method of mixtures: average per-cell likelihoods, then LLR vs null). This is
  * weight-aware FALSIFICATION both ways: a QUIET high-weight member is strong evidence AGAINST a
@@ -186,6 +187,9 @@ export function localize(
   firingPathClassIds: readonly PathClassId[],
   opts: LocalizeOpts = DEFAULT_LOCALIZE,
 ): LocalizationResult {
+  // q₀ is a probability: q₀ ≤ 0 or ≥ 1 makes the LLR ±Infinity and would RANK garbage
+  // (the `!(score > 0)` gate stops NaN, not +Infinity) — reject at the boundary instead.
+  if (!opts.legacy && !(opts.q0 > 0 && opts.q0 < 1)) throw new RangeError(`q0 must be in (0, 1) — got ${opts.q0}`);
   const fired = new Set(firingPathClassIds);
   const acc = accumulate(snapshot, fired);
   const kindOf = new Map<ResourceId, ResourceKind>();

@@ -84,3 +84,19 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /concentrated by/);
   assert.match(md, /per_tor/);
 });
+
+test('SPOT-CHECK: one committed coverage cell matches a fresh recomputation (freshness floor, ADR-0019 cold-eye)', async () => {
+  // The full sweep (~18s) is too heavy for the suite, so this is an honest PARTIAL bind: the
+  // optic Δ=1.0 cell — exactly where the stale artifact diverged (attribution 25% vs 75%) — is
+  // recomputed and compared field-for-field to coverage-matrices/coverage-saturation.json.
+  // The byte-exact demo freshness test (demo.test.ts) is the broad-spectrum companion. Fix a
+  // failure by re-running `pnpm coverage`, never by editing the JSON.
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { cell, topTargets } = await import('../tools/coverage');
+  const rep = JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'coverage-saturation.json'), 'utf8'));
+  const committed = rep.cells.find((c: { kind: string; delta: number }) => c.kind === 'optic' && c.delta === 1.0);
+  assert.ok(committed, 'the optic Δ=1.0 cell must exist in the committed matrix');
+  const fresh = await cell('optic', 1.0, topTargets('optic', rep.targets_per_kind));
+  assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
+});

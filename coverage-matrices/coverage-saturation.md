@@ -20,19 +20,19 @@ published without naming its mode. No mode is left in a footnote.
 | resource kind | Δ (mean shift) | detection | attribution |
 |---|---|---|---|
 | optic | 0.5 | 0% (0/4) | 0% (0/4) |
-| optic | 1 | 75% (3/4) | 25% (1/4) |
+| optic | 1 | 75% (3/4) | 75% (3/4) |
 | optic | 2 | 100% (4/4) | 100% (4/4) |
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 0.5 | 0% (0/4) | 0% (0/4) |
-| passive_shuffler | 1 | 100% (4/4) | 25% (1/4) |
+| passive_shuffler | 1 | 100% (4/4) | 50% (2/4) |
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
-| fiber_bundle | 1 | 75% (3/4) | 0% (0/4) |
+| fiber_bundle | 1 | 75% (3/4) | 50% (2/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
 | power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
-| power_zone | 1 | 100% (4/4) | 50% (2/4) |
+| power_zone | 1 | 100% (4/4) | 100% (4/4) |
 | power_zone | 2 | 100% (4/4) | 100% (4/4) |
 | power_zone | 3 | 100% (4/4) | 100% (4/4) |
 
@@ -43,7 +43,7 @@ published without naming its mode. No mode is left in a footnote.
 | optic | 2 | 2 |
 | passive_shuffler | 1 | 2 |
 | fiber_bundle | 2 | 2 |
-| power_zone | 1 | 2 |
+| power_zone | 1 | 1 |
 
 ## Per-signal coverage (kind=passive_shuffler, mean Δ=3 unless noted)
 

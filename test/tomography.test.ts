@@ -171,14 +171,24 @@ test('the LLR null is BASE-RATE AWARE: members firing at ≈ the fleet base rate
   assert.ok(quiet.culprits[0].score > 0);
 });
 
-test('a NaN score is rejected, never ranked (an empty grid blames nothing instead of everything)', () => {
-  // logMeanExp([]) is NaN; with the old `score <= 0` gate (NaN <= 0 is false) a misconfigured
-  // caller got a culprit with score: NaN. The `!(score > 0)` gate rejects it.
+test('a degenerate mixture is rejected, never ranked (empty grid OR empty κ grid blames nothing instead of everything)', () => {
+  // an empty grid/kappas makes logMixExp −Infinity (Math.max of nothing + log 0); the
+  // `!(score > 0)` gate rejects it — a misconfigured caller gets no culprits, not garbage.
   const edges = ['f1', 'f2'].map((p) => traverses(p, 'bundle-0'));
   const snap = snapshot(edges, [{ id: 'bundle-0', kind: 'fiber_bundle' }]);
-  const r = localize(snap, ['f1', 'f2'], { ...DEFAULT_LOCALIZE, grid: [] });
-  assert.equal(r.culprits.length, 0, 'no culprit may carry a NaN score');
-  assert.deepEqual(r.unexplained_path_class_ids, ['f1', 'f2']);
+  for (const broken of [{ grid: [] as number[] }, { kappas: [] as number[] }]) {
+    const r = localize(snap, ['f1', 'f2'], { ...DEFAULT_LOCALIZE, ...broken });
+    assert.equal(r.culprits.length, 0, `no culprit may be ranked under ${JSON.stringify(broken)}`);
+    assert.deepEqual(r.unexplained_path_class_ids, ['f1', 'f2']);
+  }
+});
+
+test('q₀ outside (0, 1) is rejected — at q₀ = 0 every candidate scores +Infinity and garbage would rank (ADR-0019 cold-eye)', () => {
+  const edges = ['f1', 'f2'].map((p) => traverses(p, 'bundle-0'));
+  const snap = snapshot(edges, [{ id: 'bundle-0', kind: 'fiber_bundle' }]);
+  for (const q0 of [0, 1, -0.1, 1.5]) {
+    assert.throws(() => localize(snap, ['f1', 'f2'], { ...DEFAULT_LOCALIZE, q0 }), /q0 must be in \(0, 1\)/, `q0=${q0}`);
+  }
 });
 
 test('supporting_views lists exactly the views with a FIRING member of the culprit — metadata, not mechanism (ADR-0016)', () => {

@@ -28,7 +28,7 @@ const Q = 0.05;
 const FLOOR_RATE = 0.9;
 
 /** The N most-traversed resources of a kind (deterministic). */
-function topTargets(kind: ResourceKind, n: number): string[] {
+export function topTargets(kind: ResourceKind, n: number): string[] {
   const snap = generateFabric(SCENARIO_FABRIC);
   const counts = new Map<string, number>();
   for (const e of snap.edges) counts.set(e.resource, (counts.get(e.resource) ?? 0) + 1);
@@ -109,7 +109,7 @@ export interface SpraypointViewRow {
   concentrated_by: string;
 }
 
-async function cell(kind: ResourceKind, delta: number, targets: string[]): Promise<CoverageCell> {
+export async function cell(kind: ResourceKind, delta: number, targets: string[]): Promise<CoverageCell> {
   let detected = 0;
   let attributed = 0;
   let n = 0;

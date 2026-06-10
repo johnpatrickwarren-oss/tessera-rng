@@ -104,3 +104,36 @@ parameterization specifically. The κ mixture's contribution is the decisive **e
   q₀ > δ fleet-saturation note from ADR-0016 still applies per grid cell.
 - Scores are larger in saturated regimes (they are honest log-likelihood ratios over more
   decisive evidence); nothing downstream consumes absolute score magnitudes.
+
+## Cold-eye fold-in (fresh-context review of 0c8222a)
+
+- **CRITICAL — stale honest-measurement artifacts, regenerated + bound.** `demos/demo.html` had
+  been stale since **ADR-0016** (it embedded integer linear-gain scores and lacked
+  `supporting_views`) and `coverage-matrices/coverage-saturation.{json,md}` predated this ADR —
+  both of the project's published honest-measurement surfaces described retired models, invisibly
+  to a green suite (DISCIPLINES §7 violation). Both regenerated. Two freshness binds added:
+  a **byte-exact** demo test (the demo embeds culprit scores + the snapshot hash, so any model
+  change fails it), and a **single-cell spot-check** against the committed coverage JSON (the
+  optic Δ=1 cell — where the staleness showed; the full ~18 s sweep is too heavy for the suite,
+  so this is an honestly-named PARTIAL bind with the demo test as the broad-spectrum companion).
+  The regenerated matrix is *better* under the new scorer: optic attribution at Δ=1 is 75 %
+  (was 25 %), and the power_zone attribution floor improves 2 → 1.
+- **Under-selected regime boundary (recorded, not claimed):** at δ = 1 a room fault selects only
+  22/99 leaves and localizes to an optic — a wrong *kind* — under both the new and old models
+  (room-0 holds from δ ≈ 2 up: 3.03 at δ=2). The evidence table claims δ ∈ {4..128} only; any
+  "everywhere" phrasing elsewhere is corrected to the tabulated band.
+- **q₀ validation:** `localize()` now rejects q₀ ∉ (0, 1) — at q₀ = 0 every candidate scored
+  +Infinity and the `!(score > 0)` gate (which stops NaN, not +∞) ranked an arbitrary optic.
+  Unreachable from the pipeline; direct callers are an advertised use. The degenerate-mixture
+  gate test now also covers `kappas: []` (−Infinity path), and its rationale comment was fixed
+  (the empty mixture is −∞ under `logMixExp`, not NaN).
+- **Provenance notes:** the table's "ADR-0016 model" columns and the uniform-prior failure are
+  probe-transcript evidence — the retired member model is not re-runnable in-repo (`opts.legacy`
+  is the *linear-gain* scorer, a different thing); the cold-eye reproduced both by independent
+  reimplementation (uniform prior: decoy 13.35 vs 12.10 — small deltas vs the recorded 13.0/11.7
+  trace to a different q₀ in the recorded run). κ-grid sensitivity probe: rank-1 unchanged in all
+  9 table cells under {1,8,64}, {1,32,1024}, {1,4,16} — "not a knob" holds for ranks; the
+  C1-CLOSED test's score bounds (< 5 / > 20) are magnitude assertions coupled to the frozen
+  default grid, by design.
+- Gap recorded, not closed: simultaneous multi-resource faults are uninjectable
+  (`DegradationSpec` is single-resource), so multi-fault localization is untested end-to-end.

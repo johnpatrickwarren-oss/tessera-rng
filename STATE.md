@@ -30,7 +30,7 @@ reconvergence epochs (source + detector sides). **All five work-order items done
 with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
 a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds 2+3 merged to
 `main` via PR #2. Round 4 (branch `post-v1-round4`, ADR-0019..): owner-authorized; headline =
-closing the C1 residue structurally. The repo is **public**. **155 tests, gate PASS.**
+closing the C1 residue structurally. The repo is **public**. **158 tests, gate PASS.**
 
 ## Built so far
 
@@ -238,7 +238,7 @@ routed to the owner, not changed unilaterally.
   incorporate the weight. Anti-self-confirming fixture: where the unweighted scorer picks an
   incidental decoy resource, the weighted scorer follows the traffic to the true one. Weighted
   solver holds 100% mutation; default unchanged.
-- **Leaky-LLR scorer + C1 residue pinned** (ADR-0016, work-order item 3): the tomography default is
+- **Leaky-LLR scorer + C1 residue pinned** (ADR-0016, work-order item 3; member model since superseded by ADR-0019, residue closed): the tomography default is
   now a **leaky noisy-OR mixture LLR** — per member, clean `P(fire)=q₀` (the surface's floored fleet
   base rate `(|selected|+½)/(|leaves|+1)`) vs faulty `q₁=q₀+(δ−q₀)·w`, mixed over δ∈{0.3,0.6,0.9};
   greedy set-cover on LLR>0. Base-rate-aware, weight-aware falsification; subsumes the λ knob (the
@@ -292,6 +292,12 @@ routed to the owner, not changed unilaterally.
   falsified by their quiet per-ToR members. **C1 closed** (optic-3 rank-1 across the full sweep,
   33.3 at δ=128), **no symmetric regression** (panel margins grow), and a **latent defect fixed**:
   a true ROOM fault mislocalized to a panel at every δ under the old model — now room-0
-  everywhere. The owner's explain-away discount and set-completion candidates were analyzed and
-  rejected on the record (symmetric failure / needs a parsimony knob). The ADR-0016 canary was
-  retired per its own instruction into the C1-CLOSED test with two failure-mode controls.
+  across the tabulated band (δ≳2; the under-selected δ≈1 regime localizes a wrong KIND under
+  either model, recorded). The owner's explain-away discount and set-completion candidates were
+  analyzed and rejected on the record (symmetric failure / needs a parsimony knob). The ADR-0016
+  canary was retired per its own instruction into the C1-CLOSED test with two failure-mode
+  controls. Cold-eye fold-in: the published honest-measurement artifacts were STALE (demo.html
+  since ADR-0016, coverage matrix since ADR-0019) — both regenerated (the new scorer measures
+  BETTER: optic Δ=1 attribution 25%→75%, power_zone attribution floor 2→1) and now bound by a
+  byte-exact demo freshness test + a coverage single-cell spot-check; q₀ ∉ (0,1) is rejected
+  (the +Infinity ranking hole); empty κ grid covered by the degenerate-mixture gate.
