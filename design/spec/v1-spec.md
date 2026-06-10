@@ -81,7 +81,7 @@ absent (DISCIPLINES §4, §6 — tests must fail when the bound behavior is muta
 
 | AC | Requirement (Given → When → Then) | Binding test |
 |----|-----------------------------------|--------------|
-| **AC-1** | Given synthetic RNG telemetry across a sampled quasi-random topology of **hundreds–thousands** of path-classes, When ingested, Then every path-class produces a residual stream of the §3.2 signal vector, and the count is in [100, 10000]. | `test/ac01-ingest-pathclass-telemetry.test.ts` |
+| **AC-1** | Given synthetic RNG telemetry across a sampled quasi-random topology of **hundreds–thousands** of path-classes, When ingested, Then every path-class produces a residual stream of the §3.2 signal vector, and the count is in [100, 10000]. _(Post-v1, ADR-0015: at production scale the monitored leaf is an **aggregation-view class** — the union of complementary views (per-ToR, per-panel-pair) over the underlying ToR-pair traffic — counted under the same [100, 10000] bound, with the view definitions recorded in the snapshot. ToR-pair stays the underlying entity; per-pair drill-down is future scope.)_ | `test/ac01-ingest-pathclass-telemetry.test.ts` (+ `test/spraypoint.test.ts`) |
 | **AC-2a** | Given a path-class with a mean-shifted signal, When run through the **Family A** (mean-shift) detector, Then an anytime-valid e-value crosses the fire threshold, and the audit record carries Family A's **per-detector α-budget spent**. | `test/ac02-family-a-verdict.test.ts` |
 | **AC-2b** | Given a path-class with a distributional shift, When run through the **Family C** (distributional) detector, Then an anytime-valid e-value fires, and the audit record carries Family C's per-detector α-budget spent. | `test/ac02-family-c-verdict.test.ts` |
 | **AC-3a** | Given per-path-class e-values, When hierarchically combined, Then a fleet e-value is produced via a Ville-bounded merge that is valid under arbitrary dependence. | `test/ac03-hierarchical-combine.test.ts` |
@@ -92,7 +92,7 @@ absent (DISCIPLINES §4, §6 — tests must fail when the bound behavior is muta
 | **AC-5c** | Given degraded paths all traversing one shared resource (single-optic / shuffle / bundle common-mode), When solved, Then that resource is rank-1, exploiting path diversity for identifiability. | `test/ac05-tomography-identifiability.test.ts` |
 | **AC-6** | Given a localized culprit, When the route-drain hook fires, Then it records a **simulated** drain of the path-classes traversing that resource (no real data-plane call — guards N4). | `test/ac06-route-drain-sim.test.ts` |
 | **AC-7** | Given network signals, When the per-cell calibration substrate is built, Then per-cell baselines keyed by (hour-of-day × day-of-week × traffic-class) are produced and the "normal" smear is characterized, not assumed unimodal. | `test/ac07-percell-calibration.test.ts` |
-| **AC-8** | Given the demo builder, When run, Then a single-file dashboard pages **six** deterministic scenarios: clean baseline, single-optic degradation, shuffle-device common-mode, fiber-bundle common-mode, FDR control, topology-spanning common-mode. | `test/demo.test.ts` (+ `tools/build-demo.ts`, `tools/scenarios.ts`, `test/scenarios.test.ts`) |
+| **AC-8** | Given the demo builder, When run, Then a single-file dashboard pages **six** deterministic scenarios: clean baseline, single-optic degradation, shuffle-device common-mode, fiber-bundle common-mode, FDR control, topology-spanning common-mode. _(Post-v1: extended to **eight** — adds covariance-flip and oscillation mode scenarios surfacing Families C and D, ADR-0012.)_ | `test/demo.test.ts` (+ `tools/build-demo.ts`, `tools/scenarios.ts`, `test/scenarios.test.ts`) |
 | **AC-9** | Given the same incidence model + same telemetry stream, When the pipeline is run twice, Then verdicts **and** localization are byte-identical (replay-clean). | `test/ac09-replay-clean.test.ts` |
 | **AC-10a** | A coverage/saturation matrix is emitted over scenario × parameter variations, reporting detection and attribution-correctness per cell (spirit of Tessera R72). | `test/ac10-coverage-matrix.test.ts` |
 | **AC-10b** | A **detection-floor + attribution-floor** table is emitted (the magnitude at which detection / correct attribution crosses threshold), with no caveat hidden in a footnote (DISCIPLINES §7). | `test/ac10-floor-table.test.ts` |
@@ -159,8 +159,9 @@ uncovered. If a prescription gained no binding AC, it would move to anti-scope.
   payload; the hash reuses the engine's public `pureJsSha256`.
 - **Q2 (telemetry granularity):** RESOLVED — the §3.2 five-signal vector
   (`p99_latency`, `retransmit_rate`, `loss_rate`, `ecmp_imbalance`, `path_completion`) is the
-  v1 synthetic contract. Operator-overridable. (arXiv:2604.15261 remains unavailable to
-  verify against; this is the recorded working assumption, not a claim of fidelity.)
+  v1 synthetic contract. Operator-overridable. (arXiv:2604.15261 is **now available and verified** —
+  ADR-0013 — but it treats telemetry/operations as out of scope, so this contract remains a working
+  assumption: **unfalsified, not validated**. The paper *does* use latency when picking flowlets.)
 - **Q3 (topology-parameter source):** RESOLVED — a seeded generator produces the quasi-random
   fabric + cabling/shuffle map from named parameters with **documented defaults**; operator
   override is a later thickening, not a v1 blocker.

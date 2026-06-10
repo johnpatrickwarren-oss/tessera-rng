@@ -98,3 +98,34 @@ test('Family C (distributional) fires on a variance shift Family A can miss', ()
   // the path-class verdict fires if EITHER family fires (kills the ||->&& mutant)
   assert.ok(v.fired, 'verdict fires when any single family fires');
 });
+
+// ── Segmented (epoch-aware) detection: the recorded wealth reset (ADR-0018) ─────
+
+test('segmented detection: fresh wealth per segment, MEAN combine, summed α, argmax evidence epoch (ADR-0018)', async () => {
+  const { detectPathClassSegmented } = await import('../src/detect');
+  // shifted first half, clean second half — the fault "ends" at the boundary (e.g. rerouted away).
+  const full = [...series(11, 30, 3.0).slice(0, 15), ...series(12, 15, 0)];
+  const segs = [
+    { epoch_index: 0, from_tick: 0, to_tick: 15 },
+    { epoch_index: 1, from_tick: 15, to_tick: 30 },
+  ];
+  const v = detectPathClassSegmented('pc-x', full, segs, P);
+
+  // cross-validate against independently sliced runs (the naive two-pass reference).
+  const s0 = detectPathClass('pc-x', full.slice(0, 15), P);
+  const s1 = detectPathClass('pc-x', full.slice(15, 30), P);
+  assert.equal(v.segments!.length, 2);
+  assert.equal(v.segments![0].e_value, s0.e_value);
+  assert.equal(v.segments![1].e_value, s1.e_value);
+  assert.equal(v.e_value, (s0.e_value + s1.e_value) / 2, 'leaf e-value is the MEAN over segments (valid under dependence)');
+  assert.equal(family(v, 'A').alpha_spent, family(s0, 'A').alpha_spent + family(s1, 'A').alpha_spent, 'α spent sums over segment runs');
+  assert.equal(v.evidence_epoch, 0, 'the evidence accrued in the shifted (first) segment');
+
+  // the RESET is real: an unsegmented run carries the first half's wealth to the end; the second
+  // segment starts FRESH and stays small on clean ticks. Deleting the reset (running the full
+  // series) would make the second segment's e-value as large as the carried wealth.
+  const carried = detectPathClass('pc-x', full, P);
+  assert.ok(v.segments![0].fired, 'the shifted segment fires');
+  assert.ok(!v.segments![1].fired, 'the clean post-reset segment does not fire on fresh wealth');
+  assert.ok(v.segments![1].e_value < carried.e_value / 100, 'post-reset wealth is fresh, not carried');
+});

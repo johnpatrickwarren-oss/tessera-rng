@@ -13,6 +13,8 @@ import type { SignalVector, SignalName } from './signals';
 import { trafficClassOf, HOURS_PER_DAY } from './calibration';
 import type { TrafficClass } from './calibration';
 import { cholesky } from './covariance';
+import { epochIndexAt } from './epoch';
+import type { SnapshotEpoch } from './epoch';
 import type { FaultDomainSnapshot, PathClassId, ResourceId } from './domain';
 
 export interface DegradationSpec {
@@ -68,6 +70,15 @@ export interface TelemetryParams {
    * (no guard — a non-stationary set explodes numerically, though per-cell sd keeps residuals finite).
    */
   arCoeffs?: number[][];
+  /**
+   * Epoch'd incidence sequence (ADR-0017): when set, the degradation's affected set follows the
+   * ACTIVE epoch per tick — a leaf rerouted off the faulty resource stops shifting at the epoch
+   * boundary (and one rerouted onto it starts). Epoch snapshots must share the static `snapshot`'s
+   * path-class population (a reroute preserves it). The noise process (RNG stream, AR history,
+   * baselines) is deliberately CONTINUOUS across epochs — a reroute changes routing, not the
+   * physics of the fabric. Absent ⇒ the static snapshot every tick, byte-identical v1.
+   */
+  epochs?: readonly SnapshotEpoch[];
 }
 
 export interface Telemetry {
@@ -92,10 +103,26 @@ function rawBaseline(signalIdx: number, hour: number, tc: TrafficClass): number 
   return (SIGNAL_BASE[signalIdx] ?? 0) + diurnal + classOffset;
 }
 
-function affectedPathClasses(snapshot: FaultDomainSnapshot, resourceId: ResourceId): Set<PathClassId> {
-  const affected = new Set<PathClassId>();
-  for (const e of snapshot.edges) if (e.resource === resourceId) affected.add(e.path_class);
+/** Path-classes traversing a resource, mapped to their traffic weight w(pc, r) ∈ (0, 1] (ADR-0014). */
+function affectedWeights(snapshot: FaultDomainSnapshot, resourceId: ResourceId): Map<PathClassId, number> {
+  const affected = new Map<PathClassId, number>();
+  for (const e of snapshot.edges) if (e.resource === resourceId) affected.set(e.path_class, e.weight ?? 1);
   return affected;
+}
+
+/**
+ * Per-epoch affected-weight maps + the active-epoch resolver (ADR-0017). With no epochs this is a
+ * single constant map over the static snapshot — the byte-identical v1 path.
+ */
+function epochAffected(
+  snapshot: FaultDomainSnapshot,
+  deg: DegradationSpec | undefined,
+  epochsIn: readonly SnapshotEpoch[] | undefined,
+): { affectedBy: Map<PathClassId, number>[]; epochOf: (t: number) => number } {
+  const epochs = epochsIn?.length ? epochsIn : null;
+  const snapshots = epochs ? epochs.map((e) => e.snapshot) : [snapshot];
+  const affectedBy = snapshots.map((s) => (deg ? affectedWeights(s, deg.resource_id) : new Map<PathClassId, number>()));
+  return { affectedBy, epochOf: (t: number) => (epochs ? epochIndexAt(epochs, t) : 0) };
 }
 
 /** Cholesky factor of a correlation matrix, or null if absent; throws if present but not PD. */
@@ -137,11 +164,17 @@ function correlate(z: number[], L: number[][] | null): number[] {
   });
 }
 
-/** Apply a degradation's mean/variance/covariance/spectral effect to one already-noised tick vector. */
+/**
+ * Apply a degradation's mean/variance/covariance/spectral effect to one already-noised tick vector.
+ * The mean-shift magnitude is DILUTED by the leaf's traffic weight `ctx.weight` ∈ (0, 1] (ADR-0014):
+ * a fault on a resource shifts a leaf by `delta·w`, the honest Spraypoint dilution. Weight 1 (the v1
+ * binary fabric) ⇒ byte-identical. The 2nd-order modes (variance/covariance/oscillation) run on the
+ * weight-1 demo fabric, so they are not diluted here.
+ */
 function degradeVector(
   vec: number[],
   deg: DegradationSpec,
-  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number },
+  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number; weight: number },
 ): void {
   if (deg.degradedNoiseCorr) return; // a pure 2nd-order shift — already applied via the innovation L
   if (deg.oscillationPeriod) {
@@ -153,12 +186,12 @@ function degradeVector(
     return;
   }
   if (deg.shiftVector) {
-    for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i]; // joint multivariate mean shift
+    for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i] * ctx.weight; // diluted joint mean shift
   } else if (ctx.mode === 'variance') {
     const base = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc);
     vec[ctx.sigIdx] = base + (vec[ctx.sigIdx] - base) * deg.delta; // inflate noise around the baseline
   } else {
-    vec[ctx.sigIdx] += deg.delta; // single-signal mean shift
+    vec[ctx.sigIdx] += deg.delta * ctx.weight; // diluted single-signal mean shift
   }
 }
 
@@ -168,7 +201,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   const sigIdx = signalIndex(deg?.signal ?? 'p99_latency');
   const mode = deg?.mode ?? 'mean';
   const start = deg?.start_tick ?? 0;
-  const affected = deg ? affectedPathClasses(snapshot, deg.resource_id) : new Set<PathClassId>();
+  const { affectedBy, epochOf } = epochAffected(snapshot, deg, params.epochs);
   const series = new Map<PathClassId, SignalVector[]>();
 
   const p = SIGNALS.length;
@@ -183,15 +216,16 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   const order = [...snapshot.path_classes].sort();
   for (const pc of order) {
     const tc = trafficClassOf(pc);
-    const isAffected = affected.has(pc);
     const matrix: number[][] = [];
     const hist: number[][] = SIGNALS.map(() => []);
     for (let t = 0; t < params.ticks; t++) {
       const hour = t % HOURS_PER_DAY;
+      // the affected set follows the ACTIVE epoch (ADR-0017); constant when no epochs are given.
+      const w = affectedBy[epochOf(t)].get(pc);
       // draw z in signal order (preserves the v1 sequence), then optionally correlate via L.
       const z = new Array<number>(p);
       for (let i = 0; i < p; i++) z[i] = rng.gaussian();
-      const innov = correlate(z, tickL(isAffected, t, start, Lr, LrDeg));
+      const innov = correlate(z, tickL(w !== undefined, t, start, Lr, LrDeg));
       const vec = new Array<number>(p);
       for (let i = 0; i < p; i++) {
         const noise = arStep(innov[i], arc[i], hist[i], unitVar);
@@ -199,7 +233,7 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
         if (hist[i].length > arc[i].length) hist[i].shift(); // keep only the lags the order needs
         vec[i] = rawBaseline(i, hour, tc) + noise;
       }
-      if (isAffected && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc, t });
+      if (w !== undefined && deg && t >= start) degradeVector(vec, deg, { sigIdx, mode, hour, tc, t, weight: w });
       matrix.push(vec);
     }
     series.set(pc, matrix);

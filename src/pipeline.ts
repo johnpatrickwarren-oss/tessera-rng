@@ -17,20 +17,106 @@ import type { DetectParams } from './detect';
 import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './family-c';
 import { estimateFamilyDNull } from './family-d';
 import { buildSurface } from './surface';
-import { localize } from './tomography';
+import { localize, DEFAULT_LOCALIZE } from './tomography';
+import type { LocalizeOpts } from './tomography';
 import { simulateDrain } from './drain';
-import type { AuditRecord, DrainAction } from './verdict';
+import { makeEpochs, segmentPlan } from './epoch';
+import type { RerouteEvent, SnapshotEpoch } from './epoch';
+import type { AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
+import type { PathClassId } from './domain';
 
 export interface PipelineParams {
   fabric?: FabricParams;
   /** operator-supplied incidence model; overrides the generated fabric when provided (ADR-0005). */
   snapshot?: FaultDomainSnapshot;
-  telemetry: { seed: number; ticks: number; degradation?: DegradationSpec };
+  /**
+   * `degradation` applies to the LIVE window only; `noiseCorr`/`arCoeffs` are the BASELINE structure
+   * and are applied to BOTH the calibration and live windows (so the substrate is calibrated under
+   * the same correlation/AR(p) regime the live stream carries — ADR-0007/0008/0010).
+   */
+  telemetry: { seed: number; ticks: number; degradation?: DegradationSpec; noiseCorr?: number[][]; arCoeffs?: number[][] };
   detect?: DetectParams;
   /** e-BH FDR target. */
   q: number;
   /** how many top culprits to act on with the (simulated) drain. */
   drain_top_k?: number;
+  /**
+   * Synthetic reroute/reconvergence events (ADR-0017/0018). Present ⇒ the run is epoch'd: the
+   * degradation follows the active epoch, changed leaves' e-processes reset at their boundaries
+   * (recorded in `eprocess_resets`), and tomography runs per evidence epoch. Absent or empty ⇒
+   * byte-identical v1 audit.
+   */
+  reroutes?: readonly RerouteEvent[];
+}
+
+/**
+ * Per-evidence-epoch tomography (ADR-0018): selected leaves are grouped by the epoch their firing
+ * evidence accrued in and localized against THAT epoch's snapshot; per-epoch culprit lists are
+ * concatenated in epoch order (score-ranked within an epoch), unexplained sets unioned.
+ */
+function localizeByEvidenceEpoch(
+  epochs: readonly SnapshotEpoch[],
+  verdicts: readonly PathClassVerdict[],
+  selected: readonly PathClassId[],
+  opts: LocalizeOpts,
+): { culprits: Culprit[]; unexplained_path_class_ids: PathClassId[] } {
+  const epochOf = new Map(verdicts.map((v) => [v.path_class_id, v.evidence_epoch]));
+  const groups = new Map<number, PathClassId[]>();
+  for (const id of selected) {
+    // Segmented leaves group where their max evidence accrued. An UNSEGMENTED leaf's evidence
+    // epoch is unknown/spanning — never fabricated: its incidence is epoch-invariant, so by
+    // stated convention it joins the LATEST epoch's group (exact for its own edges, merges with
+    // the most-recent evidence rather than fragmenting the joint localization — ADR-0018).
+    const e = epochOf.get(id) ?? epochs.length - 1;
+    if (!groups.has(e)) groups.set(e, []);
+    groups.get(e)!.push(id);
+  }
+  const culprits: Culprit[] = [];
+  const unexplained = new Set<PathClassId>();
+  for (const e of [...groups.keys()].sort((a, b) => a - b)) {
+    const loc = localize(epochs[e].snapshot, groups.get(e)!, opts);
+    culprits.push(...loc.culprits.map((c) => ({ ...c, localized_against_epoch: e })));
+    for (const u of loc.unexplained_path_class_ids) unexplained.add(u);
+  }
+  return { culprits, unexplained_path_class_ids: [...unexplained].sort() };
+}
+
+/** Drain targets on an epoch'd run: strongest-first across ALL groups, one drain per resource
+ *  (the same physical resource may be reported once per epoch group — never drained twice). */
+function drainTargets(culprits: readonly Culprit[], k: number): Culprit[] {
+  const ranked = [...culprits].sort((a, b) => b.score - a.score || (a.resource_id < b.resource_id ? -1 : 1));
+  const seen = new Set<string>();
+  const out: Culprit[] = [];
+  for (const c of ranked) {
+    if (seen.has(c.resource_id)) continue;
+    seen.add(c.resource_id);
+    out.push(c);
+    if (out.length === k) break;
+  }
+  return out;
+}
+
+/** Integer-tick boundaries strictly inside (0, ticks) only (ADR-0018): telemetry switches at
+ *  `tick >= at_tick` while detection slices at floor(at_tick) — a fractional boundary would
+ *  silently disagree by one tick; and an event at/after the window end was never active during
+ *  measurement — reject it, don't record it. */
+function validateReroutes(reroutes: readonly RerouteEvent[] | undefined, ticks: number): void {
+  for (const ev of reroutes ?? []) {
+    if (!Number.isInteger(ev.at_tick) || ev.at_tick <= 0 || ev.at_tick >= ticks) {
+      throw new RangeError(`reroute at_tick must be an integer in (0, ticks) — got ${ev.at_tick}`);
+    }
+  }
+}
+
+/** Tally which family fired on each selected path-class (firing-mode attribution, ADR-0010). */
+function tallyFiringFamilies(verdicts: readonly PathClassVerdict[], selected: readonly PathClassId[]): FiringFamilies {
+  const sel = new Set(selected);
+  const tally: FiringFamilies = { A: 0, C: 0, D: 0 };
+  for (const v of verdicts) {
+    if (!sel.has(v.path_class_id)) continue;
+    for (const d of v.detectors) if (d.fired) tally[d.family] += 1;
+  }
+  return tally;
 }
 
 export async function runPipeline(params: PipelineParams): Promise<AuditRecord> {
@@ -41,7 +127,12 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Per-cell calibration substrate (AC-7): characterize the "normal" smear from a CLEAN
   // window, then standardize the live (possibly degraded) raw stream against it. Distinct
   // calibration seed → calibration noise is independent of the live window.
-  const calibRaw = generateTelemetry(snapshot, { seed: params.telemetry.seed ^ 0xca11b, ticks: params.telemetry.ticks });
+  const calibRaw = generateTelemetry(snapshot, {
+    seed: params.telemetry.seed ^ 0xca11b,
+    ticks: params.telemetry.ticks,
+    noiseCorr: params.telemetry.noiseCorr,
+    arCoeffs: params.telemetry.arCoeffs,
+  });
   const calibration = buildCalibration(calibRaw.series);
   // Learn the Family C baseline covariance Σ from the CLEAN calibration residuals (ADR-0007):
   // cross-signal co-movement the identity-Σ baseline could not see. Uncorrelated signals → Σ≈I.
@@ -53,15 +144,29 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // signal's live oscillation must exceed to fire. Silent for signals with too short a window.
   const familyDCells = estimateFamilyDNull(calibResiduals);
 
-  const liveRaw = generateTelemetry(snapshot, params.telemetry);
+  // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
+  // e-processes reset at their boundaries. Absent ⇒ the byte-identical v1 path.
+  validateReroutes(params.reroutes, params.telemetry.ticks);
+  const epochs = params.reroutes?.length ? makeEpochs(snapshot, params.reroutes) : null;
+  const seg = epochs ? segmentPlan(epochs, params.telemetry.ticks) : null;
+
+  const liveRaw = generateTelemetry(snapshot, epochs ? { ...params.telemetry, epochs } : params.telemetry);
   const residuals = standardizeAll(liveRaw.series, calibration);
-  const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells });
+  const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
   const surface = buildSurface(verdicts, params.q);
 
-  const loc = localize(snapshot, surface.selected_path_class_ids);
+  const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 };
+  const loc = epochs
+    ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
+    : localize(snapshot, surface.selected_path_class_ids, locOpts);
 
+  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — and pick
+  // the strongest-scoring culprits across all epoch groups, one drain per resource. The v1 path
+  // is untouched (its culprit list is already score-ranked and resource-unique).
   const k = params.drain_top_k ?? 1;
-  const drain_actions: DrainAction[] = loc.culprits.slice(0, k).map((c) => simulateDrain(snapshot, c));
+  const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
+  const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
+  const drain_actions: DrainAction[] = targets.map((c) => simulateDrain(drainSnap, c));
 
   return {
     snapshot_hash,
@@ -72,5 +177,12 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     culprits: loc.culprits,
     unexplained_path_class_ids: loc.unexplained_path_class_ids,
     drain_actions,
+    firing_families: tallyFiringFamilies(verdicts, surface.selected_path_class_ids),
+    ...(epochs
+      ? {
+          epochs: epochs.map((e) => ({ valid_from_tick: e.valid_from_tick, hash: e.hash })),
+          eprocess_resets: seg!.resets,
+        }
+      : {}),
   };
 }

@@ -8,7 +8,7 @@
  */
 import { pureJsSha256 } from '@johnpatrickwarren-oss/deploysignal-engine/topology-overlay';
 import { isResourceKind } from './domain';
-import type { FaultDomainSnapshot, FaultDomainEdge, FaultDomainNode, ResourceKind } from './domain';
+import type { AggregationView, FaultDomainSnapshot, FaultDomainEdge, FaultDomainNode, ResourceKind } from './domain';
 
 export interface FetchContext {
   signal?: AbortSignal;
@@ -29,11 +29,17 @@ export function computeFaultDomainHash(snapshot: FaultDomainSnapshot): string {
     if (a.resource !== b.resource) return a.resource < b.resource ? -1 : 1;
     return 0;
   });
+  // aggregation views are part of the measurement design (ADR-0015) ⇒ part of replay; canonicalize.
+  const views = snapshot.views
+    ? [...snapshot.views].sort((a, b) => (a.view < b.view ? -1 : a.view > b.view ? 1 : 0)).map((v) => [v.view, [...v.leaf_ids].sort()])
+    : null;
   const canonical = JSON.stringify({
     source_id: snapshot.source_id,
     source_version: snapshot.source_version,
     nodes: nodes.map((n) => [n.id, n.kind]),
-    edges: edges.map((e) => [e.path_class, e.resource]),
+    // weight is part of the measurement design (ADR-0014) ⇒ part of the replay identity; absent ⇒ 1.
+    edges: edges.map((e) => [e.path_class, e.resource, e.weight ?? 1]),
+    views,
   });
   return pureJsSha256(canonical);
 }
@@ -59,7 +65,28 @@ function asEdges(x: unknown, pcs: ReadonlySet<string>, resIds: ReadonlySet<strin
     if (o?.relationship !== 'traverses') throw new TypeError(`edges[${i}].relationship must be 'traverses'`);
     if (typeof o.path_class !== 'string' || !pcs.has(o.path_class)) throw new TypeError(`edges[${i}].path_class '${String(o.path_class)}' is not a declared path_class`);
     if (typeof o.resource !== 'string' || !resIds.has(o.resource)) throw new TypeError(`edges[${i}].resource '${String(o.resource)}' is not a declared resource`);
-    return { path_class: o.path_class, resource: o.resource, relationship: 'traverses' };
+    // optional fractional weight ∈ (0, 1] (ADR-0014); absent ⇒ full traversal.
+    let weight: number | undefined;
+    if (o.weight !== undefined) {
+      if (typeof o.weight !== 'number' || !(o.weight > 0) || o.weight > 1) throw new TypeError(`edges[${i}].weight must be a number in (0, 1]`);
+      weight = o.weight;
+    }
+    return { path_class: o.path_class, resource: o.resource, relationship: 'traverses', ...(weight !== undefined ? { weight } : {}) };
+  });
+}
+
+/** Aggregation views (ADR-0015) are part of the measurement design — dropping them would silently
+ *  change the operator's replay hash (cold-eye L1, ADR-0016). Optional; absent ⇒ no views. */
+function asViews(x: unknown, pcs: ReadonlySet<string>): AggregationView[] | undefined {
+  if (x === undefined) return undefined;
+  if (!Array.isArray(x)) throw new TypeError('views must be an array');
+  return x.map((v, i) => {
+    const o = v as Record<string, unknown>;
+    if (typeof o?.view !== 'string' || o.view.length === 0) throw new TypeError(`views[${i}].view must be a non-empty string`);
+    if (!Array.isArray(o.leaf_ids) || o.leaf_ids.length === 0 || !o.leaf_ids.every((l) => typeof l === 'string' && pcs.has(l))) {
+      throw new TypeError(`views[${i}].leaf_ids must be a non-empty array of declared path_classes`);
+    }
+    return { view: o.view, leaf_ids: o.leaf_ids as string[] };
   });
 }
 
@@ -77,7 +104,9 @@ export function validateFaultDomainSnapshot(obj: unknown): FaultDomainSnapshot {
   }
   const path_classes = o.path_classes as string[];
   const resources = asResources(o.resources);
-  const edges = asEdges(o.edges, new Set(path_classes), new Set(resources.map((r) => r.id)));
+  const pcSet = new Set(path_classes);
+  const edges = asEdges(o.edges, pcSet, new Set(resources.map((r) => r.id)));
+  const views = asViews(o.views, pcSet);
   const nodes: FaultDomainNode[] = [
     ...path_classes.map((id) => ({ id, kind: 'path_class' as const })),
     ...resources.map((r) => ({ id: r.id, kind: r.kind })),
@@ -87,6 +116,7 @@ export function validateFaultDomainSnapshot(obj: unknown): FaultDomainSnapshot {
     edges,
     path_classes,
     resources,
+    ...(views !== undefined ? { views } : {}),
     fetched_at_ts: typeof o.fetched_at_ts === 'number' ? o.fetched_at_ts : 0,
     source_id: typeof o.source_id === 'string' ? o.source_id : 'operator-supplied',
     source_version: typeof o.source_version === 'string' ? o.source_version : 'v1',

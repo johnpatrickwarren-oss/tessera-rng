@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-06-08._
+`design/adr/`. Last updated: 2026-06-10._
 
 ## What this is
 
@@ -17,13 +17,20 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**Fuller v1 complete + all four documented post-v1 items landed** (branch `post-v1`, PR #1).
-v1: all ten acceptance-criteria clusters implemented and tested, Q1–Q3 ratified, cold-eye
-findings addressed (Family A α spent-on-fire, anti-scope guards N1/N2/N5, AC-8 demo test,
-honest single-signal coverage scope). Post-v1 (ADR-0006..0009): min-sample pooled calibration
-fallback, Family C learned cross-signal covariance, higher-order AR(p) calibration, and the
-Family D spectral detector — each with an ADR, anti-self-confirming tests, a mutation pass on the
-new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate PASS.**
+**v1 + post-v1 round 1 merged to `main`; round 2 on `post-v1-round2`.** v1: all ten
+acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
+min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
+AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a
+mutation pass on the new math, a fresh-context cold-eye review, and a green gate. Round 2
+(ADR-0010..0012): per-mode honest measurement (A+C+D floors + firing-mode attribution), the
+evidence-gated decision to keep Σ/φ global (no per-cell structure exists), and demo scenarios for
+the C and D modes. Round 3 (ADR-0013..0018, same branch): the RNG-paper reconciliation work order —
+paper verified, weighted incidence, Spraypoint two-view leaves, the leaky-LLR scorer, and
+reconvergence epochs (source + detector sides). **All five work-order items done**, each closed
+with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
+a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). The repo is **public**.
+**153 tests, gate PASS.** A mid-round handoff (now historical) lives at
+`design/handoff-round3.md`.
 
 ## Built so far
 
@@ -75,9 +82,10 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   `surface` hierarchical combine + e-BH FDR (AC-3) · `tomography`
   noisy-OR set-cover MAP (AC-5, **100% mutation score**) · `drain` simulated (AC-6) ·
   `pipeline` → replay-clean `AuditRecord` (AC-9).
-- `tools/scenarios` six deterministic scenarios · `tools/build-demo` → `demos/demo.html`
-  (AC-8) · `tools/coverage` → `coverage-matrices/coverage-saturation.{json,md}` with
-  detection+attribution parallel columns, floor table, and clean-fabric FDR-control evidence
+- `tools/scenarios` eight deterministic scenarios (six v1 + covariance-flip + oscillation,
+  ADR-0012) · `tools/build-demo` → `demos/demo.html` (AC-8) with firing-mode attribution ·
+  `tools/coverage` → `coverage-matrices/coverage-saturation.{json,md}` with detection+attribution
+  parallel columns, per-mode floor table (A+C+D, ADR-0010), and clean-fabric FDR-control evidence
   (AC-10).
 
 ## Post-v1 progress (branch `post-v1`)
@@ -93,7 +101,7 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   (engine `prewhitenAr` + unit-variance rescale) after per-cell de-meaning. Detectors see
   near-iid input → FDR control holds (clean fabric still selects 0) under autocorrelated
   telemetry; tests verify φ recovery and lag-1 autocorrelation removal. (Generalized to
-  per-signal AR(p) with AIC order selection in ADR-0008.)
+  per-signal AR(p) with BIC order selection in ADR-0008.)
 - **Operator-supplied topology override** (ADR-0005): `validateFaultDomainSnapshot` (pure, in
   `src/`) validates a parsed incidence object (RNG taxonomy, `traverses` relationship,
   referential integrity); `tools/load-topology.ts` reads+parses the file (fs confined to
@@ -142,6 +150,31 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   clean correlated window still selects 0. New math, 92% mutation score; default telemetry stays
   byte-for-byte identical to v1.
 
+## Post-v1 round 2 (branch `post-v1-round2`, off merged main)
+
+- **Per-mode honest measurement** (ADR-0010): the audit gains `firing_families {A,C,D}` (the
+  firing-mode attribution — which family caught the selected set), and the coverage tool gains a
+  **per-mode floor table** measuring detection+attribution floors for all three anomaly modes
+  (mean-shift Δ→A, covariance-flip Δρ→C, oscillation amp→D) with the firing family per mode. The
+  scope note no longer defers covariance/spectral to a footnote — they are measured. `runPipeline`
+  now threads baseline `noiseCorr`/`arCoeffs` into the calibration window too. Measured floors
+  (passive_shuffler, q=0.05): mean Δ=1 (A; A+C at Δ≥2), covariance Δρ=0.2 (C), oscillation amp=0.9
+  (D).
+- **Demo scenarios for the C and D modes** (ADR-0012): the demo dashboard extends from six to
+  **eight** scenarios — adds `covariance-flip-common-mode` (a shuffler reverses cross-signal
+  correlation, no mean/variance change → caught by Family C, A blind) and `oscillation-common-mode`
+  (a shuffler develops a period-7 limit cycle, 600 ticks → caught by Family D, A+C blind). Both
+  localize rank-1 to the injected shuffler; the demo renders the audit's firing-family tally so each
+  scenario names the detector that caught it. AC-8 amended on the record (spec annotated). No new
+  `src/` code — composes the tested pipeline.
+- **No per-cell second-order structure** (ADR-0011): evidence-gated — measured whether per-cell
+  (HoD×DoW×class) Σ and φ structure exists before building it. It does **not**: per-cell Σ spread
+  sits below the pure-sampling-noise floor (0.09 vs 0.12), per-cell estimates are *attenuated*
+  (0.78 vs global 0.90; small-sample shrinkage, the ADR-0006 lesson), per-class φ is flat, and
+  per-cell AR(p) is structurally ill-posed (cells are non-contiguous in time). Decision: **keep
+  global Σ/φ, build nothing.** A durable evidence test (`test/percell-second-order.test.ts`) guards
+  the call.
+
 ## Honest current limitations (NOT hidden)
 
 - Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model
@@ -151,8 +184,14 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   baseline) — see ADR-0008.
 - Live-fabric polling / streaming ingestion (a real `fetchSnapshot` against a controller)
   remains N2 anti-scope.
-- Synthetic fabric/telemetry only (N2); arXiv:2604.15261 unavailable to validate the signal
-  contract against — recorded assumption, not a fidelity claim.
+- Synthetic fabric/telemetry only (N2). **arXiv:2604.15261 is now available and verified**
+  (ADR-0013): topology/routing/ShuffleBox/scale confirmed (quasi-random expander, d=64, max path
+  5, >50 edge-disjoint paths, Spraypoint ECMP, 960 ToRs/61.4K servers), and the paper confirms hop
+  distance is structurally dead (P2). But the paper treats telemetry/operations as out of scope, so
+  the §3.2 five-signal contract stays a working assumption — now **unfalsified, not validated**. The
+  published floors are floors for the v1 binary/fixed-set injection model; the paper's Spraypoint
+  spreads traffic fractionally (motivates the weighted-incidence + leaky-scorer + epoch work,
+  ADR-0014..0016).
 
 ## Next (resumable, post-v1)
 
@@ -168,4 +207,76 @@ Family C Σ, per-cell AR(p), Family E if a non-Gaussian-tail mode is needed, Fam
 matrix, real-fabric validation.
 
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
-(N4), the arXiv:2604.15261 signal-contract fidelity question, repo visibility (private→public).
+(N4), the §3.2 signal-contract *fidelity* question (paper now read — ADR-0013 — but telemetry is
+out of its scope, so fidelity stays unprovable without real data). **Open spec decision (WO item 5,
+HALT-CLASS):** path-class granularity — 960 ToRs ⇒ ~460K ToR-pairs vs AC-1's [100,10000] bound;
+routed to the owner, not changed unilaterally.
+
+## Post-v1 round 3 — RNG-paper reconciliation work order (branch `post-v1-round2`)
+
+- **RNG-paper reconciliation** (ADR-0013): arXiv:2604.15261 is now available; I self-fetched and
+  verified its topology/routing/ShuffleBox/scale (quasi-random expander, d=64, max path 5, >50
+  edge-disjoint paths, Spraypoint ECMP+waypoints, 960 ToRs/61.4K servers). The paper confirms P2
+  (hop distance is dead) and the path-diversity raw material, but treats telemetry as out of scope —
+  the five-signal contract is now *unfalsified, not validated*. Motivates the weighted-incidence,
+  leaky-scorer, and epoch items (ADR-0014..0016) and the HALT-CLASS granularity question. Docs only.
+- **Spraypoint two-view aggregation leaves** (ADR-0015, resolves the HALT-CLASS item 5): at
+  production scale (~460K ToR-pairs) the monitored leaf becomes an **aggregation-view class** — the
+  union of a `per_tor` view (~nTors) and a `per_panel_pair` view (~C(nPanels,2)) over the underlying
+  ToR-pair traffic (~109 leaves at the 64×10×2 default, inside AC-1). The owner corrected the framing:
+  the scale problem is per-leaf **heterogeneity** (misspecified shared baselines), not sample budget;
+  and aggregating m fault-sharing leaves cuts noise by √m, which adds power in the diluted spray
+  regime. The two views have **complementary blind spots** — optic faults concentrate in `per_tor`
+  (blind in `per_panel_pair`), panel faults in `per_panel_pair` (blind in `per_tor`), room faults in
+  both — published as a per-view coverage column and bound by anti-self-confirming tests. Views are
+  dependent (e-BH/AoE handle it; clean still selects 0). `src/spraypoint.ts`; `shuffle_panel`/`room`
+  taxonomy added; AC-1 amended (leaf = view-class; view defs in the snapshot/hash). ToR-pair stays the
+  underlying entity (drill-down = future scope).
+- **Weighted (fractional) incidence** (ADR-0014): the incidence edge gains an optional traffic
+  weight `w ∈ (0,1]` (Spraypoint dilution); absent ⇒ 1 ⇒ byte-identical v1. A fault shifts a leaf by
+  `delta·w` (honest dilution); tomography scores explanation/collateral by `w`. Hash + validation
+  incorporate the weight. Anti-self-confirming fixture: where the unweighted scorer picks an
+  incidental decoy resource, the weighted scorer follows the traffic to the true one. Weighted
+  solver holds 100% mutation; default unchanged.
+- **Leaky-LLR scorer + C1 residue pinned** (ADR-0016, work-order item 3): the tomography default is
+  now a **leaky noisy-OR mixture LLR** — per member, clean `P(fire)=q₀` (the surface's floored fleet
+  base rate `(|selected|+½)/(|leaves|+1)`) vs faulty `q₁=q₀+(δ−q₀)·w`, mixed over δ∈{0.3,0.6,0.9};
+  greedy set-cover on LLR>0. Base-rate-aware, weight-aware falsification; subsumes the λ knob (the
+  linear scorer survives only as the `opts.legacy` failure-mode control). Culprits gain
+  `supporting_views` (displayed metadata). **The LLR did NOT fix the cold-eye C1 high-δ cross-view
+  flip** — empirically the residue is structural (a saturating optic fault lights the whole pair
+  view; no per-resource scorer sees the cross-view explain-away), and no q₀ fixes it (q₀=q makes it
+  worse — comparison recorded). Owner-resolved: **pin the realistic band (δ≤32 holds optic-3) +
+  document the δ≥64 residue** as a union-of-dependent-views limitation, with a canary test proving
+  the per-ToR view alone still localizes at δ=128 (union artifact, not detection failure). The
+  one-view-vs-union double-count check came back negative in the band → no view-multiplicity knob.
+  Cold-eye L1 folded in: operator-supplied `views` now survive validation (they were silently
+  dropped, breaking the operator replay-hash identity). Explain-away scorer = recorded future work.
+- **Epoch'd snapshots + synthetic reroute events** (ADR-0017, work-order item 4 part 1 — source
+  side): Spraypoint reconverges, so the incidence model becomes a SEQUENCE of epochs
+  (`src/epoch.ts`: `SnapshotEpoch {snapshot, valid_from_tick, hash}` — per-epoch hash versions the
+  full measurement design including the ADR-0015 views). A synthetic `RerouteEvent` models a
+  drain/reconvergence: at `at_tick` a seeded `floor(fraction·|candidates|)` of the path-classes
+  traversing `resource_id` remap onto same-kind alternates (weight merged, capped at 1; no
+  alternate ⇒ throw; pure + deterministic, AC-9). Telemetry's degradation follows the ACTIVE epoch
+  per tick (a leaf rerouted off a faulty resource stops shifting at the boundary); the noise
+  process is deliberately continuous across epochs. No epochs ⇒ byte-identical v1 (guard test).
+  N2 intact: synthetic events only, no live fetchSnapshot. Gate loosening on the record:
+  `no-god-module` 16→20 (`domain.ts` is the invariant-admitted zero-behavior type contract; intent
+  updated in place, ADR-0017).
+- **Epoch-aware detection + per-epoch localization** (ADR-0018, item 4 part 2 — detector side):
+  `runPipeline` gains `reroutes?` (absent/empty ⇒ byte-identical v1 audit, guard-tested). A leaf
+  whose incidence changed at an epoch boundary has its e-process **reset there with fresh wealth**
+  (`detectPathClassSegmented`) — a deliberate, RECORDED power loss: the audit lists every reset in
+  `eprocess_resets`, and the leaf verdict carries per-segment e-values. Leaf e-value = MEAN over
+  segments (valid under arbitrary dependence, same rule as the family combine); `evidence_epoch` =
+  argmax segment (attribution metadata; an UNSEGMENTED leaf's evidence epoch is unknown and never
+  fabricated — by stated convention it joins the latest group). Tomography groups selected leaves
+  by evidence epoch and localizes each group **against that epoch's snapshot** (culprits carry
+  `localized_against_epoch` — named for what it factually is); drains act on the LATEST epoch,
+  strongest culprit first, one drain per resource. Audit records the epoch sequence
+  `{valid_from_tick, hash}`. Work-order tests bound: (i) reroute+no-fault selects nothing;
+  (ii) fault + subsequent reroute still localizes from pre-reroute evidence against epoch 0;
+  (ii-b, cold-eye C1) evidence accruing AFTER the reroute localizes against epoch 1 — each
+  headline behavior verified to kill its hand-made constant mutant; (iii) replay-clean across
+  epochs. Unchanged leaves never reset. Smarter wealth carryover = recorded future work.

@@ -111,11 +111,12 @@ test('higher gain wins over a smaller id (id is only a TIE-break, not a primary 
   assert.equal(res.culprits[1].resource_id, 'optic-0');
 });
 
-test('a resource at exactly gain 0 is not blamed (boundary: gain must be strictly positive)', () => {
-  // λ=1, one firing + one quiet -> gain = 1 - 1 = 0 -> excluded (kills the <= boundary mutant).
+test('LEGACY-CONTROL: the linear scorer rejects an exactly-gain-0 resource (the old boundary)', () => {
+  // λ=1, one firing + one quiet -> gain = 1 - 1 = 0 -> excluded under the OLD linear scorer.
+  // Retained only as the failure-mode control for the leaky-LLR (ADR-0016); not the default path.
   const edges = [traverses('pc-0', 'optic-0'), traverses('q1', 'optic-0')];
-  const res = localize(snapshot(edges, [{ id: 'optic-0', kind: 'optic' }]), ['pc-0']);
-  assert.equal(res.culprits.length, 0, 'a zero-gain resource explains nothing net');
+  const res = localize(snapshot(edges, [{ id: 'optic-0', kind: 'optic' }]), ['pc-0'], { ...DEFAULT_LOCALIZE, legacy: true, collateralWeight: 1.0 });
+  assert.equal(res.culprits.length, 0, 'a zero-gain resource explains nothing net (linear scorer)');
   assert.deepEqual(res.unexplained_path_class_ids, ['pc-0']);
 });
 
@@ -124,22 +125,76 @@ test('maxResources caps the explaining set (parsimony), leaving the rest unexpla
   const res = localize(snapshot(edges, [
     { id: 'shuffler-0', kind: 'passive_shuffler' },
     { id: 'shuffler-1', kind: 'passive_shuffler' },
-  ]), ['pc-0', 'pc-1'], { collateralWeight: 1.0, maxResources: 1 });
+  ]), ['pc-0', 'pc-1'], { ...DEFAULT_LOCALIZE, maxResources: 1 });
   assert.equal(res.culprits.length, 1, 'never exceed the parsimony cap');
   assert.equal(res.unexplained_path_class_ids.length, 1);
 });
 
 test('unexplained firing paths are reported, not hidden (instrumented-caveat)', () => {
-  // pc-7 traverses nothing high-signal: only a resource with too much collateral.
+  // pc-7's only resource is bundle-0, whose 10 quiet high-weight members FALSIFY it under the
+  // leaky-LLR (negative LLR) → it is not blamed → pc-7 is reported unexplained, never hidden.
   const edges = [
     traverses('pc-0', 'shuffler-0'),
     traverses('pc-7', 'bundle-0'),
-    ...['q1', 'q2', 'q3'].map((q) => traverses(q, 'bundle-0')),
+    ...['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10'].map((q) => traverses(q, 'bundle-0')),
   ];
   const res = localize(snapshot(edges, [
     { id: 'shuffler-0', kind: 'passive_shuffler' },
     { id: 'bundle-0', kind: 'fiber_bundle' },
-  ]), ['pc-0', 'pc-7'], { ...DEFAULT_LOCALIZE, collateralWeight: 2.0 });
+  ]), ['pc-0', 'pc-7']);
   assert.ok(res.culprits.some((c) => c.resource_id === 'shuffler-0'));
+  assert.ok(!res.culprits.some((c) => c.resource_id === 'bundle-0'), 'the falsified high-collateral resource is not blamed');
   assert.deepEqual(res.unexplained_path_class_ids, ['pc-7']);
+});
+
+// ── Leaky-LLR scorer (ADR-0016) ─────────────────────────────────────────────────
+
+test('the LLR null is BASE-RATE AWARE: members firing at ≈ the fleet base rate are not evidence (ADR-0016)', () => {
+  // 3 of 5 w=1 members firing. At a high fleet base rate (q₀=0.5, e.g. a fleet-wide event) that
+  // pattern is ~what the null predicts → LLR rejects. The λ=1 LINEAR control still blames it
+  // (gain = 3 − 2 = 1 > 0): the linear scorer has no concept of a base rate. This is the
+  // anti-self-confirming discriminator — if the default scorer silently became the linear one,
+  // this test fails. At a quiet-fleet q₀=0.05 the same pattern IS evidence and the LLR blames.
+  const edges = ['f1', 'f2', 'f3', 'q1', 'q2'].map((p) => traverses(p, 'bundle-0'));
+  const snap = snapshot(edges, [{ id: 'bundle-0', kind: 'fiber_bundle' }]);
+  const firing = ['f1', 'f2', 'f3'];
+
+  const noisy = localize(snap, firing, { ...DEFAULT_LOCALIZE, q0: 0.5 });
+  assert.equal(noisy.culprits.length, 0, 'base-rate firing is not evidence under the LLR null');
+  assert.deepEqual(noisy.unexplained_path_class_ids, firing);
+
+  const linear = localize(snap, firing, { ...DEFAULT_LOCALIZE, legacy: true, collateralWeight: 1.0 });
+  assert.equal(linear.culprits[0]?.resource_id, 'bundle-0', 'the linear CONTROL blames it regardless (the failure mode)');
+
+  const quiet = localize(snap, firing, { ...DEFAULT_LOCALIZE, q0: 0.05 });
+  assert.equal(quiet.culprits[0]?.resource_id, 'bundle-0', 'on a quiet fleet the same pattern is real evidence');
+  assert.ok(quiet.culprits[0].score > 0);
+});
+
+test('a NaN score is rejected, never ranked (an empty grid blames nothing instead of everything)', () => {
+  // logMeanExp([]) is NaN; with the old `score <= 0` gate (NaN <= 0 is false) a misconfigured
+  // caller got a culprit with score: NaN. The `!(score > 0)` gate rejects it.
+  const edges = ['f1', 'f2'].map((p) => traverses(p, 'bundle-0'));
+  const snap = snapshot(edges, [{ id: 'bundle-0', kind: 'fiber_bundle' }]);
+  const r = localize(snap, ['f1', 'f2'], { ...DEFAULT_LOCALIZE, grid: [] });
+  assert.equal(r.culprits.length, 0, 'no culprit may carry a NaN score');
+  assert.deepEqual(r.unexplained_path_class_ids, ['f1', 'f2']);
+});
+
+test('supporting_views lists exactly the views with a FIRING member of the culprit — metadata, not mechanism (ADR-0016)', () => {
+  const edges = ['f1', 'f2', 'f3', 'q1', 'q2'].map((p) => traverses(p, 'bundle-0'));
+  const snap = snapshot(edges, [{ id: 'bundle-0', kind: 'fiber_bundle' }]);
+  const withViews = {
+    ...snap,
+    views: [
+      { view: 'va', leaf_ids: ['f1', 'f2', 'q1'] }, // firing members → supporting
+      { view: 'vb', leaf_ids: ['f3', 'q2'] },       // firing member  → supporting
+      { view: 'vc', leaf_ids: ['q1', 'q2'] },       // quiet members only → NOT supporting
+    ],
+  };
+  const r = localize(withViews, ['f1', 'f2', 'f3'], { ...DEFAULT_LOCALIZE, q0: 0.05 });
+  assert.deepEqual(r.culprits[0].supporting_views, ['va', 'vb']);
+
+  const noViews = localize(snap, ['f1', 'f2', 'f3'], { ...DEFAULT_LOCALIZE, q0: 0.05 });
+  assert.deepEqual(noViews.culprits[0].supporting_views, [], 'a view-less fabric carries empty supporting_views');
 });

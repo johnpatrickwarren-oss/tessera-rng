@@ -35,3 +35,12 @@ test('all-quiet verdict set selects nothing (FDR control under the null)', () =>
   const s = buildSurface(verdicts, 0.05);
   assert.equal(s.selected_path_class_ids.length, 0);
 });
+
+test('the surface emits the floored fleet base rate q₀ = (|selected|+½)/(|leaves|+1) (ADR-0016)', () => {
+  // literal expectations, not the formula re-derived: 3 of 5 selected → 3.5/6; 0 of 3 → 0.5/4.
+  const firing = buildSurface([v('pc-a', 300), v('pc-b', 150), v('pc-c', 60), v('pc-d', 1), v('pc-e', 0.2)], 0.05);
+  assert.equal(firing.base_rate_q0, 3.5 / 6);
+  const quiet = buildSurface([v('pc-a', 0.9), v('pc-b', 1.1), v('pc-c', 0.7)], 0.05);
+  assert.equal(quiet.base_rate_q0, 0.5 / 4);
+  assert.ok(quiet.base_rate_q0 > 0 && quiet.base_rate_q0 < 1, 'floored: never 0 even on an all-quiet fleet');
+});

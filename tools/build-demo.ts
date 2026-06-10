@@ -1,10 +1,11 @@
 /**
  * Single-file demo dashboard builder (v1 spec AC-8).
  *
- * Runs the six deterministic scenarios and emits a self-contained demos/demo.html that pages
- * through them: verdict surface, ranked shared-resource culprits (with the correlational-not-
- * causal badge), the simulated route-drain, and the honest unexplained-set count. No external
- * assets; the scenario audit records are embedded as JSON, so the page is replay-clean.
+ * Runs the eight deterministic scenarios (six v1 + covariance-flip and oscillation, ADR-0012) and
+ * emits a self-contained demos/demo.html that pages through them: verdict surface, the firing-mode
+ * attribution (which detector family A/C/D caught it), ranked shared-resource culprits (with the
+ * correlational-not-causal badge), the simulated route-drain, and the honest unexplained-set count.
+ * No external assets; the scenario audit records are embedded as JSON, so the page is replay-clean.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,6 +39,7 @@ export function render(scenarios: ScenarioResult[]): string {
 <div class="panel"><div class="row">
   <div><div class="k">fleet log e-value</div><div class="big" id="fleet"></div></div>
   <div><div class="k">path-classes selected (e-BH, q)</div><div class="big" id="sel-n"></div></div>
+  <div><div class="k">caught by family (A/C/D)</div><div class="big" id="fam"></div></div>
   <div><div class="k">unexplained firing</div><div class="big" id="unexp"></div></div>
   <div><div class="k">snapshot hash</div><div class="v" id="hash"></div></div>
 </div></div>
@@ -56,6 +58,8 @@ function render(i){
   document.getElementById('desc').innerHTML = '<b>'+s.name+'</b> — '+s.description+(s.injected_resource_id?' <span class="k">(injected: '+s.injected_resource_id+')</span>':'');
   document.getElementById('fleet').textContent = r6(a.fleet_log_e);
   document.getElementById('sel-n').innerHTML = '<span class="'+(a.selected_path_class_ids.length?'fire':'ok')+'">'+a.selected_path_class_ids.length+'</span> <span class="k">@ q='+a.q+'</span>';
+  const ff = a.firing_families;
+  document.getElementById('fam').innerHTML = (ff.A||ff.C||ff.D) ? ('<span class="fire">'+ff.A+' / '+ff.C+' / '+ff.D+'</span>') : '<span class="ok">— / — / —</span>';
   document.getElementById('unexp').textContent = a.unexplained_path_class_ids.length;
   document.getElementById('hash').textContent = a.snapshot_hash.slice(0,16)+'…';
   const tb = document.querySelector('#culprits tbody'); tb.innerHTML='';

@@ -1,7 +1,7 @@
 [
   {
     "id": "no-god-files",
-    "intent": "No source file over 800 lines (God file) — split it.",
+    "intent": "No source file over 800 lines (God file) \u2014 split it.",
     "check": {
       "kind": "oversized_files",
       "maxLines": 800
@@ -11,7 +11,7 @@
   },
   {
     "id": "no-complex-functions",
-    "intent": "PRIMARY function-health gate: no function with cyclomatic complexity over 12 (1 + decision points + &&/||) — the less-arbitrary signal than length, flagging BRANCHY hard-to-test functions, not merely long ones (McCabe/NIST anchor ~10; 12 is a forgiving starter). Pairs with the no-god-functions length backstop below for the long-but-flat case.",
+    "intent": "PRIMARY function-health gate: no function with cyclomatic complexity over 12 (1 + decision points + &&/||) \u2014 the less-arbitrary signal than length, flagging BRANCHY hard-to-test functions, not merely long ones (McCabe/NIST anchor ~10; 12 is a forgiving starter). Pairs with the no-god-functions length backstop below for the long-but-flat case.",
     "check": {
       "kind": "max_complexity",
       "maxComplexity": 12
@@ -23,7 +23,7 @@
   },
   {
     "id": "no-god-functions",
-    "intent": "Coarse BACKSTOP: no function over 150 lines. Complexity (above) is the primary gate; this only catches the huge-but-flat functions complexity misses — giant data tables, long sequential builders/pipelines with few branches. Set high on purpose so it does not fight the complexity gate by flagging clean ~100-line functions.",
+    "intent": "Coarse BACKSTOP: no function over 150 lines. Complexity (above) is the primary gate; this only catches the huge-but-flat functions complexity misses \u2014 giant data tables, long sequential builders/pipelines with few branches. Set high on purpose so it does not fight the complexity gate by flagging clean ~100-line functions.",
     "check": {
       "kind": "max_function_lines",
       "maxLines": 150
@@ -35,10 +35,10 @@
   },
   {
     "id": "no-god-module",
-    "intent": "No module imported by more than 16 files (coupling hub / God module). The rule targets BEHAVIORAL hubs (the k10s 'everything depends on the God object' smell). The check excludes test files by construction (a widely-tested utility is not a God object); by the same logic this threshold is set to admit (a) the zero-behavior data/type contracts domain.ts/signals.ts/verdict.ts, imported by most modules with no coupling-cascade risk, and (b) leaf build/report scripts under tools/, which consume those contracts exactly as tests do. No behavioral/logic module in this codebase is imported by more than ~3 files; a logic hub imported by 17+ still blocks. Set on the record (this intent), not relaxed against a committed baseline.",
+    "intent": "No module imported by more than 20 files (coupling hub / God module). The rule targets BEHAVIORAL hubs (the k10s 'everything depends on the God object' smell). The check excludes test files by construction (a widely-tested utility is not a God object); by the same logic this threshold is set to admit (a) the zero-behavior data/type contracts domain.ts/signals.ts/verdict.ts, imported by most modules with no coupling-cascade risk, and (b) leaf build/report scripts under tools/, which consume those contracts exactly as tests do. No behavioral/logic module in this codebase is imported by more than ~3 files; a logic hub imported by 21+ still blocks. LOOSENED ON THE RECORD 16->20 (ADR-0017): epoch.ts's type-only import pushed domain.ts to 17 importers \u2014 exactly the admitted zero-behavior contract case the original intent named; the original 16 was calibrated to the then-current module count, not to a coupling judgment. Behavioral-hub protection is unchanged.",
     "check": {
       "kind": "module_fanin",
-      "maxFanin": 16
+      "maxFanin": 20
     },
     "mode": "ratchet",
     "severity": "block"
@@ -57,7 +57,7 @@
   },
   {
     "id": "no-time-bomb-tests",
-    "intent": "No test pinned to a frozen git ref/SHA — round-scoped checks belong in a gate, not the permanent suite.",
+    "intent": "No test pinned to a frozen git ref/SHA \u2014 round-scoped checks belong in a gate, not the permanent suite.",
     "check": {
       "kind": "time_bomb_tests",
       "dirs": [

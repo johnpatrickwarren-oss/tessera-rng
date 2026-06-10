@@ -14,6 +14,7 @@ test('a Culprit always carries the non-causal flag and provenance (N1 contract)'
     member_path_class_ids: ['pc-0', 'pc-1'],
     firing_member_count: 2,
     traversing_count: 2,
+    supporting_views: ['per_tor'],
     correlational_not_causal: true,
   };
   // (The runtime guarantee that localize() always sets this flag is verified in
@@ -35,7 +36,7 @@ test('a PathClassVerdict records per-detector α-budget for both families (AC-2 
   assert.deepEqual(v.detectors.map((d) => d.family), ['A', 'C']);
 });
 
-test('an AuditRecord exposes the honest-measurement fields (unexplained set is required)', () => {
+test('an AuditRecord exposes the honest-measurement fields (unexplained set + firing-mode tally required)', () => {
   const rec: AuditRecord = {
     snapshot_hash: 'a'.repeat(64),
     q: 0.05,
@@ -45,6 +46,8 @@ test('an AuditRecord exposes the honest-measurement fields (unexplained set is r
     culprits: [],
     unexplained_path_class_ids: [],
     drain_actions: [],
+    firing_families: { A: 0, C: 0, D: 0 },
   };
   assert.ok('unexplained_path_class_ids' in rec, 'unexplained set must be a first-class audit field');
+  assert.ok('firing_families' in rec, 'firing-mode attribution must be a first-class audit field (ADR-0010)');
 });
