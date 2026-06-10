@@ -30,7 +30,7 @@ reconvergence epochs (source + detector sides). **All five work-order items done
 with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
 a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds 2+3 merged to
 `main` via PR #2. Round 4 (branch `post-v1-round4`, ADR-0019..): owner-authorized; headline =
-closing the C1 residue structurally. The repo is **public**. **158 tests, gate PASS.**
+closing the C1 residue structurally. The repo is **public**. **159 tests, gate PASS.**
 
 ## Built so far
 
@@ -189,9 +189,9 @@ closing the C1 residue structurally. The repo is **public**. **158 tests, gate P
   5, >50 edge-disjoint paths, Spraypoint ECMP, 960 ToRs/61.4K servers), and the paper confirms hop
   distance is structurally dead (P2). But the paper treats telemetry/operations as out of scope, so
   the §3.2 five-signal contract stays a working assumption — now **unfalsified, not validated**. The
-  published floors are floors for the v1 binary/fixed-set injection model; the paper's Spraypoint
-  spreads traffic fractionally (motivates the weighted-incidence + leaky-scorer + epoch work,
-  ADR-0014..0016).
+  published floors now cover BOTH regimes: the v1 binary/fixed-set injection model AND the
+  Spraypoint fractional-dilution fabric (ADR-0020 closed the ADR-0014 deferral — dilution does not
+  raise the floors; room attribution lags detection, published).
 
 ## Next (resumable, post-v1)
 
@@ -301,3 +301,12 @@ routed to the owner, not changed unilaterally.
   BETTER: optic Δ=1 attribution 25%→75%, power_zone attribution floor 2→1) and now bound by a
   byte-exact demo freshness test + a coverage single-cell spot-check; q₀ ∉ (0,1) is rejected
   (the +Infinity ranking hole); empty κ grid covered by the degenerate-mixture gate.
+- **Spraypoint dilution floors** (ADR-0020, round-4 item 2): the honest-measurement matrix gains
+  a dilution floor table on the two-view fabric (3 kinds × Δ∈{0.5..4} × 2 targets × 2 seeds),
+  closing the ADR-0014 "binary regime only" deferral. Measured: optic 2/2, shuffle_panel 1/2,
+  room 1/2 — **dilution does not raise the floors** (each kind's w=1 view carries detection,
+  matching the binary regime's corresponding kinds), and the honest cost is the room
+  **attribution lag** (Δ=1: detection 4/4, attribution 0/4 — the ADR-0019 wrong-kind band,
+  now published, not implied away). A pre-measurement draft predicted lower floors and was wrong —
+  replaced with observed numbers on the record. Bound by a second freshness spot-check (the room
+  Δ=2 cell) + structural floor assertions on the committed JSON.

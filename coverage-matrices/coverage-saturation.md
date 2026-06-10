@@ -82,6 +82,37 @@ the views have COMPLEMENTARY blind spots — published here, not implied. An opt
 | shuffle_panel | panel-2 | per_panel_pair:9 | per_panel_pair |
 | room | room-1 | per_panel_pair:35, per_tor:64 | per_panel_pair+per_tor |
 
+## Spraypoint dilution floors (ADR-0020) — the fractional-incidence regime, measured
+
+Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a
+`p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary
+table above (smallest Δ reaching ≥ 90 %). Detection rides each kind's w=1 view, so dilution
+does not raise the detection floor; the honest cost appears where attribution lags detection.
+
+| fault kind | detection floor (Δ) | attribution floor (Δ) |
+|---|---|---|
+| optic | 2 | 2 |
+| shuffle_panel | 1 | 2 |
+| room | 1 | 2 |
+
+| fault kind | Δ | detection | attribution |
+|---|---|---|---|
+| optic | 0.5 | 0% (0/4) | 0% (0/4) |
+| optic | 1 | 25% (1/4) | 25% (1/4) |
+| optic | 2 | 100% (4/4) | 100% (4/4) |
+| optic | 3 | 100% (4/4) | 100% (4/4) |
+| optic | 4 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 0.5 | 0% (0/4) | 0% (0/4) |
+| shuffle_panel | 1 | 100% (4/4) | 75% (3/4) |
+| shuffle_panel | 2 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 3 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
+| room | 0.5 | 50% (2/4) | 0% (0/4) |
+| room | 1 | 100% (4/4) | 0% (0/4) |
+| room | 2 | 100% (4/4) | 100% (4/4) |
+| room | 3 | 100% (4/4) | 100% (4/4) |
+| room | 4 | 100% (4/4) | 100% (4/4) |
+
 ## FDR control (clean fabric, no degradation)
 
 Across 4 clean trials over 300 path-classes: mean selected = **0**, false-positive rate = **0%** — e-BH holds the surface quiet under heavy correlation.

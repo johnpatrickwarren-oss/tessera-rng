@@ -97,6 +97,8 @@ export interface CoverageReport {
   mode_floors: ModeFloorRow[];
   /** per-view detection on the Spraypoint fabric — which aggregation view concentrates each fault kind (ADR-0015). */
   spraypoint_views: SpraypointViewRow[];
+  /** detection/attribution floors UNDER DILUTION on the Spraypoint two-view fabric (ADR-0020) — closes the ADR-0014 deferral. */
+  spraypoint_floors: { deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] };
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
 }
 
@@ -274,6 +276,47 @@ async function spraypointViewCoverage(): Promise<SpraypointViewRow[]> {
   return rows;
 }
 
+const SPRAYPOINT_DELTAS = [0.5, 1, 2, 3, 4];
+/** Deterministic Spraypoint floor targets — two per kind (the fabric is symmetric within a kind). */
+export const SPRAYPOINT_FLOOR_TARGETS: Record<string, string[]> = {
+  optic: ['optic-3', 'optic-40'],
+  shuffle_panel: ['panel-2', 'panel-7'],
+  room: ['room-0', 'room-1'],
+};
+
+/** One Spraypoint dilution cell (ADR-0020): same detection/attribution semantics as the binary `cell`. */
+export async function spraypointCell(kind: ResourceKind, delta: number, targets: string[]): Promise<CoverageCell> {
+  const snap = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
+  let detected = 0;
+  let attributed = 0;
+  let n = 0;
+  for (const resource of targets) {
+    for (const seed of SEEDS) {
+      const audit = await runPipeline({ snapshot: snap, telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0 } }, q: Q });
+      n += 1;
+      const isDetected = audit.selected_path_class_ids.length > 0;
+      if (isDetected) detected += 1;
+      if (isDetected && audit.culprits[0]?.resource_id === resource) attributed += 1;
+    }
+  }
+  return { kind, delta, n, detected, attributed, detection_rate: detected / n, attribution_rate: attributed / n };
+}
+
+/** The Spraypoint dilution floor table (ADR-0020): floors per fault kind on the two-view fabric. */
+async function spraypointFloors(): Promise<{ deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] }> {
+  const kinds: ResourceKind[] = ['optic', 'shuffle_panel', 'room'];
+  const cells: CoverageCell[] = [];
+  for (const kind of kinds) {
+    for (const delta of SPRAYPOINT_DELTAS) cells.push(await spraypointCell(kind, delta, SPRAYPOINT_FLOOR_TARGETS[kind]));
+  }
+  const floors: FloorRow[] = kinds.map((kind) => ({
+    kind,
+    detection_floor: floorFor(cells, kind, 'detection_rate'),
+    attribution_floor: floorFor(cells, kind, 'attribution_rate'),
+  }));
+  return { deltas: SPRAYPOINT_DELTAS, cells, floors };
+}
+
 export async function computeCoverage(): Promise<CoverageReport> {
   const cells: CoverageCell[] = [];
   for (const kind of KINDS) {
@@ -296,6 +339,7 @@ export async function computeCoverage(): Promise<CoverageReport> {
     per_signal: await perSignalCoverage(),
     mode_floors: await modeFloors(),
     spraypoint_views: await spraypointViewCoverage(),
+    spraypoint_floors: await spraypointFloors(),
     clean: await cleanFalsePositives(),
   };
 }
@@ -369,6 +413,24 @@ export function renderMarkdown(rep: CoverageReport): string {
     const cells = Object.entries(v.per_view_detected).map(([view, n]) => `${view}:${n}`).join(', ') || '—';
     L.push(`| ${v.fault_kind} | ${v.resource} | ${cells} | ${v.concentrated_by} |`);
   }
+  L.push('');
+  L.push('## Spraypoint dilution floors (ADR-0020) — the fractional-incidence regime, measured');
+  L.push('');
+  L.push('Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a');
+  L.push('`p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary');
+  L.push('table above (smallest Δ reaching ≥ 90 %). Detection rides each kind\'s w=1 view, so dilution');
+  L.push('does not raise the detection floor; the honest cost appears where attribution lags detection.');
+  L.push('');
+  L.push('| fault kind | detection floor (Δ) | attribution floor (Δ) |');
+  L.push('|---|---|---|');
+  for (const f of rep.spraypoint_floors.floors) {
+    const big = `>${Math.max(...rep.spraypoint_floors.deltas)}`;
+    L.push(`| ${f.kind} | ${f.detection_floor ?? big} | ${f.attribution_floor ?? big} |`);
+  }
+  L.push('');
+  L.push('| fault kind | Δ | detection | attribution |');
+  L.push('|---|---|---|---|');
+  for (const c of rep.spraypoint_floors.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
   L.push('');
   L.push('## FDR control (clean fabric, no degradation)');
   L.push('');
