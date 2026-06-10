@@ -30,7 +30,7 @@ export interface PipelineParams {
   /** operator-supplied incidence model; overrides the generated fabric when provided (ADR-0005). */
   snapshot?: FaultDomainSnapshot;
   /**
-   * `degradation` applies to the LIVE window only; `noiseCorr`/`arCoeffs` are the BASELINE structure
+   * `degradation`/`degradations` apply to the LIVE window only; `noiseCorr`/`arCoeffs` are the BASELINE structure
    * and are applied to BOTH the calibration and live windows (so the substrate is calibrated under
    * the same correlation/AR(p) regime the live stream carries — ADR-0007/0008/0010).
    */

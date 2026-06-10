@@ -245,3 +245,17 @@ test('LEGACY-CONTROL: deterministic tie-break, gain ordering, and the maxResourc
   assert.equal(capped.culprits.length, 1, 'the cap binds on the legacy path too');
   assert.equal(capped.unexplained_path_class_ids.length, 1);
 });
+
+test('a nested no-quiet-member candidate cannot free-ride: every culprit must have unexplained firing evidence (ADR-0022 C2)', () => {
+  // B's members are a strict subset of A's firing members and B has NO quiet members to falsify
+  // it — every fired member's marginal is ≥ 0, so without the admission gate B scores a small
+  // positive marginal (observed 0.65, the same magnitude as a REAL second fault) and is emitted
+  // as a spurious culprit. With the gate, A's pick explains f1/f2 past ½ and B is inadmissible.
+  const edges = [
+    ...['f1', 'f2', 'f3', 'f4', 'q1', 'q2'].map((x) => traverses(x, 'A')),
+    traverses('f1', 'B'), traverses('f2', 'B'),
+  ];
+  const snap = snapshot(edges, [{ id: 'A', kind: 'passive_shuffler' }, { id: 'B', kind: 'optic' }]);
+  const res = localize(snap, ['f1', 'f2', 'f3', 'f4'], { ...DEFAULT_LOCALIZE, q0: 0.01 });
+  assert.deepEqual(res.culprits.map((c) => c.resource_id), ['A'], 'the nested free-rider is not a culprit');
+});

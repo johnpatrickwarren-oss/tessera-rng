@@ -58,8 +58,15 @@ export interface PathClassVerdict {
 export interface Culprit {
   resource_id: ResourceId;
   resource_kind: ResourceKind;
-  /** localization score; higher = better explains the firing set (leaky-LLR, ADR-0016). */
+  /**
+   * Localization score: rank-1 carries the full saturating-mixture LLR (ADR-0019); ranks ≥ 2
+   * carry the MARGINAL LLR given the earlier picks (ADR-0022) — a pick-order-conditional
+   * quantity, comparable within one localization but NOT across runs or epoch groups (the
+   * drain ranking mixes scales across groups; recorded in ADR-0022).
+   */
   score: number;
+  /** ALL firing members of this resource — provenance, NOT an attribution partition: a later
+   *  pick's list may include leaves an earlier pick explains (ADR-0022). */
   member_path_class_ids: readonly PathClassId[];
   firing_member_count: number;
   traversing_count: number;

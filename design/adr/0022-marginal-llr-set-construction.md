@@ -85,3 +85,35 @@ Replace the binary explained-set with **marginal-likelihood greedy set construct
   residual bookkeeping, not calibrated joint inference.
 - Demo and coverage artifacts are byte-unchanged (the freshness binds passed without
   regeneration): no published scenario had a multi-culprit output that the marginal cover alters.
+
+## Cold-eye fold-in (fresh-context review of 63eca6b)
+
+- **C2 — free-riding nested candidates.** Every FIRED member's marginal contribution is ≥ 0
+  (only quiet members push a score negative), so a resource whose firing members are a subset of
+  an earlier pick's — with no quiet members — earned a small positive marginal (observed 0.65,
+  the same magnitude as a real second fault's 0.71) and ranked as a spurious culprit. Fixed with
+  the **admission gate**: a candidate must have ≥ 1 firing member the picked set has not already
+  explained (the binarization-level analogue of the retired `newly.length === 0` rule). A first
+  draft of the gate ("must push a member past ½") was REJECTED by the coverage freshness bind —
+  it also blocked weak-but-correct FIRST picks (optic Δ=1 attribution fell 3/4 → 1/4, observed);
+  the has-unexplained-firing form admits weak first picks untouched and the committed artifacts
+  match without regeneration. Residual recorded: when a picked set explains nothing past ½, a
+  nested no-quiet candidate remains admissible with a tiny marginal.
+- **L1 — binarization near q₀ ≈ ½.** The "touch + more-likely-than-not" rule is q₀-relative: at
+  q₀ = 0.49 a 2 % posterior touch tips a leaf over ½ and it reads `explained`. Recorded as
+  display behavior — the admission gate, not the binarization, is the mechanism.
+- **L2 — score semantics.** Rank-1 = full LLR; ranks ≥ 2 = pick-order-conditional marginals.
+  Documented at the type. The epoch'd drain ranking (`drainTargets`) compares these across
+  groups — mixed scales; recorded as a known limitation (per-group drain budgeting is future
+  work, not silently absorbed).
+- **L3 — member lists are provenance, not attribution partitions** (a later pick's
+  `member_path_class_ids` may include earlier-explained leaves) — documented at the type; the
+  cross-kind test comment corrected.
+- **L4** — the two-shuffler e2e binds ADR-0021 only (disjoint member sets — the binary cover
+  would pass it); the cross-kind fixture is the discriminating ADR-0022 bind. Commented in both.
+- **P1–P3** — dead `memberLL`/`memberLLSat` removed (the saturating-model doc moved to
+  `memberLLMarginal`); module header and pipeline JSDoc updated; the strict-inequality comment
+  fixed. The reviewer independently verified the fold's Jensen direction (posterior-predictive
+  E_post[F], not E_post[log F]), NaN-safety at logG → −∞, termination, and that the recorded
+  "failed under the binary cover" evidence is real (reimplemented binary cover returns panel-7
+  alone on the cross-kind selection).

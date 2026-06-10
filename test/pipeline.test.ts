@@ -49,7 +49,9 @@ test('single-shuffler common-mode: that shuffler is the rank-1 culprit and is (s
 
 test('TWO simultaneous faults: the set-cover returns BOTH culprits end-to-end, each with its own members; top-2 drains both (ADR-0021)', async () => {
   // the set-cover's "minimal explaining SET" claim, finally exercised by real telemetry rather
-  // than a hand-built firing set (the gap recorded in ADR-0019's cold-eye).
+  // than a hand-built firing set (the gap recorded in ADR-0019's cold-eye). NOTE: s1/s2 member
+  // sets are disjoint, so this binds the ADR-0021 e2e path — the BINARY cover would also pass
+  // here; only the spraypoint cross-kind fixture discriminates the ADR-0022 marginal mechanism.
   const snap = generateFabric(FABRIC);
   const counts = new Map<string, number>();
   for (const e of snap.edges) if (e.resource.startsWith('shuffler-')) counts.set(e.resource, (counts.get(e.resource) ?? 0) + 1);

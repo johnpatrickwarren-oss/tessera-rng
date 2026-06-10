@@ -196,3 +196,29 @@ test('degradations:[x] ≡ degradation:x byte-identical; [] ≡ clean; both form
     /at most one degradation may carry degradedNoiseCorr/,
   );
 });
+
+test('mean × variance composition: the variance fault inflates the NOISE only, order-independently (ADR-0021 C1)', async () => {
+  const { generateTelemetry } = await import('../src/telemetry');
+  const { signalIndex } = await import('../src/signals');
+  const t = (pc: string, r: string) => ({ path_class: pc, resource: r, relationship: 'traverses' as const });
+  const snap = {
+    nodes: [], path_classes: ['pc-x'], edges: [t('pc-x', 'r1'), t('pc-x', 'r2')],
+    resources: [{ id: 'r1', kind: 'optic' as const }, { id: 'r2', kind: 'passive_shuffler' as const }],
+    fetched_at_ts: 0, source_id: 's', source_version: 'v',
+  };
+  const p99 = signalIndex('p99_latency');
+  const MEAN = { resource_id: 'r1', delta: 4, start_tick: 0 };
+  const VAR = { resource_id: 'r2', delta: 3, start_tick: 0, mode: 'variance' as const };
+  const base = { seed: 9, ticks: 30 };
+  const varOnly = generateTelemetry(snap, { ...base, degradation: VAR });
+  const meanThenVar = generateTelemetry(snap, { ...base, degradations: [MEAN, VAR] });
+  const varThenMean = generateTelemetry(snap, { ...base, degradations: [VAR, MEAN] });
+  // before the fix, mean-then-variance MULTIPLIED the mean shift (observed diff 12.3 instead of
+  // 4) and order silently changed the result. Now: composed − variance-only = EXACTLY the mean
+  // shift at every tick, in both orders.
+  for (let tick = 0; tick < 30; tick++) {
+    const v = varOnly.series.get('pc-x')![tick][p99];
+    assert.ok(Math.abs(meanThenVar.series.get('pc-x')![tick][p99] - v - 4) < 1e-9, `tick ${tick}: mean adds exactly (mean first)`);
+    assert.ok(Math.abs(varThenMean.series.get('pc-x')![tick][p99] - v - 4) < 1e-9, `tick ${tick}: mean adds exactly (variance first)`);
+  }
+});

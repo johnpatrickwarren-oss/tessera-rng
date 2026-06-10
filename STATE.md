@@ -33,7 +33,7 @@ a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds
 (C1 closed; latent room-fault defect fixed) + Spraypoint dilution floors, each with a cold-eye
 fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection — whose e2e test
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
-**public**. **165 tests, gate PASS.**
+**public**. **167 tests, gate PASS.**
 
 ## Built so far
 
@@ -194,6 +194,13 @@ immediately falsified the binary set-cover and forced marginal-LLR set construct
   minimal set (one culprit at δ=128, binding the posterior fold against deletion/prior mutants).
   `explained` is now "more likely than not under a picked set that touches the leaf" (display
   binarization, not mechanism); legacy linear keeps the historic binary cover as the control.
+  Round-5 cold-eye fold-in: variance/oscillation modes now center on the ACCUMULATED mean (they
+  multiplied a preceding mean shift — "compose freely" was falsified, fixed + bound
+  order-independently in both orders); nested no-quiet free-riders blocked by the
+  has-unexplained-firing admission gate (a stricter draft gate was itself rejected by the
+  coverage freshness bind for blocking weak first picks — optic Δ=1 attribution fell 3/4 → 1/4,
+  observed and reverted); score/member-list semantics documented (rank≥2 = pick-order-conditional
+  marginal; member lists are provenance, not attribution partitions).
 
 ## Honest current limitations (NOT hidden)
 

@@ -1,6 +1,8 @@
 /**
  * Tomographic localization (v1 spec AC-5; the new math, ADR-0001; leaky-LLR scorer, ADR-0016;
- * exposure-saturating noisy-OR, ADR-0019).
+ * exposure-saturating noisy-OR, ADR-0019; marginal-LLR set construction, ADR-0022 — the greedy
+ * cover scores each candidate against what the picked set ALREADY predicts, via per-leaf
+ * residual quiet factors, instead of a binary explained-set).
  *
  * Inverse problem: given the e-BH-selected (firing) leaf set, recover the minimal set of shared
  * physical resources whose joint failure best explains it. We model fault → firing as a LEAKY
@@ -108,8 +110,6 @@ interface MixCell {
   k: number;
 }
 
-const memberLL = (fired: boolean, p: number): number => (fired ? Math.log(p) : Math.log(1 - p));
-
 /** log( Σᵢ priorᵢ·exp(llᵢ) ), Σ prior = 1 — stable prior-weighted mixture (ADR-0019). */
 function logMixExp(cells: ReadonlyArray<{ ll: number; logPrior: number }>): number {
   const max = Math.max(...cells.map((c) => c.ll + c.logPrior));
@@ -119,21 +119,15 @@ function logMixExp(cells: ReadonlyArray<{ ll: number; logPrior: number }>): numb
 }
 
 /**
- * One member's log-likelihood under (faulty, δ, κ) — the SATURATING leaky noisy-OR (ADR-0019):
- *   P(quiet) = (1−q₀)·(1−δ)^{κ·w}   ⇒   log P(quiet) = log(1−q₀) + κ·w·log(1−δ)   (exact, no clamp)
+ * One member's log-likelihood under (faulty, δ, κ) given the picked set's residual quiet factor
+ * logG — the SATURATING leaky noisy-OR (ADR-0019) with marginal bookkeeping (ADR-0022):
+ *   log P(quiet) = log(1−q₀) + logG + κ·w·log(1−δ)   (exact, no clamp)
  * κ is the exposure scale: at κ·w large the fire probability SATURATES toward 1, which the old
  * linear leak q₁ = q₀+(δ−q₀)·w could not express — an extreme fault fires even a 1/64-diluted
  * leaf reliably, and a model that cannot say so hands the coarse pair-view resource the win
- * (the ADR-0016 C1 residue, now closed) and mislocalizes a true room fault entirely.
+ * (the ADR-0016 C1 residue, closed by ADR-0019) and mislocalizes a true room fault entirely.
+ * With logG = 0 (nothing picked, or leaf untouched) this is exactly the ADR-0019 form.
  */
-function memberLLSat(fired: boolean, q0: number, d: number, kw: number): number {
-  const logQuiet = Math.log1p(-q0) + kw * Math.log1p(-d);
-  return fired ? Math.log(-Math.expm1(logQuiet)) : logQuiet;
-}
-
-/** One member's log-likelihood given the picked set's residual quiet factor logG and a candidate
- *  cell (δ, κ): log P(quiet) = log(1−q₀) + logG + κw·log(1−δ). With logG = 0 (nothing picked,
- *  or leaf untouched by picks) this is exactly the ADR-0019 single-resource form. */
 function memberLLMarginal(fired: boolean, q0: number, logG: number, d: number, kw: number): number {
   const logQuiet = Math.log1p(-q0) + logG + kw * Math.log1p(-d);
   return fired ? Math.log(-Math.expm1(logQuiet)) : logQuiet;
@@ -170,20 +164,51 @@ function resourceLLR(a: Acc, logG: ReadonlyMap<PathClassId, number>, q0: number,
   return { score: logMixExp(cells) - base, cells };
 }
 
+/** The picked resource's posterior-predictive quiet factor per member: E_post[(1−δ)^{κ·wᵢ}]. */
+function posteriorQuietFactors(a: Acc, cells: readonly MixCell[]): Map<PathClassId, number> {
+  const mx = Math.max(...cells.map((c) => c.ll + c.logPrior));
+  const ws = cells.map((c) => Math.exp(c.ll + c.logPrior - mx));
+  const Z = ws.reduce((s, x) => s + x, 0);
+  const out = new Map<PathClassId, number>();
+  for (const m of a.members) {
+    let g = 0;
+    for (let i = 0; i < cells.length; i++) g += (ws[i] / Z) * Math.exp(cells[i].k * m.weight * Math.log1p(-cells[i].d));
+    out.set(m.pc, g);
+  }
+  return out;
+}
+
 /**
  * Fold the picked resource's POSTERIOR over (δ, κ) into each member's residual quiet factor
  * (ADR-0022): logGᵢ += log E_post[(1−δ)^{κ·wᵢ}]. Subsequent candidates then gain nothing for
  * leaves the picked set already predicts to fire, and the cover needs no binary explained-set.
  */
-function foldPosterior(a: Acc, cells: readonly MixCell[], logG: Map<PathClassId, number>): void {
-  const mx = Math.max(...cells.map((c) => c.ll + c.logPrior));
-  const ws = cells.map((c) => Math.exp(c.ll + c.logPrior - mx));
-  const Z = ws.reduce((s, x) => s + x, 0);
+function foldPosterior(a: Acc, factors: ReadonlyMap<PathClassId, number>, logG: Map<PathClassId, number>): void {
+  for (const [pc, g] of factors) logG.set(pc, (logG.get(pc) ?? 0) + Math.log(g));
+}
+
+const LOG_HALF = Math.log(0.5);
+/** explained ⇔ the picked set touches the leaf (logG < 0) AND makes its firing more likely than
+ *  not (P(fire | set) > ½, strict) — the audit binarization AND the pick admission gate. */
+function isExplained(q0: number, logG: number): boolean {
+  return logG < 0 && Math.log1p(-q0) + logG < LOG_HALF;
+}
+
+/**
+ * Pick admission gate (ADR-0022, cold-eye C2): a candidate must have at least one firing member
+ * the picked set has NOT already explained — without this, a resource whose firing members are a
+ * SUBSET of an earlier pick's (with no quiet members to falsify it) free-rides to a small
+ * positive marginal (every fired member's marginal contribution is ≥ 0; only quiet members push
+ * it negative). The binarization-level analogue of the retired `newly.length === 0` rule: it
+ * admits weak first picks (nothing is explained yet) and never blocks a candidate carrying
+ * genuinely surprising evidence. Residual recorded in ADR-0022: when the picked set explains
+ * NOTHING past ½, a nested no-quiet candidate remains admissible with a tiny marginal.
+ */
+function hasUnexplainedFiring(a: Acc, logG: ReadonlyMap<PathClassId, number>, q0: number): boolean {
   for (const m of a.members) {
-    let g = 0;
-    for (let i = 0; i < cells.length; i++) g += (ws[i] / Z) * Math.exp(cells[i].k * m.weight * Math.log1p(-cells[i].d));
-    logG.set(m.pc, (logG.get(m.pc) ?? 0) + Math.log(g));
+    if (m.fired && !isExplained(q0, logG.get(m.pc) ?? 0)) return true;
   }
+  return false;
 }
 
 /** Legacy linear scorer (CONTROL ONLY): `Σ newly·w − λ·Σ quiet·w` — the rank-flip failure mode. */
@@ -211,7 +236,8 @@ function bestLegacy(acc: Map<ResourceId, Acc>, explained: ReadonlySet<PathClassI
   return best;
 }
 
-/** Best unpicked candidate by marginal LLR (ADR-0022). `!(score > 0)` so NaN never ranks. */
+/** Best unpicked candidate by marginal LLR that NEWLY EXPLAINS ≥ 1 leaf (ADR-0022).
+ *  `!(score > 0)` so NaN never ranks. */
 function bestMarginal(
   acc: Map<ResourceId, Acc>,
   picked: ReadonlySet<ResourceId>,
@@ -220,7 +246,7 @@ function bestMarginal(
 ): { resource: ResourceId; score: number; cells: MixCell[] } | null {
   let best: { resource: ResourceId; score: number; cells: MixCell[] } | null = null;
   for (const [resource, a] of acc) {
-    if (picked.has(resource)) continue;
+    if (picked.has(resource) || !hasUnexplainedFiring(a, logG, opts.q0)) continue;
     const p = resourceLLR(a, logG, opts.q0, opts.grid, opts.kappas);
     if (!p || !(p.score > 0)) continue;
     if (!best || p.score > best.score || (p.score === best.score && resource < best.resource)) best = { resource, ...p };
@@ -273,16 +299,13 @@ export function localize(
     const best = bestMarginal(acc, picked, logG, opts);
     if (!best) break;
     picked.add(best.resource);
-    foldPosterior(acc.get(best.resource)!, best.cells, logG);
+    foldPosterior(acc.get(best.resource)!, posteriorQuietFactors(acc.get(best.resource)!, best.cells), logG);
     culprits.push(mkCulprit(best.resource, best.score));
   }
-  // explained ⇔ the picked set actually touches the leaf (logG < 0) AND makes its firing more
-  // likely than not (strict — at q₀ ≥ ½ a firing leaf is unsurprising under the NULL, which is
-  // not the same as being explained by the culprit set).
-  const logHalf = Math.log(0.5);
-  const explained = [...fired]
-    .filter((pc) => (logG.get(pc) ?? 0) < 0 && Math.log1p(-opts.q0) + (logG.get(pc) ?? 0) < logHalf)
-    .sort();
+  // at q₀ ≥ ½ a firing leaf is unsurprising under the NULL, which is not the same as being
+  // explained by the culprit set — and near q₀ ≈ ½ the rule is dominated by the null (recorded
+  // in ADR-0022; the binarization is q₀-relative display, the admission gate is the mechanism).
+  const explained = [...fired].filter((pc) => isExplained(opts.q0, logG.get(pc) ?? 0)).sort();
   const explainedSet = new Set(explained);
   return {
     culprits,

@@ -31,7 +31,14 @@ e-BH → localization → drains. The ADR-0019 cold-eye recorded this as an expl
 3. **Narrowing, on the record:** at most ONE degradation may carry `degradedNoiseCorr` (the
    innovation Cholesky swap is a per-tick whole-vector transform; composing two correlation
    swaps has no defined semantics in this synthetic model) — validated with a thrown error, not
-   silently ignored. Mean/variance/oscillation modes compose freely.
+   silently ignored. Mean/variance/oscillation modes compose. _CORRECTED (round-5 cold-eye C1):
+   the original "compose freely" was FALSE — variance/oscillation rescaled around the RAW
+   baseline, so a preceding mean shift on the same leaf was MULTIPLIED (observed 12.3 instead of
+   the promised 4) and array order was silently load-bearing. Fixed: 2nd-order modes now center
+   on the baseline plus the tick's ACCUMULATED mean shift — variance inflates the noise only,
+   and mean × 2nd-order composition is order-independent (bound per tick in both orders). Two
+   2nd-order modes on the SAME signal of the same leaf remain order-sensitive — recorded, not
+   hidden._
 4. **Pipeline:** `PipelineParams.telemetry` accepts `degradations` and threads it to the live
    window only (the calibration window stays clean, as today). _CORRECTED ON THE RECORD
    (halt-on-contradiction): the original prescription here read "no detector/surface/tomography

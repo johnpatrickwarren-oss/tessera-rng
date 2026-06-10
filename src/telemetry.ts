@@ -158,11 +158,13 @@ function buildDegCtxs(
   return { ctxs, epochOf: (t: number) => (epochs ? epochIndexAt(epochs, t) : 0) };
 }
 
-/** Apply every degradation affecting this leaf at this tick, in array order (ADR-0021). */
+/** Apply every degradation affecting this leaf at this tick, in array order (ADR-0021). The
+ *  accumulated mean shift is threaded so 2nd-order modes center on the true current mean. */
 function applyDegradations(vec: number[], ctxs: readonly DegCtx[], pc: PathClassId, e: number, t: number, hour: number, tc: TrafficClass): void {
+  const meanShift = new Array<number>(vec.length).fill(0);
   for (const c of ctxs) {
     const w = c.affectedBy[e].get(pc);
-    if (w !== undefined && t >= c.start) degradeVector(vec, c.deg, { sigIdx: c.sigIdx, mode: c.mode, hour, tc, t, weight: w });
+    if (w !== undefined && t >= c.start) degradeVector(vec, c.deg, { sigIdx: c.sigIdx, mode: c.mode, hour, tc, t, weight: w, meanShift });
   }
 }
 
@@ -211,28 +213,38 @@ function correlate(z: number[], L: number[][] | null): number[] {
  * a fault on a resource shifts a leaf by `delta·w`, the honest Spraypoint dilution. Weight 1 (the v1
  * binary fabric) ⇒ byte-identical. The 2nd-order modes (variance/covariance/oscillation) run on the
  * weight-1 demo fabric, so they are not diluted here.
+ *
+ * MULTI-FAULT composition (ADR-0021, corrected by the round-5 cold-eye): the 2nd-order modes
+ * center on the baseline PLUS the mean shift accumulated by other degradations this tick
+ * (`ctx.meanShift`) — a variance/oscillation fault inflates/reshapes the NOISE, never a
+ * co-occurring fault's mean shift, and mean × 2nd-order composition is order-independent.
+ * (Two 2nd-order modes on the SAME signal of the same leaf remain order-sensitive — recorded.)
  */
 function degradeVector(
   vec: number[],
   deg: DegradationSpec,
-  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number; weight: number },
+  ctx: { sigIdx: number; mode: 'mean' | 'variance'; hour: number; tc: TrafficClass; t: number; weight: number; meanShift: number[] },
 ): void {
   if (deg.degradedNoiseCorr) return; // a pure 2nd-order shift — already applied via the innovation L
   if (deg.oscillationPeriod) {
     // swap a slice of the white noise for a coherent oscillation — mean and variance unchanged.
-    const base = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc);
+    const center = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc) + ctx.meanShift[ctx.sigIdx];
     const amp = deg.oscillationAmp ?? 0;
     const osc = amp * Math.sin((2 * Math.PI * ctx.t) / deg.oscillationPeriod);
-    vec[ctx.sigIdx] = base + osc + Math.sqrt(Math.max(1 - (amp * amp) / 2, 0)) * (vec[ctx.sigIdx] - base);
+    vec[ctx.sigIdx] = center + osc + Math.sqrt(Math.max(1 - (amp * amp) / 2, 0)) * (vec[ctx.sigIdx] - center);
     return;
   }
   if (deg.shiftVector) {
-    for (let i = 0; i < vec.length; i++) vec[i] += deg.shiftVector[i] * ctx.weight; // diluted joint mean shift
+    for (let i = 0; i < vec.length; i++) {
+      vec[i] += deg.shiftVector[i] * ctx.weight; // diluted joint mean shift
+      ctx.meanShift[i] += deg.shiftVector[i] * ctx.weight;
+    }
   } else if (ctx.mode === 'variance') {
-    const base = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc);
-    vec[ctx.sigIdx] = base + (vec[ctx.sigIdx] - base) * deg.delta; // inflate noise around the baseline
+    const center = rawBaseline(ctx.sigIdx, ctx.hour, ctx.tc) + ctx.meanShift[ctx.sigIdx];
+    vec[ctx.sigIdx] = center + (vec[ctx.sigIdx] - center) * deg.delta; // inflate noise around the (shifted) mean
   } else {
     vec[ctx.sigIdx] += deg.delta * ctx.weight; // diluted single-signal mean shift
+    ctx.meanShift[ctx.sigIdx] += deg.delta * ctx.weight;
   }
 }
 

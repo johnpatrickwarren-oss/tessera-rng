@@ -166,7 +166,8 @@ test('CROSS-KIND simultaneous faults (optic + panel): both localized over the tw
   const ids = a.culprits.map((c) => c.resource_id);
   assert.ok(ids.includes('optic-3'), `the optic fault is localized (got ${ids.join(', ')})`);
   assert.ok(ids.includes('panel-7'), `the panel fault is localized (got ${ids.join(', ')})`);
-  // neither culprit absorbs the other's leaves: the optic's members are per-ToR-led, the panel's pair-led.
+  // each culprit carries its own kind's anchor leaf (member lists are full firing PROVENANCE,
+  // not an attribution partition — a later pick's list may include earlier-explained leaves).
   const optic = a.culprits.find((c) => c.resource_id === 'optic-3')!;
   const panel = a.culprits.find((c) => c.resource_id === 'panel-7')!;
   assert.ok(optic.member_path_class_ids.includes('tor-3'));
