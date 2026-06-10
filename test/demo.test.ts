@@ -39,3 +39,14 @@ test('the demo is deterministic (same render twice -> identical)', async () => {
   const b = render(await runAllScenarios());
   assert.equal(a, b);
 });
+
+test('the COMMITTED demos/demo.html is fresh — byte-identical to a regeneration (ADR-0019 cold-eye)', async () => {
+  // The demo embeds culprit scores and the snapshot hash, so any scorer/model change shows up
+  // byte-level. The committed file went stale across TWO scorer changes (ADR-0016, ADR-0019)
+  // with the suite green — this test makes that class of staleness fail loudly. Fix by
+  // re-running `pnpm demo`, never by editing the file.
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const committed = readFileSync(join(__dirname, '..', 'demos', 'demo.html'), 'utf8');
+  assert.equal(committed, render(await runAllScenarios()), 'demos/demo.html is stale — run `pnpm demo`');
+});

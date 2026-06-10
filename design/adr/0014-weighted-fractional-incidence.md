@@ -53,5 +53,7 @@ on hand-built and operator-supplied weighted snapshots.
   streams — exactly what the hierarchical e-value combine + e-BH aggregate well. Measuring the
   floors *under* dilution is deferred to the Spraypoint fabric + coverage sweep (ADR-0015), so the
   current floor table stays honestly scoped as the easy (binary) regime until then.
+  _Annotation (2026-06-10): deferral closed by ADR-0020 — the Spraypoint dilution floors are
+  measured and published._
 - **N1–N5 intact.** Pure product-side change; the solver schema is unchanged (counts stay integer,
   `correlational_not_causal` on every culprit, unexplained set still reported). No engine change.

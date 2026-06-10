@@ -13,26 +13,31 @@ signal (Family A is multi-signal, ADR-0003) plus a pure variance shift (caught b
 The **per-mode floor table** (ADR-0010) goes further: it reports a separate detection/attribution
 floor for EACH of the three anomaly modes — mean shift (Family A), covariance flip (Family C), and
 periodicity (Family D) — with the firing family that caught it, so a detection number is never
-published without naming its mode. No mode is left in a footnote.
+published without naming its mode. No mode is left in a footnote. The binary tables above are
+the generated quasi-random fabric; the **Spraypoint sections** below measure the two-view
+FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, and its own
+clean-fabric FDR control. All floors here are the first Δ reaching ≥90% on an n=4 grid
+(2 targets × 2 seeds): with n=4 a floor means "first unanimous Δ" — a coarse, honest estimator,
+and floors are grid-resolution-limited (reported at grid points, not interpolated).
 
 ## Coverage / saturation
 
 | resource kind | Δ (mean shift) | detection | attribution |
 |---|---|---|---|
 | optic | 0.5 | 0% (0/4) | 0% (0/4) |
-| optic | 1 | 75% (3/4) | 25% (1/4) |
+| optic | 1 | 75% (3/4) | 75% (3/4) |
 | optic | 2 | 100% (4/4) | 100% (4/4) |
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 0.5 | 0% (0/4) | 0% (0/4) |
-| passive_shuffler | 1 | 100% (4/4) | 25% (1/4) |
+| passive_shuffler | 1 | 100% (4/4) | 50% (2/4) |
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
-| fiber_bundle | 1 | 75% (3/4) | 0% (0/4) |
+| fiber_bundle | 1 | 75% (3/4) | 50% (2/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
 | power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
-| power_zone | 1 | 100% (4/4) | 50% (2/4) |
+| power_zone | 1 | 100% (4/4) | 100% (4/4) |
 | power_zone | 2 | 100% (4/4) | 100% (4/4) |
 | power_zone | 3 | 100% (4/4) | 100% (4/4) |
 
@@ -43,7 +48,7 @@ published without naming its mode. No mode is left in a footnote.
 | optic | 2 | 2 |
 | passive_shuffler | 1 | 2 |
 | fiber_bundle | 2 | 2 |
-| power_zone | 1 | 2 |
+| power_zone | 1 | 1 |
 
 ## Per-signal coverage (kind=passive_shuffler, mean Δ=3 unless noted)
 
@@ -82,6 +87,43 @@ the views have COMPLEMENTARY blind spots — published here, not implied. An opt
 | shuffle_panel | panel-2 | per_panel_pair:9 | per_panel_pair |
 | room | room-1 | per_panel_pair:35, per_tor:64 | per_panel_pair+per_tor |
 
+## Spraypoint dilution floors (ADR-0020) — the fractional-incidence regime, measured
+
+Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a
+`p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary
+table above. Read against the binary fabric's nearest-analogue kinds (optic↔optic,
+shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the comparison is
+indicative, not a controlled dilution-only experiment): **detection** floors match the binary
+analogues (each kind has a w=1 view), but the **room attribution floor RISES 1 → 2** vs
+power_zone 1/1 — a room fault at Δ=1 is detected 4/4 yet attributed 0/4 (the ADR-0019
+wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 2/4).
+
+| fault kind | detection floor (Δ) | attribution floor (Δ) |
+|---|---|---|
+| optic | 2 | 2 |
+| shuffle_panel | 1 | 2 |
+| room | 1 | 2 |
+
+| fault kind | Δ | detection | attribution |
+|---|---|---|---|
+| optic | 0.5 | 0% (0/4) | 0% (0/4) |
+| optic | 1 | 25% (1/4) | 25% (1/4) |
+| optic | 2 | 100% (4/4) | 100% (4/4) |
+| optic | 3 | 100% (4/4) | 100% (4/4) |
+| optic | 4 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 0.5 | 0% (0/4) | 0% (0/4) |
+| shuffle_panel | 1 | 100% (4/4) | 75% (3/4) |
+| shuffle_panel | 2 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 3 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
+| room | 0.5 | 50% (2/4) | 0% (0/4) |
+| room | 1 | 100% (4/4) | 0% (0/4) |
+| room | 2 | 100% (4/4) | 100% (4/4) |
+| room | 3 | 100% (4/4) | 100% (4/4) |
+| room | 4 | 100% (4/4) | 100% (4/4) |
+
 ## FDR control (clean fabric, no degradation)
 
 Across 4 clean trials over 300 path-classes: mean selected = **0**, false-positive rate = **0%** — e-BH holds the surface quiet under heavy correlation.
+
+Spraypoint fabric (the one the dilution floors characterize): 4 clean trials, mean selected = **0**, false-positive rate = **0%** — the dilution detection column does not borrow its false-alarm baseline from another fabric.

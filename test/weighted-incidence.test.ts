@@ -54,7 +54,10 @@ test('weighted tomography picks the resource traffic actually flows through — 
   const s = snap(edges, { 'true-shuffler': 'passive_shuffler', 'decoy-optic': 'optic' });
   const firing = ['pc1', 'pc2', 'pc3'];
 
-  // WEIGHTED: true gain = 3·1 − λ·(2·0.05) = 2.9 ; decoy gain = 3·0.3 = 0.9 → true wins.
+  // WEIGHTED (saturating LLR, ADR-0019): this fixture is the binding test for the 1/κ scale
+  // prior — under a UNIFORM κ prior the unfalsified decoy saturates for free and WINS (13.35 vs
+  // 12.10, recorded in ADR-0019); with 1/κ, extreme severity pays its prior cost and the
+  // full-weight resource wins. (Under the retired linear gain: true 2.9 vs decoy 0.9.)
   const weighted = localize(s, firing);
   assert.equal(weighted.culprits[0].resource_id, 'true-shuffler', 'weighted scorer must follow the traffic');
 

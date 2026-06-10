@@ -28,9 +28,9 @@ the C and D modes. Round 3 (ADR-0013..0018, same branch): the RNG-paper reconcil
 paper verified, weighted incidence, Spraypoint two-view leaves, the leaky-LLR scorer, and
 reconvergence epochs (source + detector sides). **All five work-order items done**, each closed
 with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
-a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). The repo is **public**.
-**153 tests, gate PASS.** A mid-round handoff (now historical) lives at
-`design/handoff-round3.md`.
+a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds 2+3 merged to
+`main` via PR #2. Round 4 (branch `post-v1-round4`, ADR-0019..): owner-authorized; headline =
+closing the C1 residue structurally. The repo is **public**. **159 tests, gate PASS.**
 
 ## Built so far
 
@@ -189,9 +189,9 @@ a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). The re
   5, >50 edge-disjoint paths, Spraypoint ECMP, 960 ToRs/61.4K servers), and the paper confirms hop
   distance is structurally dead (P2). But the paper treats telemetry/operations as out of scope, so
   the §3.2 five-signal contract stays a working assumption — now **unfalsified, not validated**. The
-  published floors are floors for the v1 binary/fixed-set injection model; the paper's Spraypoint
-  spreads traffic fractionally (motivates the weighted-incidence + leaky-scorer + epoch work,
-  ADR-0014..0016).
+  published floors now cover BOTH regimes: the v1 binary/fixed-set injection model AND the
+  Spraypoint fractional-dilution fabric (ADR-0020 closed the ADR-0014 deferral — detection floors
+  unchanged; the room ATTRIBUTION floor rises 1→2 vs its binary analogue, published).
 
 ## Next (resumable, post-v1)
 
@@ -238,7 +238,7 @@ routed to the owner, not changed unilaterally.
   incorporate the weight. Anti-self-confirming fixture: where the unweighted scorer picks an
   incidental decoy resource, the weighted scorer follows the traffic to the true one. Weighted
   solver holds 100% mutation; default unchanged.
-- **Leaky-LLR scorer + C1 residue pinned** (ADR-0016, work-order item 3): the tomography default is
+- **Leaky-LLR scorer + C1 residue pinned** (ADR-0016, work-order item 3; member model since superseded by ADR-0019, residue closed): the tomography default is
   now a **leaky noisy-OR mixture LLR** — per member, clean `P(fire)=q₀` (the surface's floored fleet
   base rate `(|selected|+½)/(|leaves|+1)`) vs faulty `q₁=q₀+(δ−q₀)·w`, mixed over δ∈{0.3,0.6,0.9};
   greedy set-cover on LLR>0. Base-rate-aware, weight-aware falsification; subsumes the λ knob (the
@@ -280,3 +280,36 @@ routed to the owner, not changed unilaterally.
   (ii-b, cold-eye C1) evidence accruing AFTER the reroute localizes against epoch 1 — each
   headline behavior verified to kill its hand-made constant mutant; (iii) replay-clean across
   epochs. Unchanged leaves never reset. Smarter wealth carryover = recorded future work.
+
+## Post-v1 round 4 (branch `post-v1-round4`, off merged main)
+
+- **Exposure-saturating noisy-OR** (ADR-0019): the tomography member model becomes the true
+  noisy-OR `P(quiet) = (1−q₀)(1−δ)^{κ·w}` mixed over δ ∈ {0.3,0.6,0.9} × κ ∈ {1,16,256} with a
+  **1/κ scale prior** (fixed form, not a knob — a uniform κ prior loses the ADR-0014
+  follow-the-traffic discrimination, recorded). Root cause of the ADR-0016 C1 residue was the
+  non-saturating linear leak, not cross-view structure: at extreme δ the optic's leakage into
+  1/64-diluted pair leaves is *expected* under high κ, and the coarse pair-view resources are
+  falsified by their quiet per-ToR members. **C1 closed** (optic-3 rank-1 across the full sweep,
+  33.3 at δ=128), **no symmetric regression** (panel margins grow), and a **latent defect fixed**:
+  a true ROOM fault mislocalized to a panel at every δ under the old model — now room-0
+  across the tabulated band (δ≳2; the under-selected δ≈1 regime localizes a wrong KIND under
+  either model, recorded). The owner's explain-away discount and set-completion candidates were
+  analyzed and rejected on the record (symmetric failure / needs a parsimony knob). The ADR-0016
+  canary was retired per its own instruction into the C1-CLOSED test with two failure-mode
+  controls. Cold-eye fold-in: the published honest-measurement artifacts were STALE (demo.html
+  since ADR-0016, coverage matrix since ADR-0019) — both regenerated (the new scorer measures
+  BETTER: optic Δ=1 attribution 25%→75%, power_zone attribution floor 2→1) and now bound by a
+  byte-exact demo freshness test + a coverage single-cell spot-check; q₀ ∉ (0,1) is rejected
+  (the +Infinity ranking hole); empty κ grid covered by the degenerate-mixture gate.
+- **Spraypoint dilution floors** (ADR-0020, round-4 item 2): the honest-measurement matrix gains
+  a dilution floor table on the two-view fabric (3 kinds × Δ∈{0.5..4} × 2 targets × 2 seeds),
+  closing the ADR-0014 "binary regime only" deferral. Measured: optic 2/2, shuffle_panel 1/2,
+  room 1/2 — **detection floors are not raised by dilution** (each kind's w=1 view carries
+  detection, matching the binary analogues), but the **room attribution floor rises 1→2** vs its
+  binary reference (power_zone 1/1): Δ=1 detects 4/4 yet attributes 0/4 (the ADR-0019 wrong-kind
+  band — a reliable alarm with an unreliable culprit, published, not implied away; true boundary
+  ≈1.5–2). A pre-measurement draft predicted lower floors and was wrong — replaced with observed
+  numbers on the record; the first published reading ALSO overclaimed ("dilution does not raise
+  the floors") and was corrected by the round-4 cold-eye. Bound by a second freshness spot-check
+  (the room Δ=2 cell), structural floor assertions, markdown-section emission asserts, and a
+  Spraypoint clean-fabric FDR control (0% FP) so the detection column owns its baseline.

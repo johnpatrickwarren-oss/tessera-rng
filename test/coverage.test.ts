@@ -57,6 +57,13 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
       { mode: 'covariance_flip', unit: 'Δρ (corr change)', detection_floor: 1.0, attribution_floor: 1.0, detecting_family: 'C', points: [{ magnitude: 1.0, detection_rate: 1, attribution_rate: 1, family: 'C' }] },
       { mode: 'oscillation', unit: 'amplitude (period 7)', detection_floor: 0.9, attribution_floor: 0.9, detecting_family: 'D', points: [{ magnitude: 0.9, detection_rate: 1, attribution_rate: 1, family: 'D' }] },
     ],
+    spraypoint_floors: {
+      // floors follow from the cells via floorFor semantics (only a Δ=2 cell ⇒ both floors 2).
+      deltas: [0.5, 2],
+      cells: [{ kind: 'room', delta: 2, n: 4, detected: 4, attributed: 4, detection_rate: 1, attribution_rate: 1 }],
+      floors: [{ kind: 'room', detection_floor: 2, attribution_floor: 2 }],
+    },
+    clean_spraypoint: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
     spraypoint_views: [
       { fault_kind: 'optic', resource: 'optic-3', per_view_detected: { per_tor: 1 }, concentrated_by: 'per_tor' },
       { fault_kind: 'shuffle_panel', resource: 'panel-2', per_view_detected: { per_panel_pair: 9 }, concentrated_by: 'per_panel_pair' },
@@ -81,6 +88,48 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /detecting family/);
   // the Spraypoint per-view blind-spot map (ADR-0015) is published, not implied.
   assert.match(md, /Spraypoint per-view detection/);
+  // the ADR-0020 dilution section must be EMITTED, not just typed (cold-eye C2: deleting the
+  // renderer block previously kept the whole suite green).
+  assert.match(md, /Spraypoint dilution floors/);
+  assert.match(md, /\| room \| 2 \| 2 \|/, 'the dilution floors row renders from the report');
+  assert.match(md, /Spraypoint fabric \(the one the dilution floors characterize\)/, 'the Spraypoint clean control is published');
   assert.match(md, /concentrated by/);
   assert.match(md, /per_tor/);
+});
+
+test('SPOT-CHECK: one committed coverage cell matches a fresh recomputation (freshness floor, ADR-0019 cold-eye)', async () => {
+  // The full sweep (~18s) is too heavy for the suite, so this is an honest PARTIAL bind: the
+  // optic Δ=1.0 cell — exactly where the stale artifact diverged (attribution 25% vs 75%) — is
+  // recomputed and compared field-for-field to coverage-matrices/coverage-saturation.json.
+  // The byte-exact demo freshness test (demo.test.ts) is the broad-spectrum companion. Fix a
+  // failure by re-running `pnpm coverage`, never by editing the JSON.
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { cell, topTargets } = await import('../tools/coverage');
+  const rep = JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'coverage-saturation.json'), 'utf8'));
+  const committed = rep.cells.find((c: { kind: string; delta: number }) => c.kind === 'optic' && c.delta === 1.0);
+  assert.ok(committed, 'the optic Δ=1.0 cell must exist in the committed matrix');
+  const fresh = await cell('optic', 1.0, topTargets('optic', rep.targets_per_kind));
+  assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
+});
+
+test('SPOT-CHECK #2: the committed Spraypoint room Δ=2 cell matches a fresh recomputation; floors structurally sound (ADR-0020)', async () => {
+  // Same honest-partial freshness pattern as the ADR-0019 optic bind: the room Δ=2 cell sits at
+  // the attribution floor (Δ=1 detects 4/4 but attributes 0/4 — the recorded wrong-kind band),
+  // so a scorer change moving that boundary fails here. Fix by re-running `pnpm coverage`.
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { spraypointCell, SPRAYPOINT_FLOOR_TARGETS } = await import('../tools/coverage');
+  const rep = JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'coverage-saturation.json'), 'utf8'));
+  const kinds = rep.spraypoint_floors.floors.map((f: { kind: string }) => f.kind).sort();
+  assert.deepEqual(kinds, ['optic', 'room', 'shuffle_panel'], 'all three Spraypoint fault kinds published');
+  for (const f of rep.spraypoint_floors.floors) {
+    if (f.detection_floor !== null && f.attribution_floor !== null) {
+      assert.ok(f.attribution_floor >= f.detection_floor, `${f.kind}: cannot attribute below the detection floor`);
+    }
+  }
+  const committed = rep.spraypoint_floors.cells.find((c: { kind: string; delta: number }) => c.kind === 'room' && c.delta === 2);
+  assert.ok(committed, 'the room Δ=2 cell must exist in the committed matrix');
+  const fresh = await spraypointCell('room', 2, SPRAYPOINT_FLOOR_TARGETS.room);
+  assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
 });

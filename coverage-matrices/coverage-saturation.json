@@ -24,9 +24,9 @@
       "delta": 1,
       "n": 4,
       "detected": 3,
-      "attributed": 1,
+      "attributed": 3,
       "detection_rate": 0.75,
-      "attribution_rate": 0.25
+      "attribution_rate": 0.75
     },
     {
       "kind": "optic",
@@ -60,9 +60,9 @@
       "delta": 1,
       "n": 4,
       "detected": 4,
-      "attributed": 1,
+      "attributed": 2,
       "detection_rate": 1,
-      "attribution_rate": 0.25
+      "attribution_rate": 0.5
     },
     {
       "kind": "passive_shuffler",
@@ -96,9 +96,9 @@
       "delta": 1,
       "n": 4,
       "detected": 3,
-      "attributed": 0,
+      "attributed": 2,
       "detection_rate": 0.75,
-      "attribution_rate": 0
+      "attribution_rate": 0.5
     },
     {
       "kind": "fiber_bundle",
@@ -132,9 +132,9 @@
       "delta": 1,
       "n": 4,
       "detected": 4,
-      "attributed": 2,
+      "attributed": 4,
       "detection_rate": 1,
-      "attribution_rate": 0.5
+      "attribution_rate": 1
     },
     {
       "kind": "power_zone",
@@ -174,7 +174,7 @@
     {
       "kind": "power_zone",
       "detection_floor": 1,
-      "attribution_floor": 2
+      "attribution_floor": 1
     }
   ],
   "per_signal": [
@@ -244,7 +244,7 @@
         {
           "magnitude": 1,
           "detection_rate": 1,
-          "attribution_rate": 0.25,
+          "attribution_rate": 0.5,
           "family": "A"
         },
         {
@@ -283,7 +283,7 @@
         {
           "magnitude": 0.2,
           "detection_rate": 1,
-          "attribution_rate": 0,
+          "attribution_rate": 0.5,
           "family": "C"
         },
         {
@@ -334,7 +334,7 @@
         {
           "magnitude": 0.7,
           "detection_rate": 0.5,
-          "attribution_rate": 0,
+          "attribution_rate": 0.5,
           "family": "D"
         },
         {
@@ -373,6 +373,174 @@
       "concentrated_by": "per_panel_pair+per_tor"
     }
   ],
+  "spraypoint_floors": {
+    "deltas": [
+      0.5,
+      1,
+      2,
+      3,
+      4
+    ],
+    "cells": [
+      {
+        "kind": "optic",
+        "delta": 0.5,
+        "n": 4,
+        "detected": 0,
+        "attributed": 0,
+        "detection_rate": 0,
+        "attribution_rate": 0
+      },
+      {
+        "kind": "optic",
+        "delta": 1,
+        "n": 4,
+        "detected": 1,
+        "attributed": 1,
+        "detection_rate": 0.25,
+        "attribution_rate": 0.25
+      },
+      {
+        "kind": "optic",
+        "delta": 2,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "optic",
+        "delta": 3,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "optic",
+        "delta": 4,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "shuffle_panel",
+        "delta": 0.5,
+        "n": 4,
+        "detected": 0,
+        "attributed": 0,
+        "detection_rate": 0,
+        "attribution_rate": 0
+      },
+      {
+        "kind": "shuffle_panel",
+        "delta": 1,
+        "n": 4,
+        "detected": 4,
+        "attributed": 3,
+        "detection_rate": 1,
+        "attribution_rate": 0.75
+      },
+      {
+        "kind": "shuffle_panel",
+        "delta": 2,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "shuffle_panel",
+        "delta": 3,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "shuffle_panel",
+        "delta": 4,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "room",
+        "delta": 0.5,
+        "n": 4,
+        "detected": 2,
+        "attributed": 0,
+        "detection_rate": 0.5,
+        "attribution_rate": 0
+      },
+      {
+        "kind": "room",
+        "delta": 1,
+        "n": 4,
+        "detected": 4,
+        "attributed": 0,
+        "detection_rate": 1,
+        "attribution_rate": 0
+      },
+      {
+        "kind": "room",
+        "delta": 2,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "room",
+        "delta": 3,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      },
+      {
+        "kind": "room",
+        "delta": 4,
+        "n": 4,
+        "detected": 4,
+        "attributed": 4,
+        "detection_rate": 1,
+        "attribution_rate": 1
+      }
+    ],
+    "floors": [
+      {
+        "kind": "optic",
+        "detection_floor": 2,
+        "attribution_floor": 2
+      },
+      {
+        "kind": "shuffle_panel",
+        "detection_floor": 1,
+        "attribution_floor": 2
+      },
+      {
+        "kind": "room",
+        "detection_floor": 1,
+        "attribution_floor": 2
+      }
+    ]
+  },
+  "clean_spraypoint": {
+    "trials": 4,
+    "mean_selected": 0,
+    "false_positive_rate": 0
+  },
   "clean": {
     "trials": 4,
     "mean_selected": 0,
