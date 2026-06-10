@@ -75,9 +75,10 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   `surface` hierarchical combine + e-BH FDR (AC-3) · `tomography`
   noisy-OR set-cover MAP (AC-5, **100% mutation score**) · `drain` simulated (AC-6) ·
   `pipeline` → replay-clean `AuditRecord` (AC-9).
-- `tools/scenarios` six deterministic scenarios · `tools/build-demo` → `demos/demo.html`
-  (AC-8) · `tools/coverage` → `coverage-matrices/coverage-saturation.{json,md}` with
-  detection+attribution parallel columns, floor table, and clean-fabric FDR-control evidence
+- `tools/scenarios` eight deterministic scenarios (six v1 + covariance-flip + oscillation,
+  ADR-0012) · `tools/build-demo` → `demos/demo.html` (AC-8) with firing-mode attribution ·
+  `tools/coverage` → `coverage-matrices/coverage-saturation.{json,md}` with detection+attribution
+  parallel columns, per-mode floor table (A+C+D, ADR-0010), and clean-fabric FDR-control evidence
   (AC-10).
 
 ## Post-v1 progress (branch `post-v1`)
@@ -152,6 +153,13 @@ new math, a fresh-context cold-eye review, and a green gate. **108 tests, gate P
   now threads baseline `noiseCorr`/`arCoeffs` into the calibration window too. Measured floors
   (passive_shuffler, q=0.05): mean Δ=1 (A; A+C at Δ≥2), covariance Δρ=0.2 (C), oscillation amp=0.9
   (D).
+- **Demo scenarios for the C and D modes** (ADR-0012): the demo dashboard extends from six to
+  **eight** scenarios — adds `covariance-flip-common-mode` (a shuffler reverses cross-signal
+  correlation, no mean/variance change → caught by Family C, A blind) and `oscillation-common-mode`
+  (a shuffler develops a period-7 limit cycle, 600 ticks → caught by Family D, A+C blind). Both
+  localize rank-1 to the injected shuffler; the demo renders the audit's firing-family tally so each
+  scenario names the detector that caught it. AC-8 amended on the record (spec annotated). No new
+  `src/` code — composes the tested pipeline.
 - **No per-cell second-order structure** (ADR-0011): evidence-gated — measured whether per-cell
   (HoD×DoW×class) Σ and φ structure exists before building it. It does **not**: per-cell Σ spread
   sits below the pure-sampling-noise floor (0.09 vs 0.12), per-cell estimates are *attenuated*
