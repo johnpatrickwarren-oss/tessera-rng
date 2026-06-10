@@ -46,6 +46,9 @@ export interface PathClassVerdict {
    * Present ONLY for leaves whose incidence changed mid-stream (ADR-0018): the per-segment
    * e-process runs, each with fresh wealth (the recorded reset). The leaf-level e-value is the
    * MEAN over segments — valid under arbitrary dependence, same rule as the family combine.
+   * NOTE: a segmented leaf's `fired` flag is "ANY segment crossed 1/α" — across K segments the
+   * flag's null rate is ≈K× the single-test rate. FDR control is unaffected (e-BH consumes only
+   * the mean e-value); the flag is display/attribution, not the selection guarantee.
    */
   segments?: readonly SegmentVerdict[];
   /** the epoch of the max-e-value segment (ties → earlier) — where the firing evidence accrued. */
@@ -67,10 +70,13 @@ export interface Culprit {
    */
   supporting_views: readonly string[];
   /**
-   * The epoch this culprit's firing evidence accrued in (ADR-0018) — tomography ran against THAT
-   * epoch's incidence snapshot. Absent on single-epoch (no-reroute) runs.
+   * The epoch whose incidence snapshot this culprit was localized against (ADR-0018). For
+   * segmented member leaves that is the epoch their max evidence accrued in; unsegmented leaves
+   * join the LATEST epoch's group by stated convention (their own incidence is epoch-invariant,
+   * so any epoch is exact for their edges — the field claims the localization snapshot, nothing
+   * stronger). Absent on single-epoch (no-reroute) runs.
    */
-  evidence_epoch?: number;
+  localized_against_epoch?: number;
   /** v1 spec AC-5b / N1: the layer claims correlation, never hardware root cause. */
   correlational_not_causal: true;
 }

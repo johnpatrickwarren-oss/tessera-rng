@@ -60,10 +60,14 @@ function localizeByEvidenceEpoch(
   selected: readonly PathClassId[],
   opts: LocalizeOpts,
 ): { culprits: Culprit[]; unexplained_path_class_ids: PathClassId[] } {
-  const epochOf = new Map(verdicts.map((v) => [v.path_class_id, v.evidence_epoch ?? 0]));
+  const epochOf = new Map(verdicts.map((v) => [v.path_class_id, v.evidence_epoch]));
   const groups = new Map<number, PathClassId[]>();
   for (const id of selected) {
-    const e = epochOf.get(id) ?? 0;
+    // Segmented leaves group where their max evidence accrued. An UNSEGMENTED leaf's evidence
+    // epoch is unknown/spanning — never fabricated: its incidence is epoch-invariant, so by
+    // stated convention it joins the LATEST epoch's group (exact for its own edges, merges with
+    // the most-recent evidence rather than fragmenting the joint localization — ADR-0018).
+    const e = epochOf.get(id) ?? epochs.length - 1;
     if (!groups.has(e)) groups.set(e, []);
     groups.get(e)!.push(id);
   }
@@ -71,10 +75,37 @@ function localizeByEvidenceEpoch(
   const unexplained = new Set<PathClassId>();
   for (const e of [...groups.keys()].sort((a, b) => a - b)) {
     const loc = localize(epochs[e].snapshot, groups.get(e)!, opts);
-    culprits.push(...loc.culprits.map((c) => ({ ...c, evidence_epoch: e })));
+    culprits.push(...loc.culprits.map((c) => ({ ...c, localized_against_epoch: e })));
     for (const u of loc.unexplained_path_class_ids) unexplained.add(u);
   }
   return { culprits, unexplained_path_class_ids: [...unexplained].sort() };
+}
+
+/** Drain targets on an epoch'd run: strongest-first across ALL groups, one drain per resource
+ *  (the same physical resource may be reported once per epoch group — never drained twice). */
+function drainTargets(culprits: readonly Culprit[], k: number): Culprit[] {
+  const ranked = [...culprits].sort((a, b) => b.score - a.score || (a.resource_id < b.resource_id ? -1 : 1));
+  const seen = new Set<string>();
+  const out: Culprit[] = [];
+  for (const c of ranked) {
+    if (seen.has(c.resource_id)) continue;
+    seen.add(c.resource_id);
+    out.push(c);
+    if (out.length === k) break;
+  }
+  return out;
+}
+
+/** Integer-tick boundaries strictly inside (0, ticks) only (ADR-0018): telemetry switches at
+ *  `tick >= at_tick` while detection slices at floor(at_tick) — a fractional boundary would
+ *  silently disagree by one tick; and an event at/after the window end was never active during
+ *  measurement — reject it, don't record it. */
+function validateReroutes(reroutes: readonly RerouteEvent[] | undefined, ticks: number): void {
+  for (const ev of reroutes ?? []) {
+    if (!Number.isInteger(ev.at_tick) || ev.at_tick <= 0 || ev.at_tick >= ticks) {
+      throw new RangeError(`reroute at_tick must be an integer in (0, ticks) — got ${ev.at_tick}`);
+    }
+  }
 }
 
 /** Tally which family fired on each selected path-class (firing-mode attribution, ADR-0010). */
@@ -115,6 +146,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
   // e-processes reset at their boundaries. Absent ⇒ the byte-identical v1 path.
+  validateReroutes(params.reroutes, params.telemetry.ticks);
   const epochs = params.reroutes?.length ? makeEpochs(snapshot, params.reroutes) : null;
   const seg = epochs ? segmentPlan(epochs, params.telemetry.ticks) : null;
 
@@ -128,10 +160,13 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
     : localize(snapshot, surface.selected_path_class_ids, locOpts);
 
-  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018).
-  const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
+  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — and pick
+  // the strongest-scoring culprits across all epoch groups, one drain per resource. The v1 path
+  // is untouched (its culprit list is already score-ranked and resource-unique).
   const k = params.drain_top_k ?? 1;
-  const drain_actions: DrainAction[] = loc.culprits.slice(0, k).map((c) => simulateDrain(drainSnap, c));
+  const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
+  const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
+  const drain_actions: DrainAction[] = targets.map((c) => simulateDrain(drainSnap, c));
 
   return {
     snapshot_hash,

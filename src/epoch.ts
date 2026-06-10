@@ -13,6 +13,7 @@
  */
 import { makeRng } from './rng';
 import { computeFaultDomainHash } from './fault-domain-source';
+import type { SegmentSpec } from './detect';
 import type { FaultDomainSnapshot, FaultDomainEdge, PathClassId, ResourceId } from './domain';
 
 export interface SnapshotEpoch {
@@ -148,7 +149,7 @@ export interface LeafReset {
 export function segmentPlan(
   epochs: readonly SnapshotEpoch[],
   ticks: number,
-): { plan: Map<PathClassId, { epoch_index: number; from_tick: number; to_tick: number }[]>; resets: LeafReset[] } {
+): { plan: Map<PathClassId, SegmentSpec[]>; resets: LeafReset[] } {
   const byLeaf = new Map<PathClassId, { at_tick: number; epoch_index: number }[]>();
   for (let e = 1; e < epochs.length; e++) {
     const t = epochs[e].valid_from_tick;
@@ -158,10 +159,10 @@ export function segmentPlan(
       byLeaf.get(pc)!.push({ at_tick: t, epoch_index: e });
     }
   }
-  const plan = new Map<PathClassId, { epoch_index: number; from_tick: number; to_tick: number }[]>();
+  const plan = new Map<PathClassId, SegmentSpec[]>();
   const resets: LeafReset[] = [];
   for (const pc of [...byLeaf.keys()].sort()) {
-    const segs: { epoch_index: number; from_tick: number; to_tick: number }[] = [];
+    const segs: SegmentSpec[] = [];
     let from = 0;
     let epoch = 0;
     for (const r of byLeaf.get(pc)!) {

@@ -125,6 +125,7 @@ export function detectPathClassSegmented(
   params: DetectParams = DEFAULT_DETECT,
   ctx: DetectorContext = {},
 ): PathClassVerdict {
+  if (segs.length === 0) throw new RangeError('segmented detection needs at least one segment');
   const runs = segs.map((s) => detectPathClass(pathClassId, series.slice(s.from_tick, s.to_tick), params, ctx));
   const detectors = runs[0].detectors.map((_, f) => combineFamily(runs, f));
   const segments: SegmentVerdict[] = segs.map((s, i) => ({

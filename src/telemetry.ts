@@ -120,9 +120,8 @@ function epochAffected(
   epochsIn: readonly SnapshotEpoch[] | undefined,
 ): { affectedBy: Map<PathClassId, number>[]; epochOf: (t: number) => number } {
   const epochs = epochsIn?.length ? epochsIn : null;
-  const affectedBy = (epochs ?? [{ snapshot } as SnapshotEpoch]).map((e) =>
-    deg ? affectedWeights(e.snapshot, deg.resource_id) : new Map<PathClassId, number>(),
-  );
+  const snapshots = epochs ? epochs.map((e) => e.snapshot) : [snapshot];
+  const affectedBy = snapshots.map((s) => (deg ? affectedWeights(s, deg.resource_id) : new Map<PathClassId, number>()));
   return { affectedBy, epochOf: (t: number) => (epochs ? epochIndexAt(epochs, t) : 0) };
 }
 

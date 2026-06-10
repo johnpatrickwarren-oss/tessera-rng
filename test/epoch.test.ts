@@ -222,7 +222,7 @@ test('(ii) fault + subsequent reroute still localizes from PRE-reroute evidence,
   assert.equal(v.evidence_epoch, 0);
   // ...and tomography runs against the EPOCH-0 incidence (where tor-3 still traversed optic-3).
   assert.equal(a.culprits[0].resource_id, 'optic-3');
-  assert.equal(a.culprits[0].evidence_epoch, 0);
+  assert.equal(a.culprits[0].localized_against_epoch, 0);
   // the reset is recorded, exactly at the boundary; an untouched leaf is neither reset nor segmented.
   assert.ok(a.eprocess_resets!.some((r) => r.path_class_id === 'tor-3' && r.at_tick === 40 && r.epoch_index === 1));
   const untouched = a.verdicts.find((x) => x.path_class_id === 'tor-5')!;
@@ -236,4 +236,58 @@ test('(ii) fault + subsequent reroute still localizes from PRE-reroute evidence,
 test('(iii) replay-clean across epochs: same inputs ⇒ byte-identical audit (AC-9 extended)', async () => {
   const run = () => runPipeline({ snapshot: SP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: FAULT }, reroutes: REROUTE });
   assert.equal(JSON.stringify(await run()), JSON.stringify(await run()));
+});
+
+test('(ii-b) evidence accruing AFTER the reroute: argmax evidence epoch, epoch-1 localization, latest-epoch drain (ADR-0018 C1)', async () => {
+  // Reroute off optic-3 at t=20 (seed 5 lands tor-3's traffic on optic-39 — pinned by the epoch
+  // hash); the fault starts at t=25 ON optic-39, so ALL evidence accrues in epoch 1. This is the
+  // fixture the cold-eye demanded: each assertion kills a constant-mutant the original (ii) could
+  // not (always-epoch-0 localization, evidence_epoch:=0, drain-on-initial-snapshot).
+  const a = await runPipeline({
+    snapshot: SP,
+    q: 0.05,
+    telemetry: { seed: 1, ticks: 80, degradation: { resource_id: 'optic-39', delta: 4, start_tick: 25 } },
+    reroutes: [{ at_tick: 20, resource_id: 'optic-3', fraction: 1, seed: 5 }],
+  });
+  const v = a.verdicts.find((x) => x.path_class_id === 'tor-3')!;
+  assert.ok(!v.segments![0].fired && v.segments![1].fired, 'the evidence is post-reroute');
+  assert.equal(v.evidence_epoch, 1, 'argmax segment is the LATER one (kills evidence_epoch := 0)');
+  // tor-39 never rerouted ⇒ unsegmented ⇒ its evidence epoch is UNKNOWN, never fabricated as 0;
+  // by the stated convention it joins the latest group, so the groups do NOT fragment (C2):
+  const c39 = a.culprits.filter((c) => c.resource_id === 'optic-39');
+  assert.equal(c39.length, 1, 'ONE culprit for the one faulty resource — no per-group duplicates');
+  assert.equal(c39[0].localized_against_epoch, 1);
+  assert.equal(c39[0].firing_member_count, 2, 'tor-3 AND tor-39 corroborate, neither falsifies');
+  assert.equal(a.culprits[0].resource_id, 'optic-39');
+  // localized against EPOCH 1: in epoch 0 tor-3 did not traverse optic-39, so an epoch-0
+  // localization would need a second culprit (optic-3) to explain tor-3 — assert it is absent.
+  assert.ok(!a.culprits.some((c) => c.resource_id === 'optic-3'), 'kills the always-epoch-0 mutant');
+  // the drain acts on the LATEST epoch: tor-3 traverses optic-39 only in epoch 1, so the drained
+  // member set includes it ⇔ the drain snapshot is the latest epoch (kills the drain mutant).
+  assert.equal(a.drain_actions[0].resource_id, 'optic-39');
+  assert.ok(a.drain_actions[0].drained_path_class_ids.includes('tor-3'));
+});
+
+test('reroute events are validated at the pipeline: integer at_tick strictly inside the live window', async () => {
+  const base = { snapshot: SP, q: 0.05, telemetry: { seed: 1, ticks: 60 } };
+  for (const at_tick of [39.5, 60, 100, 0]) {
+    await assert.rejects(
+      runPipeline({ ...base, reroutes: [{ at_tick, resource_id: 'optic-3', fraction: 1, seed: 5 }] }),
+      /at_tick must be an integer in \(0, ticks\)/,
+      `at_tick ${at_tick} must be rejected`,
+    );
+  }
+});
+
+test('a different remap seed yields a different remap (the draw is seed-driven, not degenerate)', () => {
+  // 46 candidates traverse optic-3 on the Spraypoint fabric; at fraction 0.5 two seeds choosing
+  // the same 23-subset AND the same alternates is effectively impossible — distinct hashes.
+  const a = applyRerouteEvent(SP, { at_tick: 20, resource_id: 'optic-3', fraction: 0.5, seed: 1 });
+  const b = applyRerouteEvent(SP, { at_tick: 20, resource_id: 'optic-3', fraction: 0.5, seed: 2 });
+  assert.notEqual(computeFaultDomainHash(a), computeFaultDomainHash(b));
+});
+
+test('detectPathClassSegmented rejects an empty segment list (guard for direct callers)', async () => {
+  const { detectPathClassSegmented } = await import('../src/detect');
+  assert.throws(() => detectPathClassSegmented('pc-x', [], []), /at least one segment/);
 });

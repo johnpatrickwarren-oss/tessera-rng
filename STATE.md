@@ -24,10 +24,13 @@ AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-co
 mutation pass on the new math, a fresh-context cold-eye review, and a green gate. Round 2
 (ADR-0010..0012): per-mode honest measurement (A+C+D floors + firing-mode attribution), the
 evidence-gated decision to keep Σ/φ global (no per-cell structure exists), and demo scenarios for
-the C and D modes. Round 3 (ADR-0013..0016, same branch): the RNG-paper reconciliation work order —
-paper verified, weighted incidence, Spraypoint two-view leaves, and the leaky-LLR scorer (work-order
-items 1–3 + 5 done; item 4, reconvergence epochs, is next). The repo is **public**. **133 tests,
-gate PASS.** A mid-round handoff lives at `design/handoff-round3.md`.
+the C and D modes. Round 3 (ADR-0013..0018, same branch): the RNG-paper reconciliation work order —
+paper verified, weighted incidence, Spraypoint two-view leaves, the leaky-LLR scorer, and
+reconvergence epochs (source + detector sides). **All five work-order items done**, each closed
+with a fresh-context cold-eye (the item-4 cold-eye caught the headline epoch behaviors unbound and
+a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). The repo is **public**.
+**153 tests, gate PASS.** A mid-round handoff (now historical) lives at
+`design/handoff-round3.md`.
 
 ## Built so far
 
@@ -267,10 +270,13 @@ routed to the owner, not changed unilaterally.
   (`detectPathClassSegmented`) — a deliberate, RECORDED power loss: the audit lists every reset in
   `eprocess_resets`, and the leaf verdict carries per-segment e-values. Leaf e-value = MEAN over
   segments (valid under arbitrary dependence, same rule as the family combine); `evidence_epoch` =
-  argmax segment (attribution metadata). Tomography groups selected leaves by evidence epoch and
-  localizes each group **against that epoch's snapshot** (culprits carry `evidence_epoch`); drains
-  act on the LATEST epoch (the fabric as routed now). Audit records the epoch sequence
+  argmax segment (attribution metadata; an UNSEGMENTED leaf's evidence epoch is unknown and never
+  fabricated — by stated convention it joins the latest group). Tomography groups selected leaves
+  by evidence epoch and localizes each group **against that epoch's snapshot** (culprits carry
+  `localized_against_epoch` — named for what it factually is); drains act on the LATEST epoch,
+  strongest culprit first, one drain per resource. Audit records the epoch sequence
   `{valid_from_tick, hash}`. Work-order tests bound: (i) reroute+no-fault selects nothing;
   (ii) fault + subsequent reroute still localizes from pre-reroute evidence against epoch 0;
-  (iii) replay-clean across epochs. Unchanged leaves never reset. Smarter wealth carryover =
-  recorded future work.
+  (ii-b, cold-eye C1) evidence accruing AFTER the reroute localizes against epoch 1 — each
+  headline behavior verified to kill its hand-made constant mutant; (iii) replay-clean across
+  epochs. Unchanged leaves never reset. Smarter wealth carryover = recorded future work.
