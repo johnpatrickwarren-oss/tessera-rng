@@ -260,5 +260,17 @@ routed to the owner, not changed unilaterally.
   process is deliberately continuous across epochs. No epochs ⇒ byte-identical v1 (guard test).
   N2 intact: synthetic events only, no live fetchSnapshot. Gate loosening on the record:
   `no-god-module` 16→20 (`domain.ts` is the invariant-admitted zero-behavior type contract; intent
-  updated in place, ADR-0017). Detector side (resets, evidence epochs, per-epoch tomography) =
-  ADR-0018, next.
+  updated in place, ADR-0017).
+- **Epoch-aware detection + per-epoch localization** (ADR-0018, item 4 part 2 — detector side):
+  `runPipeline` gains `reroutes?` (absent/empty ⇒ byte-identical v1 audit, guard-tested). A leaf
+  whose incidence changed at an epoch boundary has its e-process **reset there with fresh wealth**
+  (`detectPathClassSegmented`) — a deliberate, RECORDED power loss: the audit lists every reset in
+  `eprocess_resets`, and the leaf verdict carries per-segment e-values. Leaf e-value = MEAN over
+  segments (valid under arbitrary dependence, same rule as the family combine); `evidence_epoch` =
+  argmax segment (attribution metadata). Tomography groups selected leaves by evidence epoch and
+  localizes each group **against that epoch's snapshot** (culprits carry `evidence_epoch`); drains
+  act on the LATEST epoch (the fabric as routed now). Audit records the epoch sequence
+  `{valid_from_tick, hash}`. Work-order tests bound: (i) reroute+no-fault selects nothing;
+  (ii) fault + subsequent reroute still localizes from pre-reroute evidence against epoch 0;
+  (iii) replay-clean across epochs. Unchanged leaves never reset. Smarter wealth carryover =
+  recorded future work.

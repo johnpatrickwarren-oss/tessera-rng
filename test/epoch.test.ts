@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyRerouteEvent, makeEpochs, epochIndexAt, changedLeaves } from '../src/epoch';
+import { applyRerouteEvent, makeEpochs, epochIndexAt, changedLeaves, segmentPlan } from '../src/epoch';
 import { generateTelemetry } from '../src/telemetry';
 import { computeFaultDomainHash } from '../src/fault-domain-source';
 import { signalIndex } from '../src/signals';
@@ -127,6 +127,27 @@ test('makeEpochs validates the sequence and stamps per-epoch hashes (views inclu
   );
 });
 
+test('segmentPlan: a boundary outside the live window (t \u2264 0 or t \u2265 ticks) resets nothing', () => {
+  const snap = fixture();
+  // boundary exactly AT ticks: the post-boundary segment would be empty \u2014 outside [0, ticks).
+  const atEnd = segmentPlan(makeEpochs(snap, [{ at_tick: 50, resource_id: 'opt-A', fraction: 1, seed: 7 }]), 50);
+  assert.equal(atEnd.resets.length, 0);
+  assert.equal(atEnd.plan.size, 0);
+  // boundary beyond the window.
+  const beyond = segmentPlan(makeEpochs(snap, [{ at_tick: 99, resource_id: 'opt-A', fraction: 1, seed: 7 }]), 50);
+  assert.equal(beyond.resets.length, 0);
+  // a hand-built epoch at tick 0 is an INITIAL state, not a mid-stream change \u2014 never a reset.
+  const rerouted = applyRerouteEvent(snap, { at_tick: 1, resource_id: 'opt-A', fraction: 1, seed: 7 });
+  const atZero = segmentPlan([
+    { snapshot: snap, valid_from_tick: 0, hash: 'a' },
+    { snapshot: rerouted, valid_from_tick: 0, hash: 'b' },
+  ], 50);
+  assert.equal(atZero.resets.length, 0);
+  // and an in-window boundary on the same fabric DOES reset (the guard is not over-broad).
+  const inWin = segmentPlan(makeEpochs(snap, [{ at_tick: 25, resource_id: 'opt-A', fraction: 1, seed: 7 }]), 50);
+  assert.ok(inWin.resets.length > 0);
+});
+
 test('epochIndexAt: a tick exactly at valid_from_tick belongs to the NEW epoch', () => {
   const epochs = makeEpochs(fixture(), [{ at_tick: 40, resource_id: 'opt-A', fraction: 1, seed: 7 }]);
   assert.equal(epochIndexAt(epochs, 0), 0);
@@ -163,4 +184,56 @@ test('the degradation follows the ACTIVE epoch: a leaf rerouted off the faulty r
   }
   // pc-3 never traversed opt-A: identical throughout (the unaffected control).
   assert.equal(JSON.stringify(epoched.series.get('pc-3')), JSON.stringify(stat.series.get('pc-3')));
+});
+
+// ── End-to-end epoch'd pipeline: resets, evidence epochs, per-epoch tomography (ADR-0018) ──
+
+import { runPipeline } from '../src/pipeline';
+import { generateSpraypointFabric, DEFAULT_SPRAYPOINT } from '../src/spraypoint';
+
+const SP = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
+const REROUTE = [{ at_tick: 40, resource_id: 'optic-3', fraction: 1, seed: 5 }];
+const FAULT = { resource_id: 'optic-3', delta: 4, start_tick: 0 };
+
+test('reroutes: [] is byte-identical to no reroutes at all (the v1 audit guard)', async () => {
+  const base = await runPipeline({ snapshot: SP, q: 0.05, telemetry: { seed: 3, ticks: 60, degradation: FAULT } });
+  const empty = await runPipeline({ snapshot: SP, q: 0.05, telemetry: { seed: 3, ticks: 60, degradation: FAULT }, reroutes: [] });
+  assert.equal(JSON.stringify(base), JSON.stringify(empty));
+  assert.equal(base.epochs, undefined, 'no epoch fields on a v1 run');
+  assert.equal(base.eprocess_resets, undefined);
+});
+
+test('(i) a reroute with NO fault selects nothing — segmentation must not create false fires (ADR-0018)', async () => {
+  const a = await runPipeline({ snapshot: SP, q: 0.05, telemetry: { seed: 3, ticks: 60 }, reroutes: REROUTE });
+  assert.equal(a.selected_path_class_ids.length, 0, 'the critical false-fire guard');
+  assert.equal(a.culprits.length, 0);
+  assert.ok(a.eprocess_resets!.length > 0, 'the resets are still recorded (instrumented-caveat)');
+  assert.equal(a.epochs!.length, 2);
+});
+
+test('(ii) fault + subsequent reroute still localizes from PRE-reroute evidence, against the epoch it accrued in (ADR-0018)', async () => {
+  const a = await runPipeline({ snapshot: SP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: FAULT }, reroutes: REROUTE });
+  // the faulty ToR's leaf is selected on its pre-reroute segment...
+  assert.ok(a.selected_path_class_ids.includes('tor-3'));
+  const v = a.verdicts.find((x) => x.path_class_id === 'tor-3')!;
+  assert.equal(v.segments!.length, 2, 'tor-3 was remapped at t=40 → two e-process segments');
+  assert.ok(v.segments![0].fired, 'the pre-reroute segment carries the firing evidence');
+  assert.ok(!v.segments![1].fired, 'post-reroute (off the faulty optic) the fresh e-process stays quiet');
+  assert.equal(v.evidence_epoch, 0);
+  // ...and tomography runs against the EPOCH-0 incidence (where tor-3 still traversed optic-3).
+  assert.equal(a.culprits[0].resource_id, 'optic-3');
+  assert.equal(a.culprits[0].evidence_epoch, 0);
+  // the reset is recorded, exactly at the boundary; an untouched leaf is neither reset nor segmented.
+  assert.ok(a.eprocess_resets!.some((r) => r.path_class_id === 'tor-3' && r.at_tick === 40 && r.epoch_index === 1));
+  const untouched = a.verdicts.find((x) => x.path_class_id === 'tor-5')!;
+  assert.equal(untouched.segments, undefined, 'an epoch that does not change a leaf does not reset it');
+  assert.ok(!a.eprocess_resets!.some((r) => r.path_class_id === 'tor-5'));
+  // the audit's epoch sequence IS the makeEpochs sequence (per-epoch replay identity).
+  const eps = makeEpochs(SP, REROUTE);
+  assert.deepEqual(a.epochs, eps.map((e) => ({ valid_from_tick: e.valid_from_tick, hash: e.hash })));
+});
+
+test('(iii) replay-clean across epochs: same inputs ⇒ byte-identical audit (AC-9 extended)', async () => {
+  const run = () => runPipeline({ snapshot: SP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: FAULT }, reroutes: REROUTE });
+  assert.equal(JSON.stringify(await run()), JSON.stringify(await run()));
 });

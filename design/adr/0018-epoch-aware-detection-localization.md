@@ -52,15 +52,15 @@ it (ADR-0017), and:
 
 | Prescription | Binding test ("Then") |
 |---|---|
-| No reroutes ⇒ byte-identical v1 audit | `drain-epoch` test: `reroutes: []` audit JSON equals the no-param audit, byte-for-byte |
-| (i) reroute with NO fault selects nothing | epoch'd clean run: `selected_path_class_ids` empty, no culprits (the critical false-fire guard) |
-| (ii) fault + subsequent reroute still localizes from pre-reroute evidence | fault on R from tick 0, full reroute off R at T: leaf still selected, `evidence_epoch = 0`, rank-1 = R **against the epoch-0 snapshot**, and the post-reroute control (same fault, no reroute history needed) |
-| Resets recorded, never silent | audit `eprocess_resets` lists exactly the remapped leaves at the boundary tick |
-| Reset is REAL (wealth actually restarts) | the segmented leaf's post-boundary segment e-value is fresh (≈1 on clean ticks), not the carried pre-boundary wealth |
-| Mean-combine + α accounting | segmented leaf: per-family e-value = mean over segments (cross-checked against independently computed segment runs); `alpha_spent` = segment sum |
-| Unchanged leaves are NOT reset | a leaf untouched by the reroute has no `segments` and no reset entry |
-| (iii) replay-clean across epochs | two identical epoch'd runs ⇒ byte-identical audit JSON (AC-9 extended) |
-| Epoch sequence in the audit | `epochs` lists per-epoch `{valid_from_tick, hash}` matching `makeEpochs` |
+| No reroutes ⇒ byte-identical v1 audit | `epoch.test.ts`: `reroutes: []` audit JSON equals the no-param audit, byte-for-byte; no epoch fields emitted |
+| (i) reroute with NO fault selects nothing | `epoch.test.ts` (i): epoch'd clean run — `selected_path_class_ids` empty, no culprits (the critical false-fire guard), resets still recorded |
+| (ii) fault + subsequent reroute still localizes from pre-reroute evidence | `epoch.test.ts` (ii): optic-3 fault from tick 0, full reroute off it at t=40 — tor-3 selected, segment 0 fired / segment 1 quiet, `evidence_epoch = 0`, rank-1 = optic-3 with `evidence_epoch: 0` (localized against the epoch-0 snapshot) |
+| Resets recorded, never silent | `epoch.test.ts` (ii): `eprocess_resets` contains the remapped leaf at exactly the boundary tick |
+| Reset is REAL (wealth actually restarts) | `detect.test.ts`: the post-boundary segment's e-value is fresh (< carried-wealth run by 100×), does not fire on clean ticks |
+| Mean-combine + α accounting | `detect.test.ts`: per-family e-value = mean over segments, cross-checked against independently sliced `detectPathClass` runs (the naive two-pass reference); `alpha_spent` = segment sum; `evidence_epoch` = argmax segment |
+| Unchanged leaves are NOT reset | `epoch.test.ts` (ii): tor-5 has no `segments` and no reset entry |
+| (iii) replay-clean across epochs | `epoch.test.ts` (iii): two identical epoch'd runs ⇒ byte-identical audit JSON (AC-9 extended) |
+| Epoch sequence in the audit | `epoch.test.ts` (ii): audit `epochs` deep-equals the `makeEpochs` `{valid_from_tick, hash}` sequence |
 
 ## Consequences
 
@@ -74,3 +74,8 @@ it (ADR-0017), and:
 - **Anti-scope intact:** epochs are synthetic-event-driven (N2 — no live `fetchSnapshot`); drains
   stay simulated (N4). The §4 evidence-epoch grouping is exact for the single-event slice and a
   stated ranking approximation beyond it.
+- **Mutation record:** `epoch.ts` 100 % after a survivor-killing round on the `segmentPlan` window
+  guard (boundaries at t = 0 / t = ticks / beyond reset nothing); `pipeline.ts` mutants all killed.
+  The one surviving mutant in `detect.ts` is the **pre-existing benign Family-A fire boundary**
+  (`e ≥ 1/α` vs `>` — the same accepted-on-the-record mutant class as ADR-0009's), not ADR-0018
+  code.

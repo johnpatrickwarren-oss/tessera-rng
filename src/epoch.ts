@@ -130,3 +130,48 @@ export function changedLeaves(a: FaultDomainSnapshot, b: FaultDomainSnapshot): S
   }
   return changed;
 }
+
+/** One recorded e-process wealth reset (ADR-0018): leaf × the tick its incidence changed. */
+export interface LeafReset {
+  path_class_id: PathClassId;
+  at_tick: number;
+  epoch_index: number;
+}
+
+/**
+ * The ADR-0018 segmentation plan: for each leaf whose incidence changed INSIDE the live window,
+ * the e-process segments (each restarted with fresh wealth — the deliberate, recorded power
+ * loss), plus the flat reset list the audit records. A segment's epoch_index is the epoch at the
+ * segment's start; epochs that do not change a leaf do not reset it (its e-process validly spans
+ * them, and its own incidence is identical across them).
+ */
+export function segmentPlan(
+  epochs: readonly SnapshotEpoch[],
+  ticks: number,
+): { plan: Map<PathClassId, { epoch_index: number; from_tick: number; to_tick: number }[]>; resets: LeafReset[] } {
+  const byLeaf = new Map<PathClassId, { at_tick: number; epoch_index: number }[]>();
+  for (let e = 1; e < epochs.length; e++) {
+    const t = epochs[e].valid_from_tick;
+    if (t <= 0 || t >= ticks) continue; // a boundary outside the live window resets nothing
+    for (const pc of changedLeaves(epochs[e - 1].snapshot, epochs[e].snapshot)) {
+      if (!byLeaf.has(pc)) byLeaf.set(pc, []);
+      byLeaf.get(pc)!.push({ at_tick: t, epoch_index: e });
+    }
+  }
+  const plan = new Map<PathClassId, { epoch_index: number; from_tick: number; to_tick: number }[]>();
+  const resets: LeafReset[] = [];
+  for (const pc of [...byLeaf.keys()].sort()) {
+    const segs: { epoch_index: number; from_tick: number; to_tick: number }[] = [];
+    let from = 0;
+    let epoch = 0;
+    for (const r of byLeaf.get(pc)!) {
+      segs.push({ epoch_index: epoch, from_tick: from, to_tick: r.at_tick });
+      from = r.at_tick;
+      epoch = r.epoch_index;
+      resets.push({ path_class_id: pc, at_tick: r.at_tick, epoch_index: r.epoch_index });
+    }
+    segs.push({ epoch_index: epoch, from_tick: from, to_tick: ticks });
+    plan.set(pc, segs);
+  }
+  return { plan, resets };
+}

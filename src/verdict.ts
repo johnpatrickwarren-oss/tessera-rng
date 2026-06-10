@@ -20,6 +20,18 @@ export interface DetectorResult {
   alpha_spent: number;
 }
 
+/** One epoch-segment of a leaf's e-process run after an incidence-change reset (ADR-0018). */
+export interface SegmentVerdict {
+  /** the epoch the segment's evidence accrued in (the epoch active at from_tick). */
+  epoch_index: number;
+  from_tick: number;
+  /** exclusive. */
+  to_tick: number;
+  /** the segment's combined e-value, accrued with FRESH wealth from from_tick. */
+  e_value: number;
+  fired: boolean;
+}
+
 export interface PathClassVerdict {
   path_class_id: PathClassId;
   /** per-detector results (Family A mean-shift + Family C distributional). */
@@ -30,6 +42,14 @@ export interface PathClassVerdict {
   fired: boolean;
   /** total α spent across detectors (audit record). */
   alpha_spent: number;
+  /**
+   * Present ONLY for leaves whose incidence changed mid-stream (ADR-0018): the per-segment
+   * e-process runs, each with fresh wealth (the recorded reset). The leaf-level e-value is the
+   * MEAN over segments — valid under arbitrary dependence, same rule as the family combine.
+   */
+  segments?: readonly SegmentVerdict[];
+  /** the epoch of the max-e-value segment (ties → earlier) — where the firing evidence accrued. */
+  evidence_epoch?: number;
 }
 
 export interface Culprit {
@@ -46,6 +66,11 @@ export interface Culprit {
    * operator, but the localization mechanism is the union LLR, not a per-view vote.
    */
   supporting_views: readonly string[];
+  /**
+   * The epoch this culprit's firing evidence accrued in (ADR-0018) — tomography ran against THAT
+   * epoch's incidence snapshot. Absent on single-epoch (no-reroute) runs.
+   */
+  evidence_epoch?: number;
   /** v1 spec AC-5b / N1: the layer claims correlation, never hardware root cause. */
   correlational_not_causal: true;
 }
@@ -80,4 +105,12 @@ export interface AuditRecord {
    * detection number is never published without saying which mode produced it.
    */
   firing_families: FiringFamilies;
+  /** The epoch sequence the run was measured against (ADR-0017/0018). Absent on no-reroute runs. */
+  epochs?: readonly { valid_from_tick: number; hash: string }[];
+  /**
+   * Every e-process wealth reset (ADR-0018): leaf × the tick its incidence changed. A reset is a
+   * deliberate, RECORDED power loss (instrumented-caveat) — the leaf's pre-reset evidence lives in
+   * its verdict `segments`, never silently discarded. Absent on no-reroute runs.
+   */
+  eprocess_resets?: readonly { path_class_id: PathClassId; at_tick: number; epoch_index: number }[];
 }

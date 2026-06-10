@@ -21,7 +21,7 @@ import type { FamilyDPerSignal } from '@johnpatrickwarren-oss/deploysignal-engin
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
-import type { PathClassVerdict, DetectorResult } from './verdict';
+import type { PathClassVerdict, DetectorResult, SegmentVerdict } from './verdict';
 
 export interface DetectParams {
   /** per-tick α for the Family A betting e-process. */
@@ -91,16 +91,79 @@ export function detectPathClass(
   };
 }
 
+/** One planned e-process segment for a leaf whose incidence changed mid-stream (ADR-0018). */
+export interface SegmentSpec {
+  epoch_index: number;
+  from_tick: number;
+  /** exclusive. */
+  to_tick: number;
+}
+
+/** Combine one family's per-segment results: MEAN e-value (valid under arbitrary dependence — the
+ *  same rule as the family combine), any-segment-fired, α spent summed over segment runs. */
+function combineFamily(runs: readonly PathClassVerdict[], f: number): DetectorResult {
+  const rows = runs.map((r) => r.detectors[f]);
+  return {
+    family: rows[0].family,
+    e_value: rows.reduce((s, r) => s + r.e_value, 0) / rows.length,
+    fired: rows.some((r) => r.fired),
+    alpha_allocated: rows[0].alpha_allocated,
+    alpha_spent: rows.reduce((s, r) => s + r.alpha_spent, 0),
+  };
+}
+
+/**
+ * Epoch-aware detection for a leaf whose incidence changed mid-stream (ADR-0018): each segment is
+ * detected with FRESH wealth — the deliberate, recorded reset (the pipeline writes it into the
+ * audit's `eprocess_resets`). The leaf's `evidence_epoch` is the epoch of its max-e-value segment
+ * (ties → earlier) — attribution metadata for per-epoch tomography, not part of the e-value.
+ */
+export function detectPathClassSegmented(
+  pathClassId: PathClassId,
+  series: readonly SignalVector[],
+  segs: readonly SegmentSpec[],
+  params: DetectParams = DEFAULT_DETECT,
+  ctx: DetectorContext = {},
+): PathClassVerdict {
+  const runs = segs.map((s) => detectPathClass(pathClassId, series.slice(s.from_tick, s.to_tick), params, ctx));
+  const detectors = runs[0].detectors.map((_, f) => combineFamily(runs, f));
+  const segments: SegmentVerdict[] = segs.map((s, i) => ({
+    epoch_index: s.epoch_index,
+    from_tick: s.from_tick,
+    to_tick: s.to_tick,
+    e_value: runs[i].e_value,
+    fired: runs[i].fired,
+  }));
+  let best = 0;
+  for (let i = 1; i < segments.length; i++) if (segments[i].e_value > segments[best].e_value) best = i;
+  return {
+    path_class_id: pathClassId,
+    detectors,
+    e_value: detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length,
+    fired: detectors.some((dt) => dt.fired),
+    alpha_spent: detectors.reduce((s, dt) => s + dt.alpha_spent, 0),
+    segments,
+    evidence_epoch: segments[best].epoch_index,
+  };
+}
+
 /**
  * Detect across all path-classes in canonical order. The optional DetectorContext supplies the
  * learned Family C Σ (ADR-0007) and/or the Family D spectral nulls (ADR-0009); omitted ⇒ A+C with
- * the identity-Σ default.
+ * the identity-Σ default. The optional `plan` (ADR-0018) routes leaves whose incidence changed
+ * mid-stream through segmented detection; leaves not in the plan are untouched (byte-identical).
  */
 export function detectAll(
   series: ReadonlyMap<PathClassId, SignalVector[]>,
   params: DetectParams = DEFAULT_DETECT,
   ctx: DetectorContext = {},
+  plan?: ReadonlyMap<PathClassId, readonly SegmentSpec[]>,
 ): PathClassVerdict[] {
   const ids = [...series.keys()].sort();
-  return ids.map((id) => detectPathClass(id, series.get(id)!, params, ctx));
+  return ids.map((id) => {
+    const segs = plan?.get(id);
+    return segs?.length
+      ? detectPathClassSegmented(id, series.get(id)!, segs, params, ctx)
+      : detectPathClass(id, series.get(id)!, params, ctx);
+  });
 }

@@ -18,8 +18,11 @@ import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './fam
 import { estimateFamilyDNull } from './family-d';
 import { buildSurface } from './surface';
 import { localize, DEFAULT_LOCALIZE } from './tomography';
+import type { LocalizeOpts } from './tomography';
 import { simulateDrain } from './drain';
-import type { AuditRecord, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
+import { makeEpochs, segmentPlan } from './epoch';
+import type { RerouteEvent, SnapshotEpoch } from './epoch';
+import type { AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
 import type { PathClassId } from './domain';
 
 export interface PipelineParams {
@@ -37,6 +40,41 @@ export interface PipelineParams {
   q: number;
   /** how many top culprits to act on with the (simulated) drain. */
   drain_top_k?: number;
+  /**
+   * Synthetic reroute/reconvergence events (ADR-0017/0018). Present ⇒ the run is epoch'd: the
+   * degradation follows the active epoch, changed leaves' e-processes reset at their boundaries
+   * (recorded in `eprocess_resets`), and tomography runs per evidence epoch. Absent or empty ⇒
+   * byte-identical v1 audit.
+   */
+  reroutes?: readonly RerouteEvent[];
+}
+
+/**
+ * Per-evidence-epoch tomography (ADR-0018): selected leaves are grouped by the epoch their firing
+ * evidence accrued in and localized against THAT epoch's snapshot; per-epoch culprit lists are
+ * concatenated in epoch order (score-ranked within an epoch), unexplained sets unioned.
+ */
+function localizeByEvidenceEpoch(
+  epochs: readonly SnapshotEpoch[],
+  verdicts: readonly PathClassVerdict[],
+  selected: readonly PathClassId[],
+  opts: LocalizeOpts,
+): { culprits: Culprit[]; unexplained_path_class_ids: PathClassId[] } {
+  const epochOf = new Map(verdicts.map((v) => [v.path_class_id, v.evidence_epoch ?? 0]));
+  const groups = new Map<number, PathClassId[]>();
+  for (const id of selected) {
+    const e = epochOf.get(id) ?? 0;
+    if (!groups.has(e)) groups.set(e, []);
+    groups.get(e)!.push(id);
+  }
+  const culprits: Culprit[] = [];
+  const unexplained = new Set<PathClassId>();
+  for (const e of [...groups.keys()].sort((a, b) => a - b)) {
+    const loc = localize(epochs[e].snapshot, groups.get(e)!, opts);
+    culprits.push(...loc.culprits.map((c) => ({ ...c, evidence_epoch: e })));
+    for (const u of loc.unexplained_path_class_ids) unexplained.add(u);
+  }
+  return { culprits, unexplained_path_class_ids: [...unexplained].sort() };
 }
 
 /** Tally which family fired on each selected path-class (firing-mode attribution, ADR-0010). */
@@ -75,15 +113,25 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // signal's live oscillation must exceed to fire. Silent for signals with too short a window.
   const familyDCells = estimateFamilyDNull(calibResiduals);
 
-  const liveRaw = generateTelemetry(snapshot, params.telemetry);
+  // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
+  // e-processes reset at their boundaries. Absent ⇒ the byte-identical v1 path.
+  const epochs = params.reroutes?.length ? makeEpochs(snapshot, params.reroutes) : null;
+  const seg = epochs ? segmentPlan(epochs, params.telemetry.ticks) : null;
+
+  const liveRaw = generateTelemetry(snapshot, epochs ? { ...params.telemetry, epochs } : params.telemetry);
   const residuals = standardizeAll(liveRaw.series, calibration);
-  const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells });
+  const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
   const surface = buildSurface(verdicts, params.q);
 
-  const loc = localize(snapshot, surface.selected_path_class_ids, { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 });
+  const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 };
+  const loc = epochs
+    ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
+    : localize(snapshot, surface.selected_path_class_ids, locOpts);
 
+  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018).
+  const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
   const k = params.drain_top_k ?? 1;
-  const drain_actions: DrainAction[] = loc.culprits.slice(0, k).map((c) => simulateDrain(snapshot, c));
+  const drain_actions: DrainAction[] = loc.culprits.slice(0, k).map((c) => simulateDrain(drainSnap, c));
 
   return {
     snapshot_hash,
@@ -95,5 +143,11 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     unexplained_path_class_ids: loc.unexplained_path_class_ids,
     drain_actions,
     firing_families: tallyFiringFamilies(verdicts, surface.selected_path_class_ids),
+    ...(epochs
+      ? {
+          epochs: epochs.map((e) => ({ valid_from_tick: e.valid_from_tick, hash: e.hash })),
+          eprocess_resets: seg!.resets,
+        }
+      : {}),
   };
 }
