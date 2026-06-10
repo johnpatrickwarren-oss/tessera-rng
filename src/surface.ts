@@ -12,6 +12,9 @@ import type { PathClassId } from './domain';
 import type { PathClassVerdict } from './verdict';
 
 const WEALTH_FLOOR = 1e-12;
+/** Jeffreys pseudo-count for the floored fleet base firing rate q₀ (ADR-0016) — keeps q₀ ∈ (0,1)
+ *  even on a quiet fabric (|selected|=0), so the leaky-LLR scorer's log(·/q₀) never degenerates. */
+const Q0_PSEUDO = 0.5;
 
 export interface FleetSurface {
   /** log of the arbitrary-dependence-valid fleet e-value. */
@@ -20,6 +23,8 @@ export interface FleetSurface {
   q: number;
   /** path-class ids selected by e-BH (FDR controlled at q). */
   selected_path_class_ids: PathClassId[];
+  /** floored fleet base firing rate q₀ = (|selected| + ½)/(|leaves| + 1) — the leaky-LLR null (ADR-0016). */
+  base_rate_q0: number;
 }
 
 export function buildSurface(verdicts: readonly PathClassVerdict[], q: number): FleetSurface {
@@ -32,5 +37,6 @@ export function buildSurface(verdicts: readonly PathClassVerdict[], q: number): 
   const ebh = eBenjaminiHochberg(eValues, q);
   const selected = ebh.selected.map((i) => ordered[i].path_class_id).sort();
 
-  return { fleet_log_e: fleet.log_fleet_e, q, selected_path_class_ids: selected };
+  const base_rate_q0 = (selected.length + Q0_PSEUDO) / (ordered.length + 2 * Q0_PSEUDO);
+  return { fleet_log_e: fleet.log_fleet_e, q, selected_path_class_ids: selected, base_rate_q0 };
 }

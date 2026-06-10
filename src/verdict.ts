@@ -35,11 +35,17 @@ export interface PathClassVerdict {
 export interface Culprit {
   resource_id: ResourceId;
   resource_kind: ResourceKind;
-  /** localization score; higher = better explains the firing set. */
+  /** localization score; higher = better explains the firing set (leaky-LLR, ADR-0016). */
   score: number;
   member_path_class_ids: readonly PathClassId[];
   firing_member_count: number;
   traversing_count: number;
+  /**
+   * The aggregation views (ADR-0015) that have a firing member of this resource — per-view
+   * concurrence as DISPLAYED metadata (ADR-0016): cross-view agreement is informative for an
+   * operator, but the localization mechanism is the union LLR, not a per-view vote.
+   */
+  supporting_views: readonly string[];
   /** v1 spec AC-5b / N1: the layer claims correlation, never hardware root cause. */
   correlational_not_causal: true;
 }

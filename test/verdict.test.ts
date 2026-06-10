@@ -14,6 +14,7 @@ test('a Culprit always carries the non-causal flag and provenance (N1 contract)'
     member_path_class_ids: ['pc-0', 'pc-1'],
     firing_member_count: 2,
     traversing_count: 2,
+    supporting_views: ['per_tor'],
     correlational_not_causal: true,
   };
   // (The runtime guarantee that localize() always sets this flag is verified in

@@ -8,7 +8,7 @@
  */
 import { pureJsSha256 } from '@johnpatrickwarren-oss/deploysignal-engine/topology-overlay';
 import { isResourceKind } from './domain';
-import type { FaultDomainSnapshot, FaultDomainEdge, FaultDomainNode, ResourceKind } from './domain';
+import type { AggregationView, FaultDomainSnapshot, FaultDomainEdge, FaultDomainNode, ResourceKind } from './domain';
 
 export interface FetchContext {
   signal?: AbortSignal;
@@ -75,6 +75,21 @@ function asEdges(x: unknown, pcs: ReadonlySet<string>, resIds: ReadonlySet<strin
   });
 }
 
+/** Aggregation views (ADR-0015) are part of the measurement design — dropping them would silently
+ *  change the operator's replay hash (cold-eye L1, ADR-0016). Optional; absent ⇒ no views. */
+function asViews(x: unknown, pcs: ReadonlySet<string>): AggregationView[] | undefined {
+  if (x === undefined) return undefined;
+  if (!Array.isArray(x)) throw new TypeError('views must be an array');
+  return x.map((v, i) => {
+    const o = v as Record<string, unknown>;
+    if (typeof o?.view !== 'string' || o.view.length === 0) throw new TypeError(`views[${i}].view must be a non-empty string`);
+    if (!Array.isArray(o.leaf_ids) || o.leaf_ids.length === 0 || !o.leaf_ids.every((l) => typeof l === 'string' && pcs.has(l))) {
+      throw new TypeError(`views[${i}].leaf_ids must be a non-empty array of declared path_classes`);
+    }
+    return { view: o.view, leaf_ids: o.leaf_ids as string[] };
+  });
+}
+
 /**
  * Validate an operator-supplied incidence object into a FaultDomainSnapshot. Checks the resource
  * taxonomy, the 'traverses' relationship, and referential integrity (every edge references a
@@ -89,7 +104,9 @@ export function validateFaultDomainSnapshot(obj: unknown): FaultDomainSnapshot {
   }
   const path_classes = o.path_classes as string[];
   const resources = asResources(o.resources);
-  const edges = asEdges(o.edges, new Set(path_classes), new Set(resources.map((r) => r.id)));
+  const pcSet = new Set(path_classes);
+  const edges = asEdges(o.edges, pcSet, new Set(resources.map((r) => r.id)));
+  const views = asViews(o.views, pcSet);
   const nodes: FaultDomainNode[] = [
     ...path_classes.map((id) => ({ id, kind: 'path_class' as const })),
     ...resources.map((r) => ({ id: r.id, kind: r.kind })),
@@ -99,6 +116,7 @@ export function validateFaultDomainSnapshot(obj: unknown): FaultDomainSnapshot {
     edges,
     path_classes,
     resources,
+    ...(views !== undefined ? { views } : {}),
     fetched_at_ts: typeof o.fetched_at_ts === 'number' ? o.fetched_at_ts : 0,
     source_id: typeof o.source_id === 'string' ? o.source_id : 'operator-supplied',
     source_version: typeof o.source_version === 'string' ? o.source_version : 'v1',

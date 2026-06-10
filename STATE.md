@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-06-08._
+`design/adr/`. Last updated: 2026-06-10._
 
 ## What this is
 
@@ -24,7 +24,10 @@ AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-co
 mutation pass on the new math, a fresh-context cold-eye review, and a green gate. Round 2
 (ADR-0010..0012): per-mode honest measurement (A+C+D floors + firing-mode attribution), the
 evidence-gated decision to keep Σ/φ global (no per-cell structure exists), and demo scenarios for
-the C and D modes. The repo is **public**. **112 tests, gate PASS.**
+the C and D modes. Round 3 (ADR-0013..0016, same branch): the RNG-paper reconciliation work order —
+paper verified, weighted incidence, Spraypoint two-view leaves, and the leaky-LLR scorer (work-order
+items 1–3 + 5 done; item 4, reconvergence epochs, is next). The repo is **public**. **133 tests,
+gate PASS.** A mid-round handoff lives at `design/handoff-round3.md`.
 
 ## Built so far
 
@@ -232,3 +235,17 @@ routed to the owner, not changed unilaterally.
   incorporate the weight. Anti-self-confirming fixture: where the unweighted scorer picks an
   incidental decoy resource, the weighted scorer follows the traffic to the true one. Weighted
   solver holds 100% mutation; default unchanged.
+- **Leaky-LLR scorer + C1 residue pinned** (ADR-0016, work-order item 3): the tomography default is
+  now a **leaky noisy-OR mixture LLR** — per member, clean `P(fire)=q₀` (the surface's floored fleet
+  base rate `(|selected|+½)/(|leaves|+1)`) vs faulty `q₁=q₀+(δ−q₀)·w`, mixed over δ∈{0.3,0.6,0.9};
+  greedy set-cover on LLR>0. Base-rate-aware, weight-aware falsification; subsumes the λ knob (the
+  linear scorer survives only as the `opts.legacy` failure-mode control). Culprits gain
+  `supporting_views` (displayed metadata). **The LLR did NOT fix the cold-eye C1 high-δ cross-view
+  flip** — empirically the residue is structural (a saturating optic fault lights the whole pair
+  view; no per-resource scorer sees the cross-view explain-away), and no q₀ fixes it (q₀=q makes it
+  worse — comparison recorded). Owner-resolved: **pin the realistic band (δ≤32 holds optic-3) +
+  document the δ≥64 residue** as a union-of-dependent-views limitation, with a canary test proving
+  the per-ToR view alone still localizes at δ=128 (union artifact, not detection failure). The
+  one-view-vs-union double-count check came back negative in the band → no view-multiplicity knob.
+  Cold-eye L1 folded in: operator-supplied `views` now survive validation (they were silently
+  dropped, breaking the operator replay-hash identity). Explain-away scorer = recorded future work.

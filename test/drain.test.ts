@@ -24,7 +24,7 @@ function snap(): FaultDomainSnapshot {
 }
 
 function culprit(id: string): Culprit {
-  return { resource_id: id, resource_kind: 'passive_shuffler', score: 2, member_path_class_ids: [], firing_member_count: 2, traversing_count: 2, correlational_not_causal: true };
+  return { resource_id: id, resource_kind: 'passive_shuffler', score: 2, member_path_class_ids: [], firing_member_count: 2, traversing_count: 2, supporting_views: [], correlational_not_causal: true };
 }
 
 test('drain is simulated and covers exactly the path-classes traversing the culprit', () => {

@@ -17,7 +17,7 @@ import type { DetectParams } from './detect';
 import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './family-c';
 import { estimateFamilyDNull } from './family-d';
 import { buildSurface } from './surface';
-import { localize } from './tomography';
+import { localize, DEFAULT_LOCALIZE } from './tomography';
 import { simulateDrain } from './drain';
 import type { AuditRecord, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
 import type { PathClassId } from './domain';
@@ -80,7 +80,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells });
   const surface = buildSurface(verdicts, params.q);
 
-  const loc = localize(snapshot, surface.selected_path_class_ids);
+  const loc = localize(snapshot, surface.selected_path_class_ids, { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 });
 
   const k = params.drain_top_k ?? 1;
   const drain_actions: DrainAction[] = loc.culprits.slice(0, k).map((c) => simulateDrain(snapshot, c));
