@@ -73,13 +73,16 @@ test('PINNED BAND (ADR-0016): the leaky-LLR holds the true optic at rank-1 acros
   }
 });
 
-test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across the full δ sweep — the controls still flip', async () => {
+test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across the full δ sweep — the κ-mixture margin is the discriminating control', async () => {
   // The ADR-0016 canary documented the δ≥64 cross-view flip as a residue and instructed: if this
   // fails because the flip got FIXED, update the ADR — the exposure-saturating noisy-OR
-  // (ADR-0019) is that fix. At extreme δ the optic's leakage into the 1/64-diluted pair leaves is
-  // EXPECTED (high-κ mixture cells), and the coarse pair-view resources are falsified by their
-  // quiet per-ToR members. The old failure modes survive as controls: the legacy linear scorer
-  // AND a saturation-disabled κ grid both still flip — the κ mixture is the mechanism, not luck.
+  // (ADR-0019) is that fix. At extreme δ the optic's leakage into the diluted pair leaves
+  // (2/nTors under the unified flow model, ADR-0028) is EXPECTED (high-κ mixture cells), and the
+  // coarse pair-view resources are falsified by their quiet per-ToR members. Under the sp2
+  // weights NEITHER historic control flips on this fixture anymore (the legacy linear scorer is
+  // retired below; the κ=1 grid also ranks the true optic) — what this test binds is the
+  // QUANTITATIVE κ-mixture margin: saturation supplies the decisive evidence (score floor
+  // asserts), so a mutant that ignores κ collapses the margin and fails.
   for (const delta of [64, 128]) {
     const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
     assert.equal(a.culprits[0]?.resource_id, 'optic-3', `the saturating LLR holds the true optic at δ=${delta}`);
@@ -91,13 +94,14 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   // CONTROL 1 RETIRED (ADR-0028): under the unified weights the legacy linear scorer no longer
   // flips on this fixture — the original ADR-0016 flip was conditioned on the old two-panel
   // w=1 / source-side 1/nTors conventions (observed: legacy now also picks optic-3 at δ=128).
-  // The linear scorer's failure-mode role survives in the ADR-0014 decoy fixture
-  // (test/weighted-incidence.test.ts); CONTROL 2 below remains the discriminating control here.
+  // The legacy scorer's failure-mode binds survive in test/tomography.test.ts (the
+  // base-rate-blind linear control and the LEGACY-CONTROL test); CONTROL 2 below remains the
+  // discriminating control here.
   // CONTROL 2: saturation DISABLED (κ = {1}). Negative finding recorded in ADR-0019: the exact
   // noisy-OR form ALONE already holds rank-1 here (the old flip needed the linear-leak
   // parameterization), so the κ-mixture bind is QUANTITATIVE — saturation supplies the decisive
-  // evidence margin (observed 33.3 vs 2.1). A mutant that ignores κ (k·w → w) collapses the
-  // default to the κ=1 score and fails the floor assert.
+  // evidence margin (observed 33.7 vs 3.9 under the sp2 weights). A mutant that ignores κ
+  // (k·w → w) collapses the default to the κ=1 score and fails the floor assert.
   const noSat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, kappas: [1] });
   assert.equal(noSat.culprits[0]?.resource_id, 'optic-3');
   assert.ok(noSat.culprits[0].score < 5, `κ=1 score stays small (got ${noSat.culprits[0].score})`);

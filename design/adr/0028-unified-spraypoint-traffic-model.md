@@ -88,6 +88,12 @@ The generator's `source_version` becomes `sp2:${nTors}x${nPanels}x${nRooms}` —
 that an artifact was produced under the unified model (the hash changes anyway; the marker says
 why).
 
+One API narrowing rides along: `generateSpraypointFabric` now requires **nTors ≥ 2** (was ≥ 1).
+With one ToR the flow space — unordered pairs × panels — is EMPTY, so every conditional
+traversal probability is undefined; the old per-leaf conventions happened to tolerate the
+degenerate fabric, the unified model does not pretend to. Bound by per-clause throw asserts in
+the keystone file.
+
 ## Considered and REJECTED on the evidence: full-support unification
 
 The first build of this round emitted every positive-probability traversal, including the
@@ -189,6 +195,10 @@ the ADR-0020/0024 lesson, twice)
   three kinds detect + localize rank-1, replay-clean; suite runtime within the ADR-0025
   envelope (scale test ~2.6 s in-suite). The `scale_proof` deterministic values are identical
   pre/post — only weights changed, which that section does not publish.
+- **Demo reconciliation**: `demos/demo.html` is byte-UNCHANGED — the inventory above listed it
+  conservatively, but the demo's eight scenarios all run on the v1 generated fabric and embed
+  no Spraypoint snapshot; `pnpm demo` was re-run and reproduced the committed bytes (the
+  freshness bind passes for the right reason).
 - **Mutation**: broad pass 95% (57/60; the 3 survivors are the recorded benign `>=`→`>`
   fire-boundary class in detect/family-c/family-d, untouched this round); targeted spraypoint
   pass 100% (4/4) after a guard `||`→`&&` survivor forced per-clause throw asserts; six

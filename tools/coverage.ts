@@ -570,10 +570,11 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('strongest view exposure is w=1), but the **shuffle_panel detection floor RISES 1 → 2** vs');
   L.push('passive_shuffler — under one-panel-per-flow a panel\'s strongest exposure is w=1/2, so the');
   L.push('per-leaf shift halves (boundary between 1.5 and 2: Δ=1.5 detects 1/4). **Attribution**');
-  L.push('floors sit one grid step above their binary analogues: room 3 vs power_zone 1 — a room');
-  L.push('fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band; boundary');
-  L.push('between 2 and 2.5 — Δ=2.5 attributes 4/4) — and shuffle_panel 3 vs passive_shuffler 2');
-  L.push('(Δ=2 attributes 3/4).');
+  L.push('floors sit above their binary analogues — shuffle_panel ONE grid step (3 vs');
+  L.push('passive_shuffler 2; Δ=2 attributes 3/4), room TWO grid steps (3 vs power_zone 1) — a');
+  L.push('room fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band;');
+  L.push('boundary between 2 and 2.5 — Δ=2.5 attributes 4/4): a reliable alarm whose culprit is');
+  L.push('unreliable until Δ≳2.5, published, not implied away.');
   L.push('');
   renderSpraypointFloors(L, rep);
   L.push('');

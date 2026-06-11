@@ -100,10 +100,11 @@ experiment): optic and room **detection** floors match the binary analogues (the
 strongest view exposure is w=1), but the **shuffle_panel detection floor RISES 1 → 2** vs
 passive_shuffler — under one-panel-per-flow a panel's strongest exposure is w=1/2, so the
 per-leaf shift halves (boundary between 1.5 and 2: Δ=1.5 detects 1/4). **Attribution**
-floors sit one grid step above their binary analogues: room 3 vs power_zone 1 — a room
-fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band; boundary
-between 2 and 2.5 — Δ=2.5 attributes 4/4) — and shuffle_panel 3 vs passive_shuffler 2
-(Δ=2 attributes 3/4).
+floors sit above their binary analogues — shuffle_panel ONE grid step (3 vs
+passive_shuffler 2; Δ=2 attributes 3/4), room TWO grid steps (3 vs power_zone 1) — a
+room fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band;
+boundary between 2 and 2.5 — Δ=2.5 attributes 4/4): a reliable alarm whose culprit is
+unreliable until Δ≳2.5, published, not implied away.
 
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
