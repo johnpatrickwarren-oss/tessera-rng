@@ -14,9 +14,21 @@
  *   - `per_panel_pair` (~C(nPanels,2) leaves) — concentrates shuffle-panel/room faults, smears
  *                                               optic faults (a faulty ToR is 1/nTors of the pair).
  * The views are dependent (same flows) — fine: e-BH and the e-value merges are arbitrary-dependence
- * valid (P1, the reason they were chosen). ToR-pair stays the UNDERLYING entity (drill-down is future
- * scope); the leaves are views over it. Incidence is WEIGHTED (ADR-0014): a view's weights are the
- * fraction of its aggregate traffic through each resource.
+ * valid (P1, the reason they were chosen). ToR-pair stays the UNDERLYING entity (the ADR-0026 drill
+ * examines it on demand); the leaves are views over it. Incidence is WEIGHTED (ADR-0014).
+ *
+ * ONE traffic model (ADR-0028): an elementary flow is (unordered ToR pair {i,j}, panel p), uniform
+ * over C(nTors,2) × nPanels — one panel per flow, BOTH endpoint optics crossed (the single-stage
+ * shuffle reading). Every view weight is the conditional traversal probability
+ * P(flow crosses resource | flow ∈ leaf), and the drill's pair exposures are
+ * P(flow crosses resource | flow ∈ pair) on the SAME space (the keystone bind in
+ * test/traffic-model.test.ts enumerates the space and recomputes both). Zero-probability
+ * traversals get NO edge — with ONE recorded exception going the other way: a tor leaf's
+ * cross-optic exposure (true P = 1/(nTors−1) per partner optic) is deliberately NOT an edge.
+ * The full-support variant was built and measured: the binary fire/quiet scorer drowns in 63
+ * quiet 1/63-weight members (cross-kind multi-fault attribution collapses; the δ-sweep loses
+ * the optic at δ≥64) — rejected on that evidence, bound by its own test, revisit only together
+ * with a magnitude-aware member model (ADR-0028).
  */
 import type { FaultDomainSnapshot, FaultDomainNode, FaultDomainEdge, ResourceKind, ResourceId, AggregationView } from './domain';
 
@@ -40,6 +52,11 @@ const opticId = (i: number): ResourceId => `optic-${i}`;
 const panelId = (p: number): ResourceId => `panel-${p}`;
 const roomId = (r: number): ResourceId => `room-${r}`;
 const roomOf = (panel: number, nRooms: number): number => panel % nRooms;
+const panelsInRoom = (room: number, params: SpraypointParams): number => {
+  let n = 0;
+  for (let p = 0; p < params.nPanels; p++) if (roomOf(p, params.nRooms) === room) n += 1;
+  return n;
+};
 
 function buildResources(params: SpraypointParams): Array<{ id: ResourceId; kind: ResourceKind }> {
   const res: Array<{ id: ResourceId; kind: ResourceKind }> = [];
@@ -49,27 +66,50 @@ function buildResources(params: SpraypointParams): Array<{ id: ResourceId; kind:
   return res;
 }
 
-/** Edges for a per-ToR leaf: all its traffic on its own optic (w=1), spread over panels and rooms. */
+/**
+ * Edges for a per-ToR leaf — P(crosses · | endpoint i) under the ADR-0028 flow model:
+ * own optic 1 (every flow crosses it); panels uniform 1/nPanels; room-r = its panel share,
+ * panelsInRoom(r)/nPanels (an empty room is never traversed — no edge). PARTNER optics
+ * (true P = 1/(nTors−1) each) are the recorded ADR-0028 omission — deliberately NOT emitted;
+ * see the module header and the narrowing-bind test before "fixing" this.
+ */
 function torLeafEdges(leaf: string, i: number, params: SpraypointParams): FaultDomainEdge[] {
   const edges: FaultDomainEdge[] = [{ path_class: leaf, resource: opticId(i), relationship: 'traverses', weight: 1 }];
   for (let p = 0; p < params.nPanels; p++) edges.push({ path_class: leaf, resource: panelId(p), relationship: 'traverses', weight: 1 / params.nPanels });
-  for (let r = 0; r < params.nRooms; r++) edges.push({ path_class: leaf, resource: roomId(r), relationship: 'traverses', weight: 1 / params.nRooms });
+  for (let r = 0; r < params.nRooms; r++) {
+    const share = panelsInRoom(r, params) / params.nPanels;
+    if (share > 0) edges.push({ path_class: leaf, resource: roomId(r), relationship: 'traverses', weight: share });
+  }
   return edges;
 }
 
-/** Edges for a per-panel-pair leaf: all its traffic on both panels (w=1), a 1/nTors slice per optic. */
+/**
+ * Edges for a per-panel-pair leaf — P(crosses · | panel ∈ {a,b}) under the ADR-0028 flow model:
+ * each of its two panels 1/2 (one panel per flow — the old two-panel w=1 convention is gone);
+ * each optic 2/nTors (both-endpoint counting: nTors−1 of C(nTors,2) pairs end there); room-r =
+ * |{a,b} ∩ panels(r)|/2 — 1 when both panels share the room, 1/2 each when they split.
+ */
 function panelPairLeafEdges(leaf: string, a: number, b: number, params: SpraypointParams): FaultDomainEdge[] {
   const edges: FaultDomainEdge[] = [
-    { path_class: leaf, resource: panelId(a), relationship: 'traverses', weight: 1 },
-    { path_class: leaf, resource: panelId(b), relationship: 'traverses', weight: 1 },
+    { path_class: leaf, resource: panelId(a), relationship: 'traverses', weight: 1 / 2 },
+    { path_class: leaf, resource: panelId(b), relationship: 'traverses', weight: 1 / 2 },
   ];
-  for (let i = 0; i < params.nTors; i++) edges.push({ path_class: leaf, resource: opticId(i), relationship: 'traverses', weight: 1 / params.nTors });
-  for (const r of new Set([roomOf(a, params.nRooms), roomOf(b, params.nRooms)])) edges.push({ path_class: leaf, resource: roomId(r), relationship: 'traverses', weight: 1 });
+  for (let i = 0; i < params.nTors; i++) edges.push({ path_class: leaf, resource: opticId(i), relationship: 'traverses', weight: 2 / params.nTors });
+  const ra = roomOf(a, params.nRooms);
+  const rb = roomOf(b, params.nRooms);
+  if (ra === rb) edges.push({ path_class: leaf, resource: roomId(ra), relationship: 'traverses', weight: 1 });
+  else {
+    edges.push({ path_class: leaf, resource: roomId(ra), relationship: 'traverses', weight: 1 / 2 });
+    edges.push({ path_class: leaf, resource: roomId(rb), relationship: 'traverses', weight: 1 / 2 });
+  }
   return edges;
 }
 
 export function generateSpraypointFabric(params: SpraypointParams = DEFAULT_SPRAYPOINT): FaultDomainSnapshot {
-  if (params.nTors < 1 || params.nPanels < 2 || params.nRooms < 1) throw new RangeError('spraypoint needs nTors≥1, nPanels≥2, nRooms≥1');
+  // nTors ≥ 2: with one ToR the flow space (unordered pairs × panels) is EMPTY — every leaf's
+  // conditional traversal probability is undefined (ADR-0028; the old per-leaf conventions
+  // happened to tolerate it, the unified model does not pretend to).
+  if (params.nTors < 2 || params.nPanels < 2 || params.nRooms < 1) throw new RangeError('spraypoint needs nTors≥2, nPanels≥2, nRooms≥1');
   const resources = buildResources(params);
   const edges: FaultDomainEdge[] = [];
   const torLeaves: string[] = [];
@@ -105,7 +145,9 @@ export function generateSpraypointFabric(params: SpraypointParams = DEFAULT_SPRA
     views,
     fetched_at_ts: 0,
     source_id: 'synthetic-spraypoint-fabric',
-    source_version: `sp:${params.nTors}x${params.nPanels}x${params.nRooms}`,
+    // `sp2` marks the unified flow model (ADR-0028) — artifacts produced before/after the
+    // unification differ by hash anyway; the marker says WHY.
+    source_version: `sp2:${params.nTors}x${params.nPanels}x${params.nRooms}`,
   };
 }
 

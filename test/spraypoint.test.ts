@@ -29,11 +29,12 @@ test('the fabric is the union of two aggregation views with weighted incidence, 
   assert.equal(SNAP.views![0].leaf_ids.length, DEFAULT_SPRAYPOINT.nTors); // 64 per-ToR leaves
   assert.equal(SNAP.views![1].leaf_ids.length, (DEFAULT_SPRAYPOINT.nPanels * (DEFAULT_SPRAYPOINT.nPanels - 1)) / 2); // C(10,2)=45
   assert.ok(SNAP.path_classes.length >= 100 && SNAP.path_classes.length <= 10000, 'leaf count inside AC-1 [100,10000]');
-  // weighted incidence: a ToR's own optic is full-weight on its per-ToR leaf, a thin slice on a pair leaf.
+  // weighted incidence: a ToR's own optic is full-weight on its per-ToR leaf, a thin slice on a
+  // pair leaf — 2/nTors under the unified flow model (both-endpoint counting, ADR-0028).
   const onTor = SNAP.edges.find((e) => e.path_class === 'tor-3' && e.resource === 'optic-3')!;
   const onPair = SNAP.edges.find((e) => e.path_class.startsWith('pp-') && e.resource === 'optic-3')!;
   assert.equal(onTor.weight, 1);
-  assert.ok(onPair.weight! < 0.02, `a pair leaf carries only ~1/nTors of an optic (got ${onPair.weight})`);
+  assert.equal(onPair.weight, 2 / DEFAULT_SPRAYPOINT.nTors, `a pair leaf carries 2/nTors of an optic (got ${onPair.weight})`);
 });
 
 test('clean Spraypoint fabric selects nothing — FDR holds across two DEPENDENT views (ADR-0015)', async () => {
@@ -72,13 +73,16 @@ test('PINNED BAND (ADR-0016): the leaky-LLR holds the true optic at rank-1 acros
   }
 });
 
-test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across the full δ sweep — the controls still flip', async () => {
+test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across the full δ sweep — the κ-mixture margin is the discriminating control', async () => {
   // The ADR-0016 canary documented the δ≥64 cross-view flip as a residue and instructed: if this
   // fails because the flip got FIXED, update the ADR — the exposure-saturating noisy-OR
-  // (ADR-0019) is that fix. At extreme δ the optic's leakage into the 1/64-diluted pair leaves is
-  // EXPECTED (high-κ mixture cells), and the coarse pair-view resources are falsified by their
-  // quiet per-ToR members. The old failure modes survive as controls: the legacy linear scorer
-  // AND a saturation-disabled κ grid both still flip — the κ mixture is the mechanism, not luck.
+  // (ADR-0019) is that fix. At extreme δ the optic's leakage into the diluted pair leaves
+  // (2/nTors under the unified flow model, ADR-0028) is EXPECTED (high-κ mixture cells), and the
+  // coarse pair-view resources are falsified by their quiet per-ToR members. Under the sp2
+  // weights NEITHER historic control flips on this fixture anymore (the legacy linear scorer is
+  // retired below; the κ=1 grid also ranks the true optic) — what this test binds is the
+  // QUANTITATIVE κ-mixture margin: saturation supplies the decisive evidence (score floor
+  // asserts), so a mutant that ignores κ collapses the margin and fails.
   for (const delta of [64, 128]) {
     const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
     assert.equal(a.culprits[0]?.resource_id, 'optic-3', `the saturating LLR holds the true optic at δ=${delta}`);
@@ -87,14 +91,17 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   const sel = a.selected_path_class_ids;
   assert.ok(sel.length > 30, 'the leakage premise still holds — the pair view saturates at δ=128');
   const q0 = q0Of(sel.length, SNAP.path_classes.length);
-  // CONTROL 1: the legacy linear scorer still flips (the original C1 failure mode).
-  const linear = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, legacy: true, collateralWeight: 1.0 });
-  assert.notEqual(linear.culprits[0]?.resource_id, 'optic-3', 'the linear control still flips at δ=128');
+  // CONTROL 1 RETIRED (ADR-0028): under the unified weights the legacy linear scorer no longer
+  // flips on this fixture — the original ADR-0016 flip was conditioned on the old two-panel
+  // w=1 / source-side 1/nTors conventions (observed: legacy now also picks optic-3 at δ=128).
+  // The legacy scorer's failure-mode binds survive in test/tomography.test.ts (the
+  // base-rate-blind linear control and the LEGACY-CONTROL test); CONTROL 2 below remains the
+  // discriminating control here.
   // CONTROL 2: saturation DISABLED (κ = {1}). Negative finding recorded in ADR-0019: the exact
   // noisy-OR form ALONE already holds rank-1 here (the old flip needed the linear-leak
   // parameterization), so the κ-mixture bind is QUANTITATIVE — saturation supplies the decisive
-  // evidence margin (observed 33.3 vs 2.1). A mutant that ignores κ (k·w → w) collapses the
-  // default to the κ=1 score and fails the floor assert.
+  // evidence margin (observed 33.7 vs 3.9 under the sp2 weights). A mutant that ignores κ
+  // (k·w → w) collapses the default to the κ=1 score and fails the floor assert.
   const noSat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, kappas: [1] });
   assert.equal(noSat.culprits[0]?.resource_id, 'optic-3');
   assert.ok(noSat.culprits[0].score < 5, `κ=1 score stays small (got ${noSat.culprits[0].score})`);

@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-06-10._
+`design/adr/`. Last updated: 2026-06-11._
 
 ## What this is
 
@@ -36,9 +36,10 @@ immediately falsified the binary set-cover and forced marginal-LLR set construct
 **public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
 drain budgeting, multi-fault floors. Round 7 (ADR-0025/0026, merged via PR #6): paper-scale
 proof + ToR-pair drill-down. Round 8 (ADR-0027, merged via PR #7): the incremental session —
-anytime-valid made operational. The recommended post-v1 roadmap is COMPLETE; the remaining queue
-is owner-decision items only (traffic-model unification, epoch wealth carryover, live-fabric
-seam — see "needs outside input"). **192 tests, gate PASS.**
+anytime-valid made operational. The recommended post-v1 roadmap is COMPLETE. Round 9
+(branch `post-v1-round9`, ADR-0028): the owner ruled on the three queued decisions ("follow the
+recommendations") — the Spraypoint traffic model is UNIFIED (this round), epoch wealth carryover
+stays deferred, the live-fabric seam doc waits for a real consumer. **198 tests, gate PASS.**
 
 ## Built so far
 
@@ -265,6 +266,26 @@ seam — see "needs outside input"). **192 tests, gate PASS.**
   future routing); keystones extended to 600-tick Family-D, AR(2), and two-reroute runs;
   calibrateForSession shared by pipeline, tests, and operators.
 
+## Post-v1 round 9 (branch `post-v1-round9`, off merged main)
+
+- **Unified Spraypoint traffic model** (ADR-0028, closes the ADR-0026 divergence): ONE
+  elementary flow space — (unordered ToR pair, panel), uniform; one panel per flow, both
+  endpoint optics — now derives BOTH the fabric's view weights and the drill's pair exposures:
+  pp optic 1/nTors → **2/nTors**, pp panels w=1 → **1/2 each**, pp rooms conditioned on the
+  panel pair (1 same-room, 1/2 split), tor rooms = **panel share** (empty rooms get no edge);
+  `source_version: sp2`. The KEYSTONE test enumerates the space and recomputes every view
+  weight AND every drill exposure independently of the closed forms (exact agreement, default +
+  asymmetric fabrics; a cross-module drill-convention mutant dies on it). ONE recorded
+  narrowing, bound by its own test from both sides: tor-leaf cross-optic exposure (true
+  P = 1/(nTors−1)) is deliberately NOT an edge — the full-support variant was built and
+  MEASURED first and collapsed cross-kind multi-fault localization and the high-δ sweep
+  (binary fire/quiet scorer drowns in 63 quiet 1/63 members; numbers in the ADR); revisit only
+  together with a magnitude-aware member model (recorded future work). Floors republished from
+  measurement (the owner-anticipated grid step): shuffle_panel 2/3 (was 1/2), room 1/3 (was
+  1/2), cross_kind 2/3 (was 1/2); optic, same_kind unchanged; pinned δ-band and C1 closure
+  survive (margin 33.3 → 33.7); the legacy-flip control retired on observation. Paper-scale
+  values unchanged (existing edge support kept, 513,552 edges).
+
 ## Honest current limitations (NOT hidden)
 
 - Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model
@@ -299,10 +320,12 @@ matrix, real-fabric validation.
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
 (N4), the §3.2 signal-contract *fidelity* question (paper now read — ADR-0013 — but telemetry is
 out of its scope, so fidelity stays unprovable without real data). The WO-item-5 granularity
-HALT was resolved by the owner in ADR-0015 (aggregation-view leaves). **Open owner decision
-(round-7 cold-eye):** unify the Spraypoint traffic model — the fabric's leaf-local view weights
-and the drill's flow-level exposures diverge by 2× conventions (recorded in ADR-0026);
-unification would change snapshot hashes, pinned δ-bands, and every published Spraypoint floor.
+HALT was resolved by the owner in ADR-0015 (aggregation-view leaves). The round-7 cold-eye's
+traffic-model divergence was RESOLVED by round 9 (ADR-0028, owner-authorized): one flow space,
+floors republished, with one recorded test-bound narrowing (tor cross-optic exposure) awaiting
+a magnitude-aware scorer. Remaining owner-deferred items: epoch wealth carryover (keep
+deferred until real-fabric reconvergence data says otherwise), live-fabric adapter seam doc
+(write when a real consumer appears).
 
 ## Post-v1 round 3 — RNG-paper reconciliation work order (branch `post-v1-round2`)
 

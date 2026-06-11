@@ -127,10 +127,11 @@ test('SPOT-CHECK: one committed coverage cell matches a fresh recomputation (fre
   assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
 });
 
-test('SPOT-CHECK #2: the committed Spraypoint room Δ=2 cell matches a fresh recomputation; floors structurally sound (ADR-0020)', async () => {
-  // Same honest-partial freshness pattern as the ADR-0019 optic bind: the room Δ=2 cell sits at
-  // the attribution floor (Δ=1 detects 4/4 but attributes 0/4 — the recorded wrong-kind band),
-  // so a scorer change moving that boundary fails here. Fix by re-running `pnpm coverage`.
+test('SPOT-CHECK #2: the committed Spraypoint room Δ=3 cell matches a fresh recomputation; floors structurally sound (ADR-0020)', async () => {
+  // Same honest-partial freshness pattern as the ADR-0019 optic bind: under the unified flow
+  // model (ADR-0028) the room Δ=3 cell sits AT the attribution floor (Δ=2 detects 4/4 but
+  // attributes 0/4 — the wrong-kind band; the boundary is between 2 and 2.5), so a scorer
+  // change moving that boundary fails here. Fix by re-running `pnpm coverage`.
   const { readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { spraypointCell, SPRAYPOINT_FLOOR_TARGETS } = await import('../tools/coverage');
@@ -142,16 +143,17 @@ test('SPOT-CHECK #2: the committed Spraypoint room Δ=2 cell matches a fresh rec
       assert.ok(f.attribution_floor >= f.detection_floor, `${f.kind}: cannot attribute below the detection floor`);
     }
   }
-  const committed = rep.spraypoint_floors.cells.find((c: { kind: string; delta: number }) => c.kind === 'room' && c.delta === 2);
-  assert.ok(committed, 'the room Δ=2 cell must exist in the committed matrix');
-  const fresh = await spraypointCell('room', 2, SPRAYPOINT_FLOOR_TARGETS.room);
+  const committed = rep.spraypoint_floors.cells.find((c: { kind: string; delta: number }) => c.kind === 'room' && c.delta === 3);
+  assert.ok(committed, 'the room Δ=3 cell must exist in the committed matrix');
+  const fresh = await spraypointCell('room', 3, SPRAYPOINT_FLOOR_TARGETS.room);
   assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
 });
 
-test('SPOT-CHECK #3: the committed multi-fault cross_kind Δ=2 cell matches a fresh recomputation; floors structurally sound (ADR-0024)', async () => {
-  // the same honest-partial freshness pattern as spot-checks #1/#2 — the Δ=2 cell sits at the
-  // both-in-top-2 attribution floor (Δ=1 attributes 1/2), so a localization change moving that
-  // boundary fails here. Fix by re-running `pnpm coverage`.
+test('SPOT-CHECK #3: the committed multi-fault cross_kind Δ=3 cell matches a fresh recomputation; floors structurally sound (ADR-0024)', async () => {
+  // the same honest-partial freshness pattern as spot-checks #1/#2 — under the unified flow
+  // model (ADR-0028) the Δ=3 cell sits AT the both-in-top-2 attribution floor (Δ=2 attributes
+  // 1/2), so a localization change moving that boundary fails here. Fix by re-running
+  // `pnpm coverage`.
   const { readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { multiFaultCell } = await import('../tools/coverage');
@@ -163,9 +165,9 @@ test('SPOT-CHECK #3: the committed multi-fault cross_kind Δ=2 cell matches a fr
       assert.ok(f.attribution_floor >= f.detection_floor, `${f.kind}: cannot attribute below the detection floor`);
     }
   }
-  const committed = rep.multi_fault.cells.find((c: { kind: string; delta: number }) => c.kind === 'cross_kind' && c.delta === 2);
-  assert.ok(committed, 'the cross_kind Δ=2 cell must exist in the committed matrix');
-  const fresh = await multiFaultCell('cross_kind', 2);
+  const committed = rep.multi_fault.cells.find((c: { kind: string; delta: number }) => c.kind === 'cross_kind' && c.delta === 3);
+  assert.ok(committed, 'the cross_kind Δ=3 cell must exist in the committed matrix');
+  const fresh = await multiFaultCell('cross_kind', 3);
   assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
 });
 

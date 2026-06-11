@@ -80,7 +80,8 @@ The **firing family** column is the firing-mode attribution: which detector actu
 
 On the two-view Spraypoint fabric (`per_tor` ∪ `per_panel_pair`, weighted/diluted incidence),
 the views have COMPLEMENTARY blind spots — published here, not implied. An optic fault is
-1/nTors-diluted in pair leaves; a panel fault is 1/nPanels-diluted in ToR leaves.
+2/nTors-diluted in pair leaves (unified flow model, ADR-0028); a panel fault is
+1/nPanels-diluted in ToR leaves.
 
 | fault kind | resource | per-view detected | concentrated by |
 |---|---|---|---|
@@ -90,20 +91,26 @@ the views have COMPLEMENTARY blind spots — published here, not implied. An opt
 
 ## Spraypoint dilution floors (ADR-0020) — the fractional-incidence regime, measured
 
-Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a
-`p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary
-table above. Read against the binary fabric's nearest-analogue kinds (optic↔optic,
-shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the comparison is
-indicative, not a controlled dilution-only experiment): **detection** floors match the binary
-analogues (each kind has a w=1 view), but the **room attribution floor RISES 1 → 2** vs
-power_zone 1/1 — a room fault at Δ=1 is detected 4/4 yet attributed 0/4 (the ADR-0019
-wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 2/4).
+Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence, unified
+flow model — ADR-0028) under a `p99_latency` mean shift — the regime ADR-0014 deferred.
+Same floor semantics as the binary table above. Read against the binary fabric's
+nearest-analogue kinds (optic↔optic, shuffle_panel↔passive_shuffler, room↔power_zone — a
+DIFFERENT fabric, so the comparison is indicative, not a controlled dilution-only
+experiment): optic and room **detection** floors match the binary analogues (their
+strongest view exposure is w=1), but the **shuffle_panel detection floor RISES 1 → 2** vs
+passive_shuffler — under one-panel-per-flow a panel's strongest exposure is w=1/2, so the
+per-leaf shift halves (boundary between 1.5 and 2: Δ=1.5 detects 1/4). **Attribution**
+floors sit above their binary analogues — shuffle_panel ONE grid step (3 vs
+passive_shuffler 2; Δ=2 attributes 3/4), room TWO grid steps (3 vs power_zone 1) — a
+room fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band;
+boundary between 2 and 2.5 — Δ=2.5 attributes 4/4): a reliable alarm whose culprit is
+unreliable until Δ≳2.5, published, not implied away.
 
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
 | optic | 2 | 2 |
-| shuffle_panel | 1 | 2 |
-| room | 1 | 2 |
+| shuffle_panel | 2 | 3 |
+| room | 1 | 3 |
 
 | fault kind | Δ | detection | attribution |
 |---|---|---|---|
@@ -113,13 +120,13 @@ wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | optic | 4 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 0.5 | 0% (0/4) | 0% (0/4) |
-| shuffle_panel | 1 | 100% (4/4) | 75% (3/4) |
-| shuffle_panel | 2 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 1 | 0% (0/4) | 0% (0/4) |
+| shuffle_panel | 2 | 100% (4/4) | 75% (3/4) |
 | shuffle_panel | 3 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
-| room | 0.5 | 50% (2/4) | 0% (0/4) |
+| room | 0.5 | 0% (0/4) | 0% (0/4) |
 | room | 1 | 100% (4/4) | 0% (0/4) |
-| room | 2 | 100% (4/4) | 100% (4/4) |
+| room | 2 | 100% (4/4) | 0% (0/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
 
@@ -133,14 +140,14 @@ optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-me
 
 | pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |
 |---|---|---|
-| cross_kind | 1 | 2 |
+| cross_kind | 2 | 3 |
 | same_kind | 2 | 2 |
 
 | pair | Δ | detection | attribution (both-in-top-2) |
 |---|---|---|---|
 | cross_kind | 0.5 | 0% (0/2) | 0% (0/2) |
-| cross_kind | 1 | 100% (2/2) | 50% (1/2) |
-| cross_kind | 2 | 100% (2/2) | 100% (2/2) |
+| cross_kind | 1 | 50% (1/2) | 0% (0/2) |
+| cross_kind | 2 | 100% (2/2) | 50% (1/2) |
 | cross_kind | 3 | 100% (2/2) | 100% (2/2) |
 | cross_kind | 4 | 100% (2/2) | 100% (2/2) |
 | same_kind | 0.5 | 0% (0/2) | 0% (0/2) |
