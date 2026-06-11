@@ -160,7 +160,11 @@ test('closed forms on the DEFAULT fabric, exact (the ADR-0028 weight table)', ()
 });
 
 test('degenerate params are rejected: a one-ToR fabric has an EMPTY flow space (ADR-0028)', () => {
+  // each clause independently (a ||→&& mutant on the guard survived the first draft — caught
+  // by the targeted mutation pass and bound here, one violation at a time).
   assert.throws(() => generateSpraypointFabric({ nTors: 1, nPanels: 10, nRooms: 2 }), /nTors≥2/);
+  assert.throws(() => generateSpraypointFabric({ nTors: 64, nPanels: 1, nRooms: 1 }), /nPanels≥2/);
+  assert.throws(() => generateSpraypointFabric({ nTors: 64, nPanels: 10, nRooms: 0 }), /nRooms≥1/);
 });
 
 test('an EMPTY room (nRooms > nPanels) is never traversed — no edge, not a fabricated 1/nRooms', () => {

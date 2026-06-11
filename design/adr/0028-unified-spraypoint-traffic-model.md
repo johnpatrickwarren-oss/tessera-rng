@@ -168,7 +168,31 @@ the ADR-0020/0024 lesson, twice)
 - Costs: one-time re-pin of weight-conditioned tests and every published Spraypoint artifact;
   shuffle_panel (and possibly room) floors move and are republished from measurement.
 
-## Post-build observations (filled in during the round, per the evidence-gated discipline)
+## Post-build observations (from observed runs, per the evidence-gated discipline)
 
-_To be completed from observed runs before merge: re-pinned δ-band, re-measured floors,
-paper-scale edge count / wall-clock / memory, and any test whose claim had to be revised._
+- **δ-sweep under the kept model**: the pinned band (optic-3 rank-1 at δ ∈ {4,16,32}) HOLDS;
+  C1 stays closed at δ ∈ {64,128} with the saturation margin 33.7 (was 33.3 — pp weights
+  moved it); room and panel extreme-δ tests unchanged; cross-kind multi-fault recovers both
+  culprits (panel-7 + optic-3) — all existing claims survive, only scores shifted.
+- **One control retired on observation**: the ADR-0016 legacy-linear "still flips at δ=128"
+  control no longer flips under sp2 weights (legacy also picks optic-3 here) — the flip was
+  conditioned on the old two-panel w=1 / source-side 1/nTors conventions. Retired in-test with
+  the observation recorded; the κ=1 saturation-disabled control still discriminates, and the
+  linear scorer's failure-mode role survives in the ADR-0014 decoy fixture.
+- **Floors (re-measured, published)**: shuffle_panel detection 1→2 (boundary 1.5–2: Δ=1.5
+  detects 1/4 — the halved w=1/2 panel exposure), attribution 2→3 (Δ=2: 3/4); room detection
+  unchanged at 1, attribution 2→3 (Δ=2 detects 4/4, attributes 0/4; boundary 2–2.5: Δ=2.5
+  attributes 4/4); cross_kind multi-fault 1→2 / 2→3; optic and same_kind unchanged. The
+  coverage-matrix prose was rewritten to the sp2 numbers (the old "detection floors match the
+  binary analogues" claim is no longer true for shuffle_panel).
+- **Paper scale**: edge count UNCHANGED at 513,552 (existing support kept), clean FDR 0, all
+  three kinds detect + localize rank-1, replay-clean; suite runtime within the ADR-0025
+  envelope (scale test ~2.6 s in-suite). The `scale_proof` deterministic values are identical
+  pre/post — only weights changed, which that section does not publish.
+- **Mutation**: broad pass 95% (57/60; the 3 survivors are the recorded benign `>=`→`>`
+  fire-boundary class in detect/family-c/family-d, untouched this round); targeted spraypoint
+  pass 100% (4/4) after a guard `||`→`&&` survivor forced per-clause throw asserts; six
+  hand-applied convention/index mutants all killed, including a cross-module drill-room
+  convention mutant — the keystone binds the drill to the fabric convention for real.
+- **Suite**: 192 → 198 tests (the six traffic-model keystone/closed-form tests), gate PASS
+  (bare exit).

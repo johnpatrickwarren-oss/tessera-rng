@@ -80,7 +80,8 @@ The **firing family** column is the firing-mode attribution: which detector actu
 
 On the two-view Spraypoint fabric (`per_tor` ∪ `per_panel_pair`, weighted/diluted incidence),
 the views have COMPLEMENTARY blind spots — published here, not implied. An optic fault is
-1/nTors-diluted in pair leaves; a panel fault is 1/nPanels-diluted in ToR leaves.
+2/nTors-diluted in pair leaves (unified flow model, ADR-0028); a panel fault is
+1/nPanels-diluted in ToR leaves.
 
 | fault kind | resource | per-view detected | concentrated by |
 |---|---|---|---|
@@ -90,14 +91,19 @@ the views have COMPLEMENTARY blind spots — published here, not implied. An opt
 
 ## Spraypoint dilution floors (ADR-0020) — the fractional-incidence regime, measured
 
-Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence) under a
-`p99_latency` mean shift — the regime ADR-0014 deferred. Same floor semantics as the binary
-table above. Read against the binary fabric's nearest-analogue kinds (optic↔optic,
-shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the comparison is
-indicative, not a controlled dilution-only experiment): **detection** floors match the binary
-analogues (each kind has a w=1 view), but the **room attribution floor RISES 1 → 2** vs
-power_zone 1/1 — a room fault at Δ=1 is detected 4/4 yet attributed 0/4 (the ADR-0019
-wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 2/4).
+Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence, unified
+flow model — ADR-0028) under a `p99_latency` mean shift — the regime ADR-0014 deferred.
+Same floor semantics as the binary table above. Read against the binary fabric's
+nearest-analogue kinds (optic↔optic, shuffle_panel↔passive_shuffler, room↔power_zone — a
+DIFFERENT fabric, so the comparison is indicative, not a controlled dilution-only
+experiment): optic and room **detection** floors match the binary analogues (their
+strongest view exposure is w=1), but the **shuffle_panel detection floor RISES 1 → 2** vs
+passive_shuffler — under one-panel-per-flow a panel's strongest exposure is w=1/2, so the
+per-leaf shift halves (boundary between 1.5 and 2: Δ=1.5 detects 1/4). **Attribution**
+floors sit one grid step above their binary analogues: room 3 vs power_zone 1 — a room
+fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band; boundary
+between 2 and 2.5 — Δ=2.5 attributes 4/4) — and shuffle_panel 3 vs passive_shuffler 2
+(Δ=2 attributes 3/4).
 
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
