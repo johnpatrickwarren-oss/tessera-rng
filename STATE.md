@@ -34,8 +34,9 @@ a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds
 fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection — whose e2e test
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
 **public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
-drain budgeting, multi-fault floors. Round 7 (branch `post-v1-round7`, ADR-0025..): paper-scale
-proof + ToR-pair drill-down landed. **177 tests, gate PASS.**
+drain budgeting, multi-fault floors. Round 7 (ADR-0025/0026, merged via PR #6): paper-scale
+proof + ToR-pair drill-down. Round 8 (branch `post-v1-round8`, ADR-0027): the incremental
+session — anytime-valid made operational. **192 tests, gate PASS.**
 
 ## Built so far
 
@@ -240,6 +241,27 @@ proof + ToR-pair drill-down landed. **177 tests, gate PASS.**
   deterministic; N1 carried. Recorded narrowings: mean-shift faults only; residual-level window
   (production needs pair-level calibration, N2); selection-conditioned FDR; id-order truncation
   sample. NOT in runPipeline/the audit — operator-initiated by design.
+
+## Post-v1 round 8 (branch `post-v1-round8`, off merged main)
+
+- **Incremental session** (ADR-0027): `src/session.ts` — `openSession(...)` then `ingest(tick)`
+  / `audit()` at ANY tick: per-tick standardization (per-cell de-mean + an AR(p) lag buffer
+  replicating the engine filter's probed convention), engine-incremental Family A/C updates,
+  Family D window buffering, epoch wealth-resets at ingest time, and the batch pipeline's own
+  audit tail (`assembleAudit`, extracted and SHARED so streaming and batch cannot drift).
+  KEYSTONE bind: incremental ≡ batch **byte-for-byte** at the final tick for single-fault,
+  multi-fault, and epoch'd reroute runs. Anytime binds: the clean every-tick profile pinned
+  honestly (a 3-tick single-leaf transient is what per-query FDR permits — the first test draft
+  overclaimed "never selects" and was corrected on the record); a fault localizes at a recorded
+  tick well before the batch window ends. Recorded narrowings: batch calibration (open with a
+  substrate, stream live); full-tick ingest; every-tick querying is a stopping rule (each query
+  valid; the published FDR figure describes a single query). Round-8 cold-eye fold-in: returned
+  audits are SNAPSHOTS (the resets list was aliased and self-rewrote under later ingests);
+  partial-tick ingest is validated before any state mutates (a throw is a no-op — retry is
+  corruption-free, bound against batch); openSession validates reroutes (a fractional at_tick
+  silently skipped its wealth reset); mid-stream audits trim to the epochs ACTIVE so far (no
+  future routing); keystones extended to 600-tick Family-D, AR(2), and two-reroute runs;
+  calibrateForSession shared by pipeline, tests, and operators.
 
 ## Honest current limitations (NOT hidden)
 

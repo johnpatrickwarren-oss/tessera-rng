@@ -229,6 +229,36 @@ export function standardizeStream(series: readonly SignalVector[], pathClassId: 
   return prewhitenColumns(deMean(series, pathClassId, sub.cells, sub.pooled), sub.ar);
 }
 
+/** Per-signal lag buffers for incremental standardization (ADR-0027). */
+export interface StreamStandardizer {
+  lags: number[][];
+}
+
+export function freshStreamStandardizer(sub: CalibrationSubstrate): StreamStandardizer {
+  return { lags: sub.ar.map(() => []) };
+}
+
+/**
+ * One tick of incremental standardization (ADR-0027) — replicates `standardizeStream` exactly:
+ * per-cell de-mean, then the engine filter's probed convention
+ * `innov_t = d_t − Σ_{k ≤ min(t, p)} φ_k·d_{t−k}`, divided by the innovation sd. The byte-equality
+ * session test is the guard that this stays in lockstep with the batch path.
+ */
+export function standardizeTick(vec: SignalVector, tick: number, pathClassId: PathClassId, sub: CalibrationSubstrate, st: StreamStandardizer): number[] {
+  const tc = trafficClassOf(pathClassId);
+  const cell = sub.cells.get(cellKey(tick, tc)) ?? sub.pooled;
+  return vec.map((x, i) => {
+    const d = (x - cell.mean[i]) / cell.sd[i];
+    const { phi, innovationSd } = sub.ar[i];
+    const lags = st.lags[i];
+    let innov = d;
+    for (let k = 1; k <= Math.min(phi.length, lags.length); k++) innov -= phi[k - 1] * lags[lags.length - k];
+    lags.push(d);
+    if (lags.length > phi.length) lags.shift();
+    return innov / innovationSd;
+  });
+}
+
 export function standardizeAll(raw: ReadonlyMap<PathClassId, SignalVector[]>, sub: CalibrationSubstrate): Map<PathClassId, number[][]> {
   const out = new Map<PathClassId, number[][]>();
   for (const [pc, series] of raw) out.set(pc, standardizeStream(series, pc, sub));

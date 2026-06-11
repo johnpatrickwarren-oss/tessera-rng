@@ -21,7 +21,7 @@ import { localize, DEFAULT_LOCALIZE } from './tomography';
 import type { LocalizeOpts } from './tomography';
 import { simulateDrain } from './drain';
 import { makeEpochs, segmentPlan } from './epoch';
-import type { RerouteEvent, SnapshotEpoch } from './epoch';
+import type { LeafReset, RerouteEvent, SnapshotEpoch } from './epoch';
 import type { AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
 import type { PathClassId } from './domain';
 
@@ -136,30 +136,39 @@ function tallyFiringFamilies(verdicts: readonly PathClassVerdict[], selected: re
   return tally;
 }
 
+/**
+ * The calibration prelude, shared by the batch pipeline, the incremental session's operators,
+ * and the equivalence tests (ADR-0027 cold-eye P4): a CLEAN synthetic window (distinct seed) →
+ * per-cell substrate, learned Family C Σ, Family D nulls. "Calibrate offline, stream live"
+ * without reverse-engineering pipeline internals.
+ */
+export function calibrateForSession(
+  snapshot: FaultDomainSnapshot,
+  telemetry: { seed: number; ticks: number; noiseCorr?: number[][]; arCoeffs?: number[][] },
+  detect: DetectParams = DEFAULT_DETECT,
+): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
+  const calibRaw = generateTelemetry(snapshot, {
+    seed: telemetry.seed ^ 0xca11b,
+    ticks: telemetry.ticks,
+    noiseCorr: telemetry.noiseCorr,
+    arCoeffs: telemetry.arCoeffs,
+  });
+  const calibration = buildCalibration(calibRaw.series);
+  const calibResiduals = standardizeAll(calibRaw.series, calibration);
+  const familyCCell = makeFamilyCCellFromCovariance(estimateBaselineCovariance(calibResiduals).sigma, detect.alphaC);
+  const familyDCells = estimateFamilyDNull(calibResiduals);
+  return { calibration, ctx: { familyCCell, familyDCells } };
+}
+
 export async function runPipeline(params: PipelineParams): Promise<AuditRecord> {
   const snapshot = params.snapshot ?? generateFabric(params.fabric ?? DEFAULT_FABRIC);
   const source = new StaticFaultDomainSource(snapshot);
   const snapshot_hash = source.snapshotHash(await source.fetchSnapshot());
 
-  // Per-cell calibration substrate (AC-7): characterize the "normal" smear from a CLEAN
-  // window, then standardize the live (possibly degraded) raw stream against it. Distinct
-  // calibration seed → calibration noise is independent of the live window.
-  const calibRaw = generateTelemetry(snapshot, {
-    seed: params.telemetry.seed ^ 0xca11b,
-    ticks: params.telemetry.ticks,
-    noiseCorr: params.telemetry.noiseCorr,
-    arCoeffs: params.telemetry.arCoeffs,
-  });
-  const calibration = buildCalibration(calibRaw.series);
-  // Learn the Family C baseline covariance Σ from the CLEAN calibration residuals (ADR-0007):
-  // cross-signal co-movement the identity-Σ baseline could not see. Uncorrelated signals → Σ≈I.
+  // Per-cell calibration substrate (AC-7): clean window, distinct seed (the shared prelude).
   const detect = params.detect ?? DEFAULT_DETECT;
-  const calibResiduals = standardizeAll(calibRaw.series, calibration);
-  const sigma = estimateBaselineCovariance(calibResiduals).sigma;
-  const familyCCell = makeFamilyCCellFromCovariance(sigma, detect.alphaC);
-  // Family D (spectral) nulls from the clean residuals (ADR-0009): the peak-|ACF| baseline each
-  // signal's live oscillation must exceed to fire. Silent for signals with too short a window.
-  const familyDCells = estimateFamilyDNull(calibResiduals);
+  const { calibration, ctx } = calibrateForSession(snapshot, params.telemetry, detect);
+  const { familyCCell, familyDCells } = ctx;
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
   // e-processes reset at their boundaries. Absent ⇒ the byte-identical v1 path.
@@ -170,7 +179,26 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const liveRaw = generateTelemetry(snapshot, epochs ? { ...params.telemetry, epochs } : params.telemetry);
   const residuals = standardizeAll(liveRaw.series, calibration);
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
-  const surface = buildSurface(verdicts, params.q);
+
+  return assembleAudit({ snapshot, snapshot_hash, q: params.q, verdicts, epochs, resets: seg?.resets ?? null, drain_top_k: params.drain_top_k ?? 1 });
+}
+
+/**
+ * The shared audit tail (ADR-0027): surface/e-BH → per-evidence-epoch localization → tiered
+ * drains → the AuditRecord — one code path for the batch pipeline and the incremental session,
+ * so streaming and batch can never drift in assembly.
+ */
+export function assembleAudit(args: {
+  snapshot: FaultDomainSnapshot;
+  snapshot_hash: string;
+  q: number;
+  verdicts: PathClassVerdict[];
+  epochs: SnapshotEpoch[] | null;
+  resets: LeafReset[] | null;
+  drain_top_k: number;
+}): AuditRecord {
+  const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
+  const surface = buildSurface(verdicts, q);
 
   const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 };
   const loc = epochs
@@ -180,14 +208,14 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — picking
   // targets by TIER then score (ADR-0023), one drain per resource. The v1 path is untouched
   // (a single greedy list is already tier-ordered and resource-unique).
-  const k = params.drain_top_k ?? 1;
+  const k = args.drain_top_k;
   const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
   const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
   const drain_actions: DrainAction[] = targets.map((c) => simulateDrain(drainSnap, c));
 
   return {
     snapshot_hash,
-    q: params.q,
+    q,
     fleet_log_e: surface.fleet_log_e,
     verdicts: [...verdicts].sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : 0)),
     selected_path_class_ids: surface.selected_path_class_ids,
@@ -198,7 +226,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     ...(epochs
       ? {
           epochs: epochs.map((e) => ({ valid_from_tick: e.valid_from_tick, hash: e.hash })),
-          eprocess_resets: seg!.resets,
+          eprocess_resets: resets ?? [],
         }
       : {}),
   };
