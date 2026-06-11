@@ -52,7 +52,7 @@ export const MIN_NULL_STD = 0.02;
 /** Finite ceiling on a signal's spectral wealth — a true oscillation can overflow to Infinity over
  *  many windows; capping keeps the family e-value finite (still far above any fire threshold) so a
  *  non-finite value can never poison the fleet surface. */
-const WEALTH_CAP = 1e12;
+export const WEALTH_CAP = 1e12;
 
 /** Peak |ACF| over each NON-overlapping window of a column (the spectral observation sequence). */
 export function nonOverlappingPeaks(col: readonly number[], p: SpectralParams): number[] {
@@ -110,6 +110,22 @@ function signalSpectralWealth(col: readonly number[], cell: FamilyDPerSignal, p:
   }
   // a true oscillation can overflow M to Infinity over many windows → NaN on the next decay step;
   // cap to a finite ceiling so the family e-value (and the fleet surface) stay finite.
+  return Number.isFinite(state.M) ? Math.min(state.M, WEALTH_CAP) : WEALTH_CAP;
+}
+
+/** Streaming face of the per-signal spectral detector (ADR-0027): feed completed non-overlapping
+ *  windows as they fill; read the capped wealth anytime. Chunking matches `nonOverlappingPeaks`. */
+export function freshSpectralStream(): ReturnType<typeof freshSpectralEDetectorState> {
+  return freshSpectralEDetectorState();
+}
+
+export function feedSpectralWindow(state: ReturnType<typeof freshSpectralEDetectorState>, window: readonly number[], cell: FamilyDPerSignal, p: SpectralParams): void {
+  for (const pk of nonOverlappingPeaks(window, p)) {
+    evaluateSpectralEDetector({ params: cell, alpha: p.alphaD, signal: 'd' }, pk, state);
+  }
+}
+
+export function readSpectralWealth(state: { M: number }): number {
   return Number.isFinite(state.M) ? Math.min(state.M, WEALTH_CAP) : WEALTH_CAP;
 }
 

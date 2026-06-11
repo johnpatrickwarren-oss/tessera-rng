@@ -21,7 +21,7 @@ import { localize, DEFAULT_LOCALIZE } from './tomography';
 import type { LocalizeOpts } from './tomography';
 import { simulateDrain } from './drain';
 import { makeEpochs, segmentPlan } from './epoch';
-import type { RerouteEvent, SnapshotEpoch } from './epoch';
+import type { LeafReset, RerouteEvent, SnapshotEpoch } from './epoch';
 import type { AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
 import type { PathClassId } from './domain';
 
@@ -170,7 +170,26 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const liveRaw = generateTelemetry(snapshot, epochs ? { ...params.telemetry, epochs } : params.telemetry);
   const residuals = standardizeAll(liveRaw.series, calibration);
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
-  const surface = buildSurface(verdicts, params.q);
+
+  return assembleAudit({ snapshot, snapshot_hash, q: params.q, verdicts, epochs, resets: seg?.resets ?? null, drain_top_k: params.drain_top_k ?? 1 });
+}
+
+/**
+ * The shared audit tail (ADR-0027): surface/e-BH → per-evidence-epoch localization → tiered
+ * drains → the AuditRecord — one code path for the batch pipeline and the incremental session,
+ * so streaming and batch can never drift in assembly.
+ */
+export function assembleAudit(args: {
+  snapshot: FaultDomainSnapshot;
+  snapshot_hash: string;
+  q: number;
+  verdicts: PathClassVerdict[];
+  epochs: SnapshotEpoch[] | null;
+  resets: LeafReset[] | null;
+  drain_top_k: number;
+}): AuditRecord {
+  const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
+  const surface = buildSurface(verdicts, q);
 
   const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 };
   const loc = epochs
@@ -180,14 +199,14 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — picking
   // targets by TIER then score (ADR-0023), one drain per resource. The v1 path is untouched
   // (a single greedy list is already tier-ordered and resource-unique).
-  const k = params.drain_top_k ?? 1;
+  const k = args.drain_top_k;
   const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
   const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
   const drain_actions: DrainAction[] = targets.map((c) => simulateDrain(drainSnap, c));
 
   return {
     snapshot_hash,
-    q: params.q,
+    q,
     fleet_log_e: surface.fleet_log_e,
     verdicts: [...verdicts].sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : 0)),
     selected_path_class_ids: surface.selected_path_class_ids,
@@ -198,7 +217,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     ...(epochs
       ? {
           epochs: epochs.map((e) => ({ valid_from_tick: e.valid_from_tick, hash: e.hash })),
-          eprocess_resets: seg!.resets,
+          eprocess_resets: resets ?? [],
         }
       : {}),
   };

@@ -118,15 +118,9 @@ function combineFamily(runs: readonly PathClassVerdict[], f: number): DetectorRe
  * audit's `eprocess_resets`). The leaf's `evidence_epoch` is the epoch of its max-e-value segment
  * (ties → earlier) — attribution metadata for per-epoch tomography, not part of the e-value.
  */
-export function detectPathClassSegmented(
-  pathClassId: PathClassId,
-  series: readonly SignalVector[],
-  segs: readonly SegmentSpec[],
-  params: DetectParams = DEFAULT_DETECT,
-  ctx: DetectorContext = {},
-): PathClassVerdict {
-  if (segs.length === 0) throw new RangeError('segmented detection needs at least one segment');
-  const runs = segs.map((s) => detectPathClass(pathClassId, series.slice(s.from_tick, s.to_tick), params, ctx));
+/** Combine per-segment runs into the leaf verdict (ADR-0018) — shared by the batch slicer and
+ *  the incremental session (ADR-0027), so the composition is one code path. */
+export function combineSegmentRuns(pathClassId: PathClassId, runs: readonly PathClassVerdict[], segs: readonly SegmentSpec[]): PathClassVerdict {
   const detectors = runs[0].detectors.map((_, f) => combineFamily(runs, f));
   const segments: SegmentVerdict[] = segs.map((s, i) => ({
     epoch_index: s.epoch_index,
@@ -146,6 +140,18 @@ export function detectPathClassSegmented(
     segments,
     evidence_epoch: segments[best].epoch_index,
   };
+}
+
+export function detectPathClassSegmented(
+  pathClassId: PathClassId,
+  series: readonly SignalVector[],
+  segs: readonly SegmentSpec[],
+  params: DetectParams = DEFAULT_DETECT,
+  ctx: DetectorContext = {},
+): PathClassVerdict {
+  if (segs.length === 0) throw new RangeError('segmented detection needs at least one segment');
+  const runs = segs.map((s) => detectPathClass(pathClassId, series.slice(s.from_tick, s.to_tick), params, ctx));
+  return combineSegmentRuns(pathClassId, runs, segs);
 }
 
 /**
