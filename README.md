@@ -19,7 +19,8 @@ by the time a threshold alarm fires, the path-margin is already spent. Two hard 
 follow, and Tessera-RNG addresses both:
 
 1. **Multiplicity at scale** — monitor 10³–10⁴ heavily-correlated path-classes without
-   false-positive blowup. *Solved by reuse:* hierarchical e-value combination + **e-BH FDR**,
+   false-positive blowup (measured, not extrapolated: the coverage matrix's paper-scale proof
+   runs the full stack at 1,456 leaves / 960 ToRs). *Solved by reuse:* hierarchical e-value combination + **e-BH FDR**,
    which controls the false-discovery rate **under arbitrary dependence** (load-bearing, since
    path-class signals are correlated through shared fiber/optic/shuffle hardware).
 2. **Localization** — turn "something shifted" into "this shared physical resource is the
@@ -68,7 +69,7 @@ Requires Node ≥ 20 and pnpm ≥ 11.
 ## What's built
 
 Synthetic fixtures only (no live fabric — deliberately, see the anti-scope). The v1 walking
-skeleton plus six post-v1 rounds, one ADR per real decision:
+skeleton plus seven post-v1 rounds, one ADR per real decision:
 
 - **Detection** — three anytime-valid families per path-class with per-detector α-budget:
   Family A (multi-signal mean-shift betting e-process), Family C (Safe-Hotelling over a
@@ -82,8 +83,10 @@ skeleton plus six post-v1 rounds, one ADR per real decision:
   leaf, and the model can say so), built into a minimal culprit set by **marginal-LLR greedy
   construction** (each pick's posterior folds into per-leaf residuals; later candidates score
   only what remains surprising). Localizes simultaneous cross-kind faults; on epoch'd runs,
-  drain targets are tiered so every evidence group's strongest culprit drains first. 100 %
-  mutation score on the new math (recorded per round in the ADR trail).
+  drain targets are tiered so every evidence group's strongest culprit drains first. An
+  on-demand **ToR-pair drill-down** completes the story — fleet → fault domain → impacted
+  underlying pairs, FDR-controlled over the examined set, with truncation always reported.
+  100 % mutation score on the new math (recorded per round in the ADR trail).
 - **Production-shaped fabrics** — the Spraypoint two-view fabric (per-ToR ∪ per-panel-pair
   aggregation views over the underlying ToR-pair traffic — the production fabric's ~460 K
   pairs deliberately exceed any per-pair leaf budget, which is exactly why the leaf is a view;

@@ -32,6 +32,10 @@ export interface SpraypointParams {
 /** Documented defaults — 64 ToRs + C(10,2)=45 panel-pairs = 109 leaves, inside AC-1's [100, 10000]. */
 export const DEFAULT_SPRAYPOINT: SpraypointParams = { nTors: 64, nPanels: 10, nRooms: 2 };
 
+/** The PAPER's production scale (ADR-0013/0025): 960 ToRs + C(32,2)=496 pair leaves = 1,456
+ *  leaves (~514K weighted edges) — the upper range of AC-1, measured, not extrapolated. */
+export const PAPER_SPRAYPOINT: SpraypointParams = { nTors: 960, nPanels: 32, nRooms: 4 };
+
 const opticId = (i: number): ResourceId => `optic-${i}`;
 const panelId = (p: number): ResourceId => `panel-${p}`;
 const roomId = (r: number): ResourceId => `room-${r}`;

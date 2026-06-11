@@ -17,7 +17,7 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**v1 + post-v1 rounds 1–5 merged to `main` (PRs #1–#4); round 6 on `post-v1-round6`.** v1: all ten
+**v1 + post-v1 rounds 1–6 merged to `main` (PRs #1–#5); round 7 on `post-v1-round7`.** v1: all ten
 acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
 min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
 AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a
@@ -33,8 +33,9 @@ a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds
 (C1 closed; latent room-fault defect fixed) + Spraypoint dilution floors, each with a cold-eye
 fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection — whose e2e test
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
-**public**. Round 6 (branch `post-v1-round6`, ADR-0023/0024 + docs): README brought current,
-tiered drain budgeting, multi-fault floors measured. **169 tests, gate PASS.**
+**public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
+drain budgeting, multi-fault floors. Round 7 (branch `post-v1-round7`, ADR-0025..): paper-scale
+proof + ToR-pair drill-down landed. **177 tests, gate PASS.**
 
 ## Built so far
 
@@ -219,6 +220,27 @@ tiered drain budgeting, multi-fault floors measured. **169 tests, gate PASS.**
   and was corrected against observation. Bound by spot-check #3 + md-emission asserts. k≥3
   simultaneous faults remain example-tested, not floor-measured (recorded narrowing).
 
+## Post-v1 round 7 (branch `post-v1-round7`, off merged main)
+
+- **Paper-scale proof** (ADR-0025): `PAPER_SPRAYPOINT` (960×32×4 → 1,456 leaves, ~514K weighted
+  edges — AC-1's upper range, 13× past anything previously executed). Measured: clean FDR holds
+  at scale; optic/panel/room faults each detect and localize rank-1; replay-clean; ~0.7 s/run,
+  ~550 MB (machine numbers, recorded in the ADR — the published `scale_proof` artifact section
+  is deterministic and freshness-bound by spot-check #4). Floors are NOT swept at scale
+  (recorded; demo-scale floors remain the published floors).
+- **ToR-pair drill-down** (ADR-0026, closes the ADR-0015 deferral): `src/drilldown.ts` — the
+  on-demand second stage from a localized fault domain to impacted underlying ToR-pairs.
+  Exposure model mirrors the spray weights (optic → endpoint pairs at 1; panel → all at
+  1/nPanels; room → panels-in-room/nPanels); synthetic per-pair standardized-residual window;
+  detection REUSES detectPathClass + e-BH at the drill's own q (FDR over the EXAMINED pairs);
+  `maxPairs` cap with exposed/examined/truncated ALWAYS reported. Bound: true-culprit drill
+  ranks impacted pairs; clean drill FDR-quiet; **dilution honesty** (panel Δ=4 detects at view
+  level but is 0.4σ per pair — the drill says so instead of inventing impact; Δ=40 selects
+  broadly); cross-resource drill selects exactly the genuinely-crossing pair (pair-3-5);
+  deterministic; N1 carried. Recorded narrowings: mean-shift faults only; residual-level window
+  (production needs pair-level calibration, N2); selection-conditioned FDR; id-order truncation
+  sample. NOT in runPipeline/the audit — operator-initiated by design.
+
 ## Honest current limitations (NOT hidden)
 
 - Family C now learns a GLOBAL cross-signal covariance Σ (Ledoit-Wolf); per-cell Σ, a factor-model
@@ -252,9 +274,11 @@ matrix, real-fabric validation.
 
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
 (N4), the §3.2 signal-contract *fidelity* question (paper now read — ADR-0013 — but telemetry is
-out of its scope, so fidelity stays unprovable without real data). **Open spec decision (WO item 5,
-HALT-CLASS):** path-class granularity — 960 ToRs ⇒ ~460K ToR-pairs vs AC-1's [100,10000] bound;
-routed to the owner, not changed unilaterally.
+out of its scope, so fidelity stays unprovable without real data). The WO-item-5 granularity
+HALT was resolved by the owner in ADR-0015 (aggregation-view leaves). **Open owner decision
+(round-7 cold-eye):** unify the Spraypoint traffic model — the fabric's leaf-local view weights
+and the drill's flow-level exposures diverge by 2× conventions (recorded in ADR-0026);
+unification would change snapshot hashes, pinned δ-bands, and every published Spraypoint floor.
 
 ## Post-v1 round 3 — RNG-paper reconciliation work order (branch `post-v1-round2`)
 
