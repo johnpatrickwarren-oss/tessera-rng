@@ -101,6 +101,8 @@ export interface CoverageReport {
   spraypoint_floors: { deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] };
   /** FDR control on the SAME fabric the dilution floors characterize (ADR-0020 cold-eye L5). */
   clean_spraypoint: { trials: number; mean_selected: number; false_positive_rate: number };
+  /** simultaneous two-fault floors on the Spraypoint fabric (ADR-0024) — attribution = BOTH injected resources in the top-2 culprits. */
+  multi_fault: { deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] };
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
 }
 
@@ -335,6 +337,55 @@ async function cleanSpraypoint(): Promise<{ trials: number; mean_selected: numbe
   return { trials: seeds.length, mean_selected: selected / seeds.length, false_positive_rate: fp / seeds.length };
 }
 
+/** The measured simultaneous-fault pairs (ADR-0024): the cross-kind ADR-0022 discriminating
+ *  shape, and a same-kind pair. Both faults at equal Δ from tick 0. */
+export const MULTI_FAULT_PAIRS: Record<string, [string, string]> = {
+  cross_kind: ['optic-3', 'panel-7'],
+  same_kind: ['optic-3', 'optic-40'],
+};
+const MULTI_FAULT_DELTAS = [0.5, 1, 2, 3, 4];
+
+/** One multi-fault cell (ADR-0024): detection = any leaf selected; attribution = BOTH injected
+ *  resources in the top-2 culprits (strict — a spurious culprit outranking either fails). */
+export async function multiFaultCell(pairKind: string, delta: number): Promise<CoverageCell> {
+  const snap = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
+  const [a, b] = MULTI_FAULT_PAIRS[pairKind];
+  let detected = 0;
+  let attributed = 0;
+  let n = 0;
+  for (const seed of SEEDS) {
+    const audit = await runPipeline({
+      snapshot: snap,
+      telemetry: { seed, ticks: TICKS, degradations: [
+        { resource_id: a, delta, start_tick: 0 },
+        { resource_id: b, delta, start_tick: 0 },
+      ] },
+      q: Q,
+    });
+    n += 1;
+    const isDetected = audit.selected_path_class_ids.length > 0;
+    if (isDetected) detected += 1;
+    const top2 = audit.culprits.slice(0, 2).map((c) => c.resource_id);
+    if (isDetected && top2.includes(a) && top2.includes(b)) attributed += 1;
+  }
+  return { kind: pairKind as ResourceKind, delta, n, detected, attributed, detection_rate: detected / n, attribution_rate: attributed / n };
+}
+
+/** The multi-fault floor table (ADR-0024). */
+async function multiFaultFloors(): Promise<{ deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] }> {
+  const pairKinds = Object.keys(MULTI_FAULT_PAIRS);
+  const cells: CoverageCell[] = [];
+  for (const pairKind of pairKinds) {
+    for (const delta of MULTI_FAULT_DELTAS) cells.push(await multiFaultCell(pairKind, delta));
+  }
+  const floors: FloorRow[] = pairKinds.map((kind) => ({
+    kind: kind as ResourceKind,
+    detection_floor: floorFor(cells, kind as ResourceKind, 'detection_rate'),
+    attribution_floor: floorFor(cells, kind as ResourceKind, 'attribution_rate'),
+  }));
+  return { deltas: MULTI_FAULT_DELTAS, cells, floors };
+}
+
 export async function computeCoverage(): Promise<CoverageReport> {
   const cells: CoverageCell[] = [];
   for (const kind of KINDS) {
@@ -359,6 +410,7 @@ export async function computeCoverage(): Promise<CoverageReport> {
     spraypoint_views: await spraypointViewCoverage(),
     spraypoint_floors: await spraypointFloors(),
     clean_spraypoint: await cleanSpraypoint(),
+    multi_fault: await multiFaultFloors(),
     clean: await cleanFalsePositives(),
   };
 }
@@ -459,6 +511,25 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('| fault kind | Δ | detection | attribution |');
   L.push('|---|---|---|---|');
   for (const c of rep.spraypoint_floors.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
+  L.push('');
+  L.push('## Multi-fault floors (ADR-0024) — simultaneous two-fault pairs, Spraypoint fabric');
+  L.push('');
+  L.push('Both faults injected at equal Δ from tick 0; the standard 2 seeds (n=2 per cell — the same');
+  L.push('coarse "first unanimous Δ" estimator as every table here). **Attribution = BOTH injected');
+  L.push('resources in the top-2 culprits** (strict: a spurious culprit outranking either fails the');
+  L.push('run). Pairs: cross_kind = optic-3 + panel-7 (the ADR-0022 discriminating shape); same_kind =');
+  L.push('optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-measured.');
+  L.push('');
+  L.push('| pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |');
+  L.push('|---|---|---|');
+  for (const f of rep.multi_fault.floors) {
+    const big = `>${Math.max(...rep.multi_fault.deltas)}`;
+    L.push(`| ${f.kind} | ${f.detection_floor ?? big} | ${f.attribution_floor ?? big} |`);
+  }
+  L.push('');
+  L.push('| pair | Δ | detection | attribution (both-in-top-2) |');
+  L.push('|---|---|---|---|');
+  for (const c of rep.multi_fault.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
   L.push('');
   L.push('## FDR control (clean fabric, no degradation)');
   L.push('');

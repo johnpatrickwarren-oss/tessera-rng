@@ -64,6 +64,11 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
       floors: [{ kind: 'room', detection_floor: 2, attribution_floor: 2 }],
     },
     clean_spraypoint: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
+    multi_fault: {
+      deltas: [2],
+      cells: [{ kind: 'cross_kind' as never, delta: 2, n: 2, detected: 2, attributed: 2, detection_rate: 1, attribution_rate: 1 }],
+      floors: [{ kind: 'cross_kind' as never, detection_floor: 2, attribution_floor: 2 }],
+    },
     spraypoint_views: [
       { fault_kind: 'optic', resource: 'optic-3', per_view_detected: { per_tor: 1 }, concentrated_by: 'per_tor' },
       { fault_kind: 'shuffle_panel', resource: 'panel-2', per_view_detected: { per_panel_pair: 9 }, concentrated_by: 'per_panel_pair' },
@@ -93,6 +98,9 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /Spraypoint dilution floors/);
   assert.match(md, /\| room \| 2 \| 2 \|/, 'the dilution floors row renders from the report');
   assert.match(md, /Spraypoint fabric \(the one the dilution floors characterize\)/, 'the Spraypoint clean control is published');
+  // the ADR-0024 multi-fault section must be EMITTED, not just typed (the ADR-0020 C2 lesson).
+  assert.match(md, /Multi-fault floors/);
+  assert.match(md, /\| cross_kind \| 2 \| 2 \|/, 'the multi-fault floors row renders from the report');
   assert.match(md, /concentrated by/);
   assert.match(md, /per_tor/);
 });
@@ -131,5 +139,26 @@ test('SPOT-CHECK #2: the committed Spraypoint room Δ=2 cell matches a fresh rec
   const committed = rep.spraypoint_floors.cells.find((c: { kind: string; delta: number }) => c.kind === 'room' && c.delta === 2);
   assert.ok(committed, 'the room Δ=2 cell must exist in the committed matrix');
   const fresh = await spraypointCell('room', 2, SPRAYPOINT_FLOOR_TARGETS.room);
+  assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
+});
+
+test('SPOT-CHECK #3: the committed multi-fault cross_kind Δ=2 cell matches a fresh recomputation; floors structurally sound (ADR-0024)', async () => {
+  // the same honest-partial freshness pattern as spot-checks #1/#2 — the Δ=2 cell sits at the
+  // both-in-top-2 attribution floor (Δ=1 attributes 1/2), so a localization change moving that
+  // boundary fails here. Fix by re-running `pnpm coverage`.
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { multiFaultCell } = await import('../tools/coverage');
+  const rep = JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'coverage-saturation.json'), 'utf8'));
+  const kinds = rep.multi_fault.floors.map((f: { kind: string }) => f.kind).sort();
+  assert.deepEqual(kinds, ['cross_kind', 'same_kind'], 'both pair kinds published');
+  for (const f of rep.multi_fault.floors) {
+    if (f.detection_floor !== null && f.attribution_floor !== null) {
+      assert.ok(f.attribution_floor >= f.detection_floor, `${f.kind}: cannot attribute below the detection floor`);
+    }
+  }
+  const committed = rep.multi_fault.cells.find((c: { kind: string; delta: number }) => c.kind === 'cross_kind' && c.delta === 2);
+  assert.ok(committed, 'the cross_kind Δ=2 cell must exist in the committed matrix');
+  const fresh = await multiFaultCell('cross_kind', 2);
   assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
 });
