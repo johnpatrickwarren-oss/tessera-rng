@@ -100,6 +100,11 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   assert.ok(noSat.culprits[0].score < 5, `κ=1 score stays small (got ${noSat.culprits[0].score})`);
   const sat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0 });
   assert.ok(sat.culprits[0].score > 20, `the κ mixture supplies the saturation margin (got ${sat.culprits[0].score})`);
+  // MINIMAL SET (ADR-0022): the optic's posterior (high κ) already predicts the whole pair view,
+  // so no panel/room earns a positive MARGINAL score — exactly one culprit. Kills a
+  // foldPosterior-deletion (or prior-instead-of-posterior) mutant, under which panel-8's plain
+  // LLR (≈3) would rank as a spurious second culprit.
+  assert.equal(sat.culprits.length, 1, 'one fault ⇒ one culprit, even at saturation');
 });
 
 test('a ROOM fault localizes to the room — not a panel (the latent defect the ADR-0019 probe surfaced)', async () => {
@@ -146,4 +151,25 @@ test('Spraypoint localization is replay-clean (same inputs → byte-identical au
   const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 2, ticks: 60, degradation: { resource_id: 'panel-1', delta: 4, start_tick: 0 } } });
   const b = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 2, ticks: 60, degradation: { resource_id: 'panel-1', delta: 4, start_tick: 0 } } });
   assert.equal(JSON.stringify(a), JSON.stringify(b));
+});
+
+test('CROSS-KIND simultaneous faults (optic + panel): both localized over the two-view union (ADR-0021)', async () => {
+  const a = await runPipeline({
+    snapshot: SNAP,
+    q: 0.05,
+    telemetry: { seed: 1, ticks: 60, degradations: [
+      { resource_id: 'optic-3', delta: 4, start_tick: 0 },
+      { resource_id: 'panel-7', delta: 4, start_tick: 0 },
+    ] },
+    drain_top_k: 2,
+  });
+  const ids = a.culprits.map((c) => c.resource_id);
+  assert.ok(ids.includes('optic-3'), `the optic fault is localized (got ${ids.join(', ')})`);
+  assert.ok(ids.includes('panel-7'), `the panel fault is localized (got ${ids.join(', ')})`);
+  // each culprit carries its own kind's anchor leaf (member lists are full firing PROVENANCE,
+  // not an attribution partition — a later pick's list may include earlier-explained leaves).
+  const optic = a.culprits.find((c) => c.resource_id === 'optic-3')!;
+  const panel = a.culprits.find((c) => c.resource_id === 'panel-7')!;
+  assert.ok(optic.member_path_class_ids.includes('tor-3'));
+  assert.ok(panel.member_path_class_ids.some((l) => l.startsWith('pp-')));
 });

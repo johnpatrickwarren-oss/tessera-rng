@@ -208,3 +208,54 @@ test('supporting_views lists exactly the views with a FIRING member of the culpr
   const noViews = localize(snap, ['f1', 'f2', 'f3'], { ...DEFAULT_LOCALIZE, q0: 0.05 });
   assert.deepEqual(noViews.culprits[0].supporting_views, [], 'a view-less fabric carries empty supporting_views');
 });
+
+// ── ADR-0022 binarization + legacy-control coverage (mutation-surfaced gaps) ──
+
+test('a firing leaf the picked set only WEAKLY touches stays unexplained — touch alone is not explanation (ADR-0022)', () => {
+  // fx is a member of the picked resource at w=0.05, but the posterior (driven by the three w=1
+  // members) leaves P(fire fx | set) < ½ → reported unexplained. Kills the &&→|| mutant on the
+  // binarization conjunction (under which "touched" alone would count as explained).
+  const edges = [traverses('f1', 'r'), traverses('f2', 'r'), traverses('f3', 'r'), { ...traverses('fx', 'r'), weight: 0.05 }];
+  const snap = snapshot(edges, [{ id: 'r', kind: 'fiber_bundle' }]);
+  const res = localize(snap, ['f1', 'f2', 'f3', 'fx'], { ...DEFAULT_LOCALIZE, q0: 0.01 });
+  assert.deepEqual(res.culprits.map((c) => c.resource_id), ['r']);
+  assert.deepEqual(res.explained_path_class_ids, ['f1', 'f2', 'f3']);
+  assert.deepEqual(res.unexplained_path_class_ids, ['fx'], 'weak touch ≠ explanation');
+});
+
+test('LEGACY-CONTROL: deterministic tie-break, gain ordering, and the maxResources cap hold on the legacy path', () => {
+  // The historic tie-break/cap tests migrated to the default (marginal) path when ADR-0022
+  // landed; these pin the CONTROL path's own determinism (mutation-surfaced gap).
+  const L = { ...DEFAULT_LOCALIZE, legacy: true, collateralWeight: 1.0 };
+  const tie = localize(snapshot(
+    [traverses('pc-1', 'shuffler-1'), traverses('pc-0', 'shuffler-0')],
+    [{ id: 'shuffler-1', kind: 'passive_shuffler' }, { id: 'shuffler-0', kind: 'passive_shuffler' }],
+  ), ['pc-0', 'pc-1'], L);
+  assert.equal(tie.culprits[0].resource_id, 'shuffler-0', 'equal gains → lower id first');
+  assert.equal(tie.culprits[1].resource_id, 'shuffler-1');
+  const order = localize(snapshot(
+    [traverses('pc-0', 'shuffler-9'), traverses('pc-1', 'shuffler-9'), traverses('pc-2', 'optic-0')],
+    [{ id: 'shuffler-9', kind: 'passive_shuffler' }, { id: 'optic-0', kind: 'optic' }],
+  ), ['pc-0', 'pc-1', 'pc-2'], L);
+  assert.equal(order.culprits[0].resource_id, 'shuffler-9', 'higher gain beats smaller id');
+  const capped = localize(snapshot(
+    [traverses('pc-0', 'shuffler-0'), traverses('pc-1', 'shuffler-1')],
+    [{ id: 'shuffler-0', kind: 'passive_shuffler' }, { id: 'shuffler-1', kind: 'passive_shuffler' }],
+  ), ['pc-0', 'pc-1'], { ...L, maxResources: 1 });
+  assert.equal(capped.culprits.length, 1, 'the cap binds on the legacy path too');
+  assert.equal(capped.unexplained_path_class_ids.length, 1);
+});
+
+test('a nested no-quiet-member candidate cannot free-ride: every culprit must have unexplained firing evidence (ADR-0022 C2)', () => {
+  // B's members are a strict subset of A's firing members and B has NO quiet members to falsify
+  // it — every fired member's marginal is ≥ 0, so without the admission gate B scores a small
+  // positive marginal (observed 0.65, the same magnitude as a REAL second fault) and is emitted
+  // as a spurious culprit. With the gate, A's pick explains f1/f2 past ½ and B is inadmissible.
+  const edges = [
+    ...['f1', 'f2', 'f3', 'f4', 'q1', 'q2'].map((x) => traverses(x, 'A')),
+    traverses('f1', 'B'), traverses('f2', 'B'),
+  ];
+  const snap = snapshot(edges, [{ id: 'A', kind: 'passive_shuffler' }, { id: 'B', kind: 'optic' }]);
+  const res = localize(snap, ['f1', 'f2', 'f3', 'f4'], { ...DEFAULT_LOCALIZE, q0: 0.01 });
+  assert.deepEqual(res.culprits.map((c) => c.resource_id), ['A'], 'the nested free-rider is not a culprit');
+});
