@@ -24,25 +24,33 @@ follow, and Tessera-RNG addresses both:
    path-class signals are correlated through shared fiber/optic/shuffle hardware).
 2. **Localization** — turn "something shifted" into "this shared physical resource is the
    culprit" on a topology where **hop distance does not encode fault domain**. *Solved by new
-   math:* network tomography — a noisy-OR set-cover MAP over a fault-domain incidence
-   hypergraph. RNG's many edge-disjoint paths make the measurement matrix well-conditioned, so
-   the same path diversity that masks failures makes the inversion identifiable.
+   math:* network tomography — a saturating leaky noisy-OR likelihood over a fault-domain
+   incidence hypergraph, built into a minimal explaining set by marginal-LLR greedy
+   construction. RNG's many edge-disjoint paths make the measurement matrix well-conditioned,
+   so the same path diversity that masks failures makes the inversion identifiable.
+
+![RNG network observability intuition](design/rng-observability-intuition.svg)
 
 ## How it works
 
 ```
 synthetic raw telemetry            per-cell calibration            per-path-class detection
 (5-signal vectors, per-cell  ──▶   (HoD × DoW × traffic-class) ──▶  Family A (mean-shift) +
- baseline "smear" + injected        raw → standardized residual      Family C (distributional)
- resource degradation)                                                      │
-                                                                            ▼
+ baseline "smear" + injected        baselines, AR(p) pre-whitening,  Family C (learned-Σ
+ resource degradations —            raw → standardized residual      distributional) +
+ simultaneous faults compose;                                        Family D (spectral)
+ reconvergence epochs reroute                                               │
+ traffic mid-stream)                                                        ▼
    simulated route-drain   ◀──  tomographic localization   ◀──  hierarchical combine + e-BH
-   (on the rank-1 culprit)      (minimal shared-resource set,    FDR surface (which path-
-                                 correlational-not-causal)        classes are degraded)
+   (tiered drain targets,       (saturating noisy-OR mixture     FDR surface (which path-
+    one drain per resource)      LLR over weighted incidence;     classes are degraded; on
+                                 marginal-LLR set construction;   incidence change, e-process
+                                 per evidence epoch;              wealth resets are RECORDED
+                                 correlational-not-causal)        in the audit, never silent)
 ```
 
 Everything is deterministic and replay-clean: the same incidence model + telemetry stream
-produce a byte-identical `AuditRecord`.
+produce a byte-identical `AuditRecord` — including across reroute epochs and multi-fault runs.
 
 ## Quickstart
 
@@ -50,33 +58,58 @@ produce a byte-identical `AuditRecord`.
 pnpm install          # resolves the engine git-dep (deploysignal-engine#v0.3.1-pre)
 pnpm test             # tsc -p tsconfig.test.json && node --test test/*.test.js
 pnpm typecheck
-pnpm demo             # -> demos/demo.html  (six deterministic scenarios, single file)
+pnpm demo             # -> demos/demo.html  (eight deterministic scenarios, single file)
 pnpm coverage         # -> coverage-matrices/coverage-saturation.{json,md}
 pnpm gate             # sprag architectural gate over the repo
 ```
 
 Requires Node ≥ 20 and pnpm ≥ 11.
 
-## What's in v1
+## What's built
 
-Synthetic fixtures only (no live fabric). Per-path-class anytime-valid verdicts from Family A +
-Family C with per-detector α-budget; hierarchical e-value combination + e-BH FDR; a
-fault-domain incidence model via a `FaultDomainSource`; the tomographic solver (100% mutation
-score); a simulated route-drain hook; per-cell calibration; a six-scenario single-file demo;
-and honest coverage/saturation + detection-and-attribution-floor matrices with FDR-control
-evidence.
+Synthetic fixtures only (no live fabric — deliberately, see the anti-scope). The v1 walking
+skeleton plus six post-v1 rounds, one ADR per real decision:
+
+- **Detection** — three anytime-valid families per path-class with per-detector α-budget:
+  Family A (multi-signal mean-shift betting e-process), Family C (Safe-Hotelling over a
+  **learned** cross-signal covariance), Family D (spectral — catches periodicity A and C are
+  blind to). Per-cell calibration (HoD × DoW × traffic-class) with AR(p) pre-whitening and a
+  min-sample pooled fallback.
+- **Selection** — hierarchical e-value combine + e-BH FDR, valid under the arbitrary
+  dependence the shared hardware creates (clean fabrics select nothing, measured).
+- **Localization** — the tomographic solver over **weighted (fractional) incidence**: an
+  exposure-saturating leaky noisy-OR mixture LLR (an extreme fault fires even a 1/64-diluted
+  leaf, and the model can say so), built into a minimal culprit set by **marginal-LLR greedy
+  construction** (each pick's posterior folds into per-leaf residuals; later candidates score
+  only what remains surprising). Localizes simultaneous cross-kind faults; on epoch'd runs,
+  drain targets are tiered so every evidence group's strongest culprit drains first. 100 %
+  mutation score on the new math (recorded per round in the ADR trail).
+- **Production-shaped fabrics** — the Spraypoint two-view fabric (per-ToR ∪ per-panel-pair
+  aggregation views over the underlying ToR-pair traffic — the production fabric's ~460 K
+  pairs deliberately exceed any per-pair leaf budget, which is exactly why the leaf is a view;
+  the default model is 64 ToRs ⇒ ~2 K pairs at 1/64 dilution), reconciled against the RNG
+  fabric paper (arXiv:2604.15261); **reconvergence epochs**
+  (synthetic reroute events; e-process wealth resets recorded in the audit as deliberate,
+  visible power loss); **simultaneous multi-fault injection** with exact composition.
+- **Honest measurement** — detection *and* attribution floors for every anomaly mode, both
+  fabric regimes (binary and fractional-dilution), AND simultaneous multi-fault pairs
+  (both-in-top-2), per-view blind-spot maps, clean-fabric FDR controls for each fabric,
+  firing-mode attribution in every audit — caveats in the open. The published artifacts are
+  freshness-bound by tests: the demo byte-exactly, the coverage matrix by spot-checked cells
+  (an honest partial bind, named as such in the tests).
 
 The statistical layer localizes to a shared-resource **fault domain**, never to a specific
 marginal optic — hardware root-cause is out of scope, and every culprit carries a
-`correlational_not_causal` flag.
+`correlational_not_causal` flag with the unexplained set always reported.
 
 ## Built with archgate
 
 This repo was built under the **archgate** discipline: the Anchor disciplines as an
 in-context contract ([`DISCIPLINES.md`](DISCIPLINES.md)) plus the **sprag** gate as a
 deterministic architectural floor ([`arch-gate-usage.md`](arch-gate-usage.md)). Spec-first and
-impl-blind, anti-scope-first, every conjunct bound to a test, with a cold-eye review before
-v1 was declared done.
+impl-blind, anti-scope-first, every conjunct bound to a test, mutation testing on the new
+math, and a fresh-context cold-eye review closing every round — several of which falsified
+the build's own headline claims before they shipped (the trail records each one).
 
 - [`STATE.md`](STATE.md) — the cold-readable "now".
 - [`design/spec/v1-spec.md`](design/spec/v1-spec.md) — the v1 contract (anti-scope first; ACs).

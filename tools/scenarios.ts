@@ -1,5 +1,5 @@
 /**
- * Deterministic scenario registry (v1 spec AC-8) — the six canned situations the demo pages
+ * Deterministic scenario registry (v1 spec AC-8) — the eight canned situations the demo pages
  * and the coverage matrix sweeps. Each scenario is a pure function of a seed, so the same
  * scenario always produces the same audit record (replay-clean, AC-9).
  *

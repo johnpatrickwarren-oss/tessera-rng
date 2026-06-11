@@ -15,10 +15,11 @@ floor for EACH of the three anomaly modes — mean shift (Family A), covariance 
 periodicity (Family D) — with the firing family that caught it, so a detection number is never
 published without naming its mode. No mode is left in a footnote. The binary tables above are
 the generated quasi-random fabric; the **Spraypoint sections** below measure the two-view
-FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, and its own
-clean-fabric FDR control. All floors here are the first Δ reaching ≥90% on an n=4 grid
-(2 targets × 2 seeds): with n=4 a floor means "first unanimous Δ" — a coarse, honest estimator,
-and floors are grid-resolution-limited (reported at grid points, not interpolated).
+FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, the
+multi-fault pair floors (ADR-0024), and its own clean-fabric FDR control. Every floor is the
+first Δ reaching ≥90% — single-fault tables on an n=4 grid (2 targets × 2 seeds), the
+multi-fault table on n=2 (FIXED pairs × 2 seeds): a floor means "first unanimous Δ" — a
+coarse, honest estimator, grid-resolution-limited (reported at grid points, not interpolated).
 
 ## Coverage / saturation
 
@@ -121,6 +122,32 @@ wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 
 | room | 2 | 100% (4/4) | 100% (4/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
+
+## Multi-fault floors (ADR-0024) — simultaneous two-fault pairs, Spraypoint fabric
+
+Both faults injected at equal Δ from tick 0; the standard 2 seeds (n=2 per cell — the same
+coarse "first unanimous Δ" estimator as every table here). **Attribution = BOTH injected
+resources in the top-2 culprits** (strict: a spurious culprit outranking either fails the
+run). Pairs: cross_kind = optic-3 + panel-7 (the ADR-0022 discriminating shape); same_kind =
+optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-measured.
+
+| pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |
+|---|---|---|
+| cross_kind | 1 | 2 |
+| same_kind | 2 | 2 |
+
+| pair | Δ | detection | attribution (both-in-top-2) |
+|---|---|---|---|
+| cross_kind | 0.5 | 0% (0/2) | 0% (0/2) |
+| cross_kind | 1 | 100% (2/2) | 50% (1/2) |
+| cross_kind | 2 | 100% (2/2) | 100% (2/2) |
+| cross_kind | 3 | 100% (2/2) | 100% (2/2) |
+| cross_kind | 4 | 100% (2/2) | 100% (2/2) |
+| same_kind | 0.5 | 0% (0/2) | 0% (0/2) |
+| same_kind | 1 | 50% (1/2) | 0% (0/2) |
+| same_kind | 2 | 100% (2/2) | 100% (2/2) |
+| same_kind | 3 | 100% (2/2) | 100% (2/2) |
+| same_kind | 4 | 100% (2/2) | 100% (2/2) |
 
 ## FDR control (clean fabric, no degradation)
 

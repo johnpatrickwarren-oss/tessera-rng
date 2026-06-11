@@ -38,7 +38,8 @@ export interface PipelineParams {
   detect?: DetectParams;
   /** e-BH FDR target. */
   q: number;
-  /** how many top culprits to act on with the (simulated) drain. */
+  /** how many top culprits to act on with the (simulated) drain. On epoch'd runs "top" means
+   *  tier-then-score (ADR-0023): every evidence group's rank-1 drains before any rank-2. */
   drain_top_k?: number;
   /**
    * Synthetic reroute/reconvergence events (ADR-0017/0018). Present ⇒ the run is epoch'd: the
@@ -52,7 +53,8 @@ export interface PipelineParams {
 /**
  * Per-evidence-epoch tomography (ADR-0018): selected leaves are grouped by the epoch their firing
  * evidence accrued in and localized against THAT epoch's snapshot; per-epoch culprit lists are
- * concatenated in epoch order (score-ranked within an epoch), unexplained sets unioned.
+ * concatenated in epoch order, each in greedy PICK order (the property ADR-0023's tiering
+ * assumes; pick order coincides with score order within a group), unexplained sets unioned.
  */
 function localizeByEvidenceEpoch(
   epochs: readonly SnapshotEpoch[],
@@ -81,13 +83,28 @@ function localizeByEvidenceEpoch(
   return { culprits, unexplained_path_class_ids: [...unexplained].sort() };
 }
 
-/** Drain targets on an epoch'd run: strongest-first across ALL groups, one drain per resource
- *  (the same physical resource may be reported once per epoch group — never drained twice). */
-function drainTargets(culprits: readonly Culprit[], k: number): Culprit[] {
-  const ranked = [...culprits].sort((a, b) => b.score - a.score || (a.resource_id < b.resource_id ? -1 : 1));
+/**
+ * Drain targets on an epoch'd run (ADR-0023): TIER first, then score, one drain per resource.
+ * A culprit's tier is its pick position within its evidence group — tier-1 entries carry full
+ * LLRs (comparable across groups); tier ≥ 2 entries are pick-order-conditional marginals
+ * (ADR-0022), comparable within a tier, approximately across groups (recorded). Every group's
+ * strongest culprit drains before any group's second pick — a real fault localized in a later
+ * epoch cannot be starved by another group's trailing marginal.
+ */
+export function drainTargets(culprits: readonly Culprit[], k: number): Culprit[] {
+  // direct callers: culprits without localized_against_epoch tier-count as group 0 (the
+  // pipeline always stamps the field on epoch'd runs and never calls this otherwise).
+  const tierWithin = new Map<number, number>();
+  const tiered = culprits.map((c) => {
+    const g = c.localized_against_epoch ?? 0;
+    const tier = tierWithin.get(g) ?? 0;
+    tierWithin.set(g, tier + 1);
+    return { c, tier };
+  });
+  tiered.sort((x, y) => x.tier - y.tier || y.c.score - x.c.score || (x.c.resource_id < y.c.resource_id ? -1 : x.c.resource_id > y.c.resource_id ? 1 : 0));
   const seen = new Set<string>();
   const out: Culprit[] = [];
-  for (const c of ranked) {
+  for (const { c } of tiered) {
     if (seen.has(c.resource_id)) continue;
     seen.add(c.resource_id);
     out.push(c);
@@ -160,9 +177,9 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
     : localize(snapshot, surface.selected_path_class_ids, locOpts);
 
-  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — and pick
-  // the strongest-scoring culprits across all epoch groups, one drain per resource. The v1 path
-  // is untouched (its culprit list is already score-ranked and resource-unique).
+  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — picking
+  // targets by TIER then score (ADR-0023), one drain per resource. The v1 path is untouched
+  // (a single greedy list is already tier-ordered and resource-unique).
   const k = params.drain_top_k ?? 1;
   const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
   const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;

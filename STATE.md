@@ -17,7 +17,7 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**v1 + post-v1 round 1 merged to `main`; round 2 on `post-v1-round2`.** v1: all ten
+**v1 + post-v1 rounds 1–5 merged to `main` (PRs #1–#4); round 6 on `post-v1-round6`.** v1: all ten
 acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
 min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
 AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a
@@ -33,7 +33,8 @@ a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds
 (C1 closed; latent room-fault defect fixed) + Spraypoint dilution floors, each with a cold-eye
 fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection — whose e2e test
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
-**public**. **167 tests, gate PASS.**
+**public**. Round 6 (branch `post-v1-round6`, ADR-0023/0024 + docs): README brought current,
+tiered drain budgeting, multi-fault floors measured. **169 tests, gate PASS.**
 
 ## Built so far
 
@@ -201,6 +202,22 @@ immediately falsified the binary set-cover and forced marginal-LLR set construct
   coverage freshness bind for blocking weak first picks — optic Δ=1 attribution fell 3/4 → 1/4,
   observed and reverted); score/member-list semantics documented (rank≥2 = pick-order-conditional
   marginal; member lists are provenance, not attribution partitions).
+
+## Post-v1 round 6 (branch `post-v1-round6`, off merged main)
+
+- **README current through round 5** (docs): the public front page was frozen at v1 (no Family
+  D, six scenarios, none of rounds 1–5); rewritten with the owner's intuition diagram embedded.
+- **Tiered drain budgeting** (ADR-0023, closes ADR-0022 L2): epoch'd drain targets rank by TIER
+  (pick position within the evidence group) then score — every group's rank-1 (a full LLR,
+  comparable across groups) drains before any group's rank-2 marginal; the recorded starvation
+  case is bound as a unit test. Same-tier cross-group comparison stays approximate, recorded.
+- **Multi-fault floors** (ADR-0024, closes the ADR-0021 measurement deferral): attribution =
+  BOTH injected resources in the top-2 culprits. Measured on Spraypoint (cross_kind optic+panel:
+  detection 1 / attribution 2; same_kind optic+optic: 2 / 2) — **every floor equals its
+  constituents' single-fault floors**: no multi-fault-specific penalty observed on this grid
+  (n=2 "first unanimous Δ" estimator, recorded). A pre-measurement draft predicted lower floors
+  and was corrected against observation. Bound by spot-check #3 + md-emission asserts. k≥3
+  simultaneous faults remain example-tested, not floor-measured (recorded narrowing).
 
 ## Honest current limitations (NOT hidden)
 
