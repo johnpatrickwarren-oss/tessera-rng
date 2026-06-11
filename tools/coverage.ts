@@ -441,6 +441,43 @@ function pct(x: number): string {
   return `${Math.round(x * 100)}%`;
 }
 
+/** The ADR-0020 dilution-floor + clean-control lines (extracted: complexity cap). */
+function renderSpraypointFloors(L: string[], rep: CoverageReport): void {
+  L.push('| fault kind | detection floor (Δ) | attribution floor (Δ) |');
+  L.push('|---|---|---|');
+  for (const f of rep.spraypoint_floors.floors) {
+    const big = `>${Math.max(...rep.spraypoint_floors.deltas)}`;
+    L.push(`| ${f.kind} | ${f.detection_floor ?? big} | ${f.attribution_floor ?? big} |`);
+  }
+  L.push('');
+  L.push('| fault kind | Δ | detection | attribution |');
+  L.push('|---|---|---|---|');
+  for (const c of rep.spraypoint_floors.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
+}
+
+/** The ADR-0024 multi-fault tables (extracted: complexity cap). */
+function renderMultiFault(L: string[], rep: CoverageReport): void {
+  L.push('| pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |');
+  L.push('|---|---|---|');
+  for (const f of rep.multi_fault.floors) {
+    const big = `>${Math.max(...rep.multi_fault.deltas)}`;
+    L.push(`| ${f.kind} | ${f.detection_floor ?? big} | ${f.attribution_floor ?? big} |`);
+  }
+  L.push('');
+  L.push('| pair | Δ | detection | attribution (both-in-top-2) |');
+  L.push('|---|---|---|---|');
+  for (const c of rep.multi_fault.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
+}
+
+/** The ADR-0025 scale-proof table (extracted: complexity cap). */
+function renderScaleProof(L: string[], rep: CoverageReport): void {
+  L.push(`Fabric: **${rep.scale_proof.leaves} leaves** (960 per-ToR + 496 panel-pair views), ${rep.scale_proof.edges} weighted edges, ${rep.scale_proof.resources} resources — the upper range of AC-1. Clean run selects **${rep.scale_proof.clean_selected}** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.`);
+  L.push('');
+  L.push('| fault kind | resource | Δ | detected | rank-1 |');
+  L.push('|---|---|---|---|---|');
+  for (const o of rep.scale_proof.outcomes) L.push(`| ${o.kind} | ${o.resource} | ${o.delta} | ${o.detected ? 'yes' : 'NO'} | ${o.rank1} |`);
+}
+
 export function renderMarkdown(rep: CoverageReport): string {
   const L: string[] = [];
   L.push('# Tessera-RNG — coverage/saturation & floor matrices (AC-10)');
@@ -524,16 +561,7 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('power_zone 1/1 — a room fault at Δ=1 is detected 4/4 yet attributed 0/4 (the ADR-0019');
   L.push('wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 2/4).');
   L.push('');
-  L.push('| fault kind | detection floor (Δ) | attribution floor (Δ) |');
-  L.push('|---|---|---|');
-  for (const f of rep.spraypoint_floors.floors) {
-    const big = `>${Math.max(...rep.spraypoint_floors.deltas)}`;
-    L.push(`| ${f.kind} | ${f.detection_floor ?? big} | ${f.attribution_floor ?? big} |`);
-  }
-  L.push('');
-  L.push('| fault kind | Δ | detection | attribution |');
-  L.push('|---|---|---|---|');
-  for (const c of rep.spraypoint_floors.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
+  renderSpraypointFloors(L, rep);
   L.push('');
   L.push('## Multi-fault floors (ADR-0024) — simultaneous two-fault pairs, Spraypoint fabric');
   L.push('');
@@ -543,24 +571,11 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('run). Pairs: cross_kind = optic-3 + panel-7 (the ADR-0022 discriminating shape); same_kind =');
   L.push('optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-measured.');
   L.push('');
-  L.push('| pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |');
-  L.push('|---|---|---|');
-  for (const f of rep.multi_fault.floors) {
-    const big = `>${Math.max(...rep.multi_fault.deltas)}`;
-    L.push(`| ${f.kind} | ${f.detection_floor ?? big} | ${f.attribution_floor ?? big} |`);
-  }
-  L.push('');
-  L.push('| pair | Δ | detection | attribution (both-in-top-2) |');
-  L.push('|---|---|---|---|');
-  for (const c of rep.multi_fault.cells) L.push(`| ${c.kind} | ${c.delta} | ${pct(c.detection_rate)} (${c.detected}/${c.n}) | ${pct(c.attribution_rate)} (${c.attributed}/${c.n}) |`);
+  renderMultiFault(L, rep);
   L.push('');
   L.push('## Paper-scale proof (ADR-0025) — 960 ToRs, executed not extrapolated');
   L.push('');
-  L.push(`Fabric: **${rep.scale_proof.leaves} leaves** (960 per-ToR + 496 panel-pair views), ${rep.scale_proof.edges} weighted edges, ${rep.scale_proof.resources} resources — the upper range of AC-1. Clean run selects **${rep.scale_proof.clean_selected}** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.`);
-  L.push('');
-  L.push('| fault kind | resource | Δ | detected | rank-1 |');
-  L.push('|---|---|---|---|---|');
-  for (const o of rep.scale_proof.outcomes) L.push(`| ${o.kind} | ${o.resource} | ${o.delta} | ${o.detected ? 'yes' : 'NO'} | ${o.rank1} |`);
+  renderScaleProof(L, rep);
   L.push('');
   L.push('## FDR control (clean fabric, no degradation)');
   L.push('');
