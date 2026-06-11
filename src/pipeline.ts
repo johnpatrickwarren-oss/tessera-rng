@@ -136,30 +136,39 @@ function tallyFiringFamilies(verdicts: readonly PathClassVerdict[], selected: re
   return tally;
 }
 
+/**
+ * The calibration prelude, shared by the batch pipeline, the incremental session's operators,
+ * and the equivalence tests (ADR-0027 cold-eye P4): a CLEAN synthetic window (distinct seed) →
+ * per-cell substrate, learned Family C Σ, Family D nulls. "Calibrate offline, stream live"
+ * without reverse-engineering pipeline internals.
+ */
+export function calibrateForSession(
+  snapshot: FaultDomainSnapshot,
+  telemetry: { seed: number; ticks: number; noiseCorr?: number[][]; arCoeffs?: number[][] },
+  detect: DetectParams = DEFAULT_DETECT,
+): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
+  const calibRaw = generateTelemetry(snapshot, {
+    seed: telemetry.seed ^ 0xca11b,
+    ticks: telemetry.ticks,
+    noiseCorr: telemetry.noiseCorr,
+    arCoeffs: telemetry.arCoeffs,
+  });
+  const calibration = buildCalibration(calibRaw.series);
+  const calibResiduals = standardizeAll(calibRaw.series, calibration);
+  const familyCCell = makeFamilyCCellFromCovariance(estimateBaselineCovariance(calibResiduals).sigma, detect.alphaC);
+  const familyDCells = estimateFamilyDNull(calibResiduals);
+  return { calibration, ctx: { familyCCell, familyDCells } };
+}
+
 export async function runPipeline(params: PipelineParams): Promise<AuditRecord> {
   const snapshot = params.snapshot ?? generateFabric(params.fabric ?? DEFAULT_FABRIC);
   const source = new StaticFaultDomainSource(snapshot);
   const snapshot_hash = source.snapshotHash(await source.fetchSnapshot());
 
-  // Per-cell calibration substrate (AC-7): characterize the "normal" smear from a CLEAN
-  // window, then standardize the live (possibly degraded) raw stream against it. Distinct
-  // calibration seed → calibration noise is independent of the live window.
-  const calibRaw = generateTelemetry(snapshot, {
-    seed: params.telemetry.seed ^ 0xca11b,
-    ticks: params.telemetry.ticks,
-    noiseCorr: params.telemetry.noiseCorr,
-    arCoeffs: params.telemetry.arCoeffs,
-  });
-  const calibration = buildCalibration(calibRaw.series);
-  // Learn the Family C baseline covariance Σ from the CLEAN calibration residuals (ADR-0007):
-  // cross-signal co-movement the identity-Σ baseline could not see. Uncorrelated signals → Σ≈I.
+  // Per-cell calibration substrate (AC-7): clean window, distinct seed (the shared prelude).
   const detect = params.detect ?? DEFAULT_DETECT;
-  const calibResiduals = standardizeAll(calibRaw.series, calibration);
-  const sigma = estimateBaselineCovariance(calibResiduals).sigma;
-  const familyCCell = makeFamilyCCellFromCovariance(sigma, detect.alphaC);
-  // Family D (spectral) nulls from the clean residuals (ADR-0009): the peak-|ACF| baseline each
-  // signal's live oscillation must exceed to fire. Silent for signals with too short a window.
-  const familyDCells = estimateFamilyDNull(calibResiduals);
+  const { calibration, ctx } = calibrateForSession(snapshot, params.telemetry, detect);
+  const { familyCCell, familyDCells } = ctx;
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
   // e-processes reset at their boundaries. Absent ⇒ the byte-identical v1 path.

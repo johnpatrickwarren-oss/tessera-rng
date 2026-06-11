@@ -109,8 +109,8 @@ function signalSpectralWealth(col: readonly number[], cell: FamilyDPerSignal, p:
     evaluateSpectralEDetector({ params: cell, alpha: p.alphaD, signal: 'd' }, pk, state);
   }
   // a true oscillation can overflow M to Infinity over many windows → NaN on the next decay step;
-  // cap to a finite ceiling so the family e-value (and the fleet surface) stay finite.
-  return Number.isFinite(state.M) ? Math.min(state.M, WEALTH_CAP) : WEALTH_CAP;
+  // the cap convention is one code path with the streaming reader (ADR-0027).
+  return readSpectralWealth(state);
 }
 
 /** Streaming face of the per-signal spectral detector (ADR-0027): feed completed non-overlapping

@@ -67,6 +67,38 @@ stream localizes the culprit at a recorded tick well before the batch window end
   ingest expects a full tick for all leaves (partial/missing-leaf ticks are future work).
 - Memory per session is O(leaves × signals × (p + window)) — bounded, no full-history retention.
 
+## Cold-eye fold-in (fresh-context review of 2c35d91)
+
+- **C1 — returned audits mutated under later ingests**: `eprocess_resets` was passed by
+  reference, so every later reset pushed into (and re-sorted) an array embedded in audits the
+  caller already held — probed: a tick-25 audit's resets doubled after streaming to 60. An
+  `audit()` is now a SNAPSHOT (resets copied + sorted at audit time; the per-reset re-sort is
+  gone — also the perf fix). Bound: a tick-25 audit is byte-stable after 35 more ingests
+  including a multi-leaf reset boundary.
+- **C2 — a thrown (partial-tick) ingest corrupted the session**: leaves ahead of the missing one
+  were updated AND their boundary resets re-fired on retry (probed: 46 duplicate resets, phantom
+  zero-length segments). The tick is now validated COMPLETELY before any state mutates — a
+  thrown ingest is a no-op. Bound: throw-at-the-boundary then retry ⇒ byte-equal to batch.
+- **C3 — the session bypassed reroute validation**, reintroducing ADR-0018's L2 failure mode
+  through the new entry point: a fractional `at_tick` never matches the integer reset lookup, so
+  the wealth reset silently never fires while the audit still reports the epoch. `openSession`
+  now validates integer `at_tick > 0`; the `< ticks` half cannot be checked streaming — recorded
+  narrowing: a boundary beyond the stream never activates (and, per L2 below, is no longer
+  reported as if it had).
+- **L2 — mid-stream audits used FUTURE routing**: drains and unsegmented-leaf grouping ran
+  against the LAST epoch of the full sequence even before its boundary. `audit()` now trims to
+  the epochs active by the current tick (final-tick equality unaffected — all in-window
+  boundaries have activated by then). Bound: epochs length 1 at tick 19, 2 at tick 21.
+- **L1 — keystone coverage extended** with the three branches most likely to drift, previously
+  probe-only: 600-tick oscillation (Family D firing across many windows + the wealth-cap path),
+  AR(2) telemetry (multi-lag buffer + trimming), and TWO reroute events (multi-epoch
+  segmentation). All byte-equal.
+- **L3/P1–P4** — audit-before-ingest bound (clean, no crash); the dead `t > 0` reset guard
+  removed; STATE's test count corrected; the batch spectral wealth cap now reads through the
+  streaming reader (one cap convention); `calibrateForSession` extracted and SHARED by
+  `runPipeline`, the tests, and real callers (the "calibrate offline, stream live" path no
+  longer requires pipeline internals).
+
 ## Mutation record
 
 `session.ts` + `calibration.ts` + `pipeline.ts`: 18/22 generated mutants killed at landing; the

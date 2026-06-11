@@ -29,7 +29,7 @@ import { DEFAULT_DETECT, combineSegmentRuns } from './detect';
 import type { DetectParams, DetectorContext, SegmentSpec } from './detect';
 import { makeFamilyCCell } from './family-c';
 import { DEFAULT_SPECTRAL, freshSpectralStream, feedSpectralWindow, readSpectralWealth } from './family-d';
-import { makeEpochs, changedLeaves } from './epoch';
+import { makeEpochs, changedLeaves, epochIndexAt } from './epoch';
 import type { LeafReset, RerouteEvent, SnapshotEpoch } from './epoch';
 import { assembleAudit } from './pipeline';
 import { computeFaultDomainHash } from './fault-domain-source';
@@ -97,6 +97,15 @@ export class IncrementalSession {
     this.detect = params.detect ?? DEFAULT_DETECT;
     this.ctx = params.ctx ?? {};
     this.cCell = this.ctx.familyCCell ?? makeFamilyCCell(SIGNALS.length, this.detect.alphaC);
+    // ADR-0018 L2 applies to THIS entry point too (round-8 cold-eye C3): a fractional at_tick
+    // would never match the integer-tick reset lookup and the wealth reset would silently never
+    // fire. The `at_tick < ticks` half of the batch validation cannot be checked streaming —
+    // recorded narrowing: a boundary beyond the stream simply never activates.
+    for (const ev of params.reroutes ?? []) {
+      if (!Number.isInteger(ev.at_tick) || ev.at_tick <= 0) {
+        throw new RangeError(`reroute at_tick must be a positive integer — got ${ev.at_tick}`);
+      }
+    }
     this.epochs = params.reroutes?.length ? makeEpochs(params.snapshot, params.reroutes) : null;
     this.hash = computeFaultDomainHash(params.snapshot);
     const resetsByLeaf = new Map<PathClassId, Map<number, number>>();
@@ -125,29 +134,41 @@ export class IncrementalSession {
     return this.t;
   }
 
-  /** Ingest one tick of RAW signal vectors for every leaf. */
+  /** Ingest one tick of RAW signal vectors for every leaf. The tick is validated COMPLETELY
+   *  before any state mutates (round-8 cold-eye C2): a thrown ingest leaves the session exactly
+   *  as it was — retry with the full tick and no observation is double-counted, no reset
+   *  double-fires. */
   ingest(tickByLeaf: ReadonlyMap<PathClassId, SignalVector>): void {
+    for (const pc of this.leaves.keys()) {
+      if (!tickByLeaf.get(pc)) throw new RangeError(`ingest needs a full tick: missing leaf '${pc}'`);
+    }
     for (const [pc, ls] of this.leaves) {
       const epoch = ls.resets.get(this.t);
-      if (epoch !== undefined && this.t > 0) this.resetLeaf(pc, ls, epoch);
-      const raw = tickByLeaf.get(pc);
-      if (!raw) throw new RangeError(`ingest needs a full tick: missing leaf '${pc}'`);
-      const resid = standardizeTick(raw, this.t, pc, this.p.calibration, ls.std);
+      // (a tick-0 reset is unreachable: makeEpochs rejects at_tick ≤ 0, validated above too)
+      if (epoch !== undefined) this.resetLeaf(pc, ls, epoch);
+      const resid = standardizeTick(tickByLeaf.get(pc)!, this.t, pc, this.p.calibration, ls.std);
       this.updateDetectors(ls.det, resid);
     }
     this.t += 1;
   }
 
-  /** A full AuditRecord at the CURRENT tick — valid at any time (the whole point). */
+  /** A full AuditRecord at the CURRENT tick — valid at any time (the whole point). The audit is
+   *  a SNAPSHOT: the resets list is copied and sorted here (round-8 cold-eye C1 — a returned
+   *  audit must never mutate under later ingests), and the epoch list is TRIMMED to the epochs
+   *  active by NOW (cold-eye L2 — a mid-stream audit must not drain against future routing). */
   audit(): AuditRecord {
     const verdicts = [...this.leaves].map(([pc, ls]) => this.leafVerdict(pc, ls));
+    const activeEpochs = this.epochs ? this.epochs.slice(0, epochIndexAt(this.epochs, Math.max(this.t - 1, 0)) + 1) : null;
+    const resets = activeEpochs
+      ? [...this.firedResets].sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : a.at_tick - b.at_tick))
+      : null;
     return assembleAudit({
       snapshot: this.p.snapshot,
       snapshot_hash: this.hash,
       q: this.p.q,
       verdicts,
-      epochs: this.epochs,
-      resets: this.epochs ? this.firedResets : null,
+      epochs: activeEpochs,
+      resets,
       drain_top_k: this.p.drain_top_k ?? 1,
     });
   }
@@ -160,7 +181,6 @@ export class IncrementalSession {
     ls.segStart = this.t;
     ls.segEpoch = epoch;
     this.firedResets.push({ path_class_id: pc, at_tick: this.t, epoch_index: epoch });
-    this.firedResets.sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : a.at_tick - b.at_tick));
   }
 
   private updateDetectors(det: DetectorStates, resid: number[]): void {

@@ -36,7 +36,7 @@ immediately falsified the binary set-cover and forced marginal-LLR set construct
 **public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
 drain budgeting, multi-fault floors. Round 7 (ADR-0025/0026, merged via PR #6): paper-scale
 proof + ToR-pair drill-down. Round 8 (branch `post-v1-round8`, ADR-0027): the incremental
-session — anytime-valid made operational. **184 tests, gate PASS.**
+session — anytime-valid made operational. **192 tests, gate PASS.**
 
 ## Built so far
 
@@ -255,7 +255,13 @@ session — anytime-valid made operational. **184 tests, gate PASS.**
   overclaimed "never selects" and was corrected on the record); a fault localizes at a recorded
   tick well before the batch window ends. Recorded narrowings: batch calibration (open with a
   substrate, stream live); full-tick ingest; every-tick querying is a stopping rule (each query
-  valid; the published FDR figure describes a single query).
+  valid; the published FDR figure describes a single query). Round-8 cold-eye fold-in: returned
+  audits are SNAPSHOTS (the resets list was aliased and self-rewrote under later ingests);
+  partial-tick ingest is validated before any state mutates (a throw is a no-op — retry is
+  corruption-free, bound against batch); openSession validates reroutes (a fractional at_tick
+  silently skipped its wealth reset); mid-stream audits trim to the epochs ACTIVE so far (no
+  future routing); keystones extended to 600-tick Family-D, AR(2), and two-reroute runs;
+  calibrateForSession shared by pipeline, tests, and operators.
 
 ## Honest current limitations (NOT hidden)
 
