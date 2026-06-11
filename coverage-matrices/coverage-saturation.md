@@ -102,8 +102,8 @@ wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
 | optic | 2 | 2 |
-| shuffle_panel | 1 | 2 |
-| room | 1 | 2 |
+| shuffle_panel | 2 | 3 |
+| room | 1 | 3 |
 
 | fault kind | Δ | detection | attribution |
 |---|---|---|---|
@@ -113,13 +113,13 @@ wrong-kind band; the true boundary sits between 1.5 and 2 — Δ=1.5 attributes 
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | optic | 4 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 0.5 | 0% (0/4) | 0% (0/4) |
-| shuffle_panel | 1 | 100% (4/4) | 75% (3/4) |
-| shuffle_panel | 2 | 100% (4/4) | 100% (4/4) |
+| shuffle_panel | 1 | 0% (0/4) | 0% (0/4) |
+| shuffle_panel | 2 | 100% (4/4) | 75% (3/4) |
 | shuffle_panel | 3 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
-| room | 0.5 | 50% (2/4) | 0% (0/4) |
+| room | 0.5 | 0% (0/4) | 0% (0/4) |
 | room | 1 | 100% (4/4) | 0% (0/4) |
-| room | 2 | 100% (4/4) | 100% (4/4) |
+| room | 2 | 100% (4/4) | 0% (0/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
 
@@ -133,14 +133,14 @@ optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-me
 
 | pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |
 |---|---|---|
-| cross_kind | 1 | 2 |
+| cross_kind | 2 | 3 |
 | same_kind | 2 | 2 |
 
 | pair | Δ | detection | attribution (both-in-top-2) |
 |---|---|---|---|
 | cross_kind | 0.5 | 0% (0/2) | 0% (0/2) |
-| cross_kind | 1 | 100% (2/2) | 50% (1/2) |
-| cross_kind | 2 | 100% (2/2) | 100% (2/2) |
+| cross_kind | 1 | 50% (1/2) | 0% (0/2) |
+| cross_kind | 2 | 100% (2/2) | 50% (1/2) |
 | cross_kind | 3 | 100% (2/2) | 100% (2/2) |
 | cross_kind | 4 | 100% (2/2) | 100% (2/2) |
 | same_kind | 0.5 | 0% (0/2) | 0% (0/2) |

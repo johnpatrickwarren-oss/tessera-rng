@@ -440,19 +440,19 @@
         "kind": "shuffle_panel",
         "delta": 1,
         "n": 4,
-        "detected": 4,
-        "attributed": 3,
-        "detection_rate": 1,
-        "attribution_rate": 0.75
+        "detected": 0,
+        "attributed": 0,
+        "detection_rate": 0,
+        "attribution_rate": 0
       },
       {
         "kind": "shuffle_panel",
         "delta": 2,
         "n": 4,
         "detected": 4,
-        "attributed": 4,
+        "attributed": 3,
         "detection_rate": 1,
-        "attribution_rate": 1
+        "attribution_rate": 0.75
       },
       {
         "kind": "shuffle_panel",
@@ -476,9 +476,9 @@
         "kind": "room",
         "delta": 0.5,
         "n": 4,
-        "detected": 2,
+        "detected": 0,
         "attributed": 0,
-        "detection_rate": 0.5,
+        "detection_rate": 0,
         "attribution_rate": 0
       },
       {
@@ -495,9 +495,9 @@
         "delta": 2,
         "n": 4,
         "detected": 4,
-        "attributed": 4,
+        "attributed": 0,
         "detection_rate": 1,
-        "attribution_rate": 1
+        "attribution_rate": 0
       },
       {
         "kind": "room",
@@ -526,13 +526,13 @@
       },
       {
         "kind": "shuffle_panel",
-        "detection_floor": 1,
-        "attribution_floor": 2
+        "detection_floor": 2,
+        "attribution_floor": 3
       },
       {
         "kind": "room",
         "detection_floor": 1,
-        "attribution_floor": 2
+        "attribution_floor": 3
       }
     ]
   },
@@ -563,19 +563,19 @@
         "kind": "cross_kind",
         "delta": 1,
         "n": 2,
-        "detected": 2,
-        "attributed": 1,
-        "detection_rate": 1,
-        "attribution_rate": 0.5
+        "detected": 1,
+        "attributed": 0,
+        "detection_rate": 0.5,
+        "attribution_rate": 0
       },
       {
         "kind": "cross_kind",
         "delta": 2,
         "n": 2,
         "detected": 2,
-        "attributed": 2,
+        "attributed": 1,
         "detection_rate": 1,
-        "attribution_rate": 1
+        "attribution_rate": 0.5
       },
       {
         "kind": "cross_kind",
@@ -644,8 +644,8 @@
     "floors": [
       {
         "kind": "cross_kind",
-        "detection_floor": 1,
-        "attribution_floor": 2
+        "detection_floor": 2,
+        "attribution_floor": 3
       },
       {
         "kind": "same_kind",

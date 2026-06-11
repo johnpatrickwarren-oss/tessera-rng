@@ -30,7 +30,7 @@ export interface DrillFault {
 export interface ExposedPair {
   /** canonical id `pair-i-j`, i < j. */
   pair: string;
-  /** fraction of the pair's traffic crossing the drilled resource (the ADR-0015 spray model). */
+  /** fraction of the pair's traffic crossing the drilled resource (the unified flow model, ADR-0028). */
   exposure: number;
 }
 
@@ -70,12 +70,13 @@ const roomPanels = (room: number, params: SpraypointParams): number => {
 };
 
 /**
- * The ToR-pairs exposed to a resource, with FLOW-level exposure fractions under the drill's
- * one-panel-per-flow, both-endpoint-optics traffic model (ADR-0026): optic-k → the nTors−1
- * pairs with endpoint k at exposure 1; panel-p → every pair at 1/nPanels; room-r → every pair
- * at (panels in r)/nPanels. NOTE: this is NOT derivable from the fabric's leaf-local view
- * weights — the recorded 2× convention divergences and the queued unification decision live in
- * ADR-0026. Sorted by pair id (LEXICOGRAPHIC — deterministic; string order, not numeric).
+ * The ToR-pairs exposed to a resource, with FLOW-level exposure fractions under THE traffic
+ * model (one-panel-per-flow, both-endpoint-optics — ADR-0026, made the single fabric-wide model
+ * by ADR-0028): optic-k → the nTors−1 pairs with endpoint k at exposure 1; panel-p → every pair
+ * at 1/nPanels; room-r → every pair at (panels in r)/nPanels. These are
+ * P(flow crosses resource | flow ∈ pair) on the same elementary flow space the view weights
+ * derive from — the keystone test recomputes both from one enumeration.
+ * Sorted by pair id (LEXICOGRAPHIC — deterministic; string order, not numeric).
  */
 export function exposedPairs(params: SpraypointParams, resource: ResourceId): ExposedPair[] {
   const out: ExposedPair[] = [];

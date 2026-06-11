@@ -29,11 +29,12 @@ test('the fabric is the union of two aggregation views with weighted incidence, 
   assert.equal(SNAP.views![0].leaf_ids.length, DEFAULT_SPRAYPOINT.nTors); // 64 per-ToR leaves
   assert.equal(SNAP.views![1].leaf_ids.length, (DEFAULT_SPRAYPOINT.nPanels * (DEFAULT_SPRAYPOINT.nPanels - 1)) / 2); // C(10,2)=45
   assert.ok(SNAP.path_classes.length >= 100 && SNAP.path_classes.length <= 10000, 'leaf count inside AC-1 [100,10000]');
-  // weighted incidence: a ToR's own optic is full-weight on its per-ToR leaf, a thin slice on a pair leaf.
+  // weighted incidence: a ToR's own optic is full-weight on its per-ToR leaf, a thin slice on a
+  // pair leaf — 2/nTors under the unified flow model (both-endpoint counting, ADR-0028).
   const onTor = SNAP.edges.find((e) => e.path_class === 'tor-3' && e.resource === 'optic-3')!;
   const onPair = SNAP.edges.find((e) => e.path_class.startsWith('pp-') && e.resource === 'optic-3')!;
   assert.equal(onTor.weight, 1);
-  assert.ok(onPair.weight! < 0.02, `a pair leaf carries only ~1/nTors of an optic (got ${onPair.weight})`);
+  assert.equal(onPair.weight, 2 / DEFAULT_SPRAYPOINT.nTors, `a pair leaf carries 2/nTors of an optic (got ${onPair.weight})`);
 });
 
 test('clean Spraypoint fabric selects nothing — FDR holds across two DEPENDENT views (ADR-0015)', async () => {
@@ -87,9 +88,11 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   const sel = a.selected_path_class_ids;
   assert.ok(sel.length > 30, 'the leakage premise still holds — the pair view saturates at δ=128');
   const q0 = q0Of(sel.length, SNAP.path_classes.length);
-  // CONTROL 1: the legacy linear scorer still flips (the original C1 failure mode).
-  const linear = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, legacy: true, collateralWeight: 1.0 });
-  assert.notEqual(linear.culprits[0]?.resource_id, 'optic-3', 'the linear control still flips at δ=128');
+  // CONTROL 1 RETIRED (ADR-0028): under the unified weights the legacy linear scorer no longer
+  // flips on this fixture — the original ADR-0016 flip was conditioned on the old two-panel
+  // w=1 / source-side 1/nTors conventions (observed: legacy now also picks optic-3 at δ=128).
+  // The linear scorer's failure-mode role survives in the ADR-0014 decoy fixture
+  // (test/weighted-incidence.test.ts); CONTROL 2 below remains the discriminating control here.
   // CONTROL 2: saturation DISABLED (κ = {1}). Negative finding recorded in ADR-0019: the exact
   // noisy-OR form ALONE already holds rank-1 here (the old flip needed the linear-leak
   // parameterization), so the κ-mixture bind is QUANTITATIVE — saturation supplies the decisive
