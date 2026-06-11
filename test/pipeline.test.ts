@@ -74,3 +74,18 @@ test('TWO simultaneous faults: the set-cover returns BOTH culprits end-to-end, e
   // replay-clean across the multi-fault path (AC-9).
   assert.equal(JSON.stringify(a), JSON.stringify(await runPipeline(params)));
 });
+
+test('TIERED drain budgeting: every evidence group\'s rank-1 drains before any group\'s rank-2 (ADR-0023)', async () => {
+  const { drainTargets } = await import('../src/pipeline');
+  const c = (resource_id: string, score: number, ep: number) => ({
+    resource_id, resource_kind: 'optic' as const, score, member_path_class_ids: [], firing_member_count: 1,
+    traversing_count: 1, supporting_views: [], localized_against_epoch: ep, correlational_not_causal: true as const,
+  });
+  // the recorded ADR-0022 L2 starvation case: group-0 = [X full-LLR 31.5, Y marginal 1.5],
+  // group-1 = [Z full-LLR 0.8]. A flat score sort takes [X, Y] and starves the real fault Z.
+  const culprits = [c('X', 31.5, 0), c('Y', 1.5, 0), c('Z', 0.8, 1)];
+  assert.deepEqual(drainTargets(culprits, 2).map((t) => t.resource_id), ['X', 'Z'], 'tier beats raw score across groups');
+  // within tier-1: score desc, id tie-break; dedupe still holds through the tiered path.
+  const tie = [c('B', 5, 0), c('A', 5, 1), c('A', 2, 0)];
+  assert.deepEqual(drainTargets(tie, 3).map((t) => t.resource_id), ['A', 'B'], 'score/id ordering within a tier; one drain per resource');
+});
