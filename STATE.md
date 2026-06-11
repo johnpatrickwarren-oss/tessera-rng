@@ -17,7 +17,7 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**v1 + post-v1 rounds 1–6 merged to `main` (PRs #1–#5); round 7 on `post-v1-round7`.** v1: all ten
+**v1 + post-v1 rounds 1–8 merged to `main` (PRs #1–#7); no round in flight.** v1: all ten
 acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
 min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
 AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a
@@ -35,8 +35,10 @@ fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
 **public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
 drain budgeting, multi-fault floors. Round 7 (ADR-0025/0026, merged via PR #6): paper-scale
-proof + ToR-pair drill-down. Round 8 (branch `post-v1-round8`, ADR-0027): the incremental
-session — anytime-valid made operational. **192 tests, gate PASS.**
+proof + ToR-pair drill-down. Round 8 (ADR-0027, merged via PR #7): the incremental session —
+anytime-valid made operational. The recommended post-v1 roadmap is COMPLETE; the remaining queue
+is owner-decision items only (traffic-model unification, epoch wealth carryover, live-fabric
+seam — see "needs outside input"). **192 tests, gate PASS.**
 
 ## Built so far
 

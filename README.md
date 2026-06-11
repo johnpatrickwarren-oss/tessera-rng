@@ -52,6 +52,10 @@ synthetic raw telemetry            per-cell calibration            per-path-clas
 
 Everything is deterministic and replay-clean: the same incidence model + telemetry stream
 produce a byte-identical `AuditRecord` — including across reroute epochs and multi-fault runs.
+And it answers **anytime**: the incremental session (`openSession` → `ingest(tick)` →
+`audit()`) streams ticks as they arrive and yields a full audit at any tick, bound byte-for-byte
+to the batch pipeline at the final tick — the anytime-validity of the e-process math, made
+operational.
 
 ## Quickstart
 
@@ -69,7 +73,7 @@ Requires Node ≥ 20 and pnpm ≥ 11.
 ## What's built
 
 Synthetic fixtures only (no live fabric — deliberately, see the anti-scope). The v1 walking
-skeleton plus seven post-v1 rounds, one ADR per real decision:
+skeleton plus eight post-v1 rounds, one ADR per real decision:
 
 - **Detection** — three anytime-valid families per path-class with per-detector α-budget:
   Family A (multi-signal mean-shift betting e-process), Family C (Safe-Hotelling over a
