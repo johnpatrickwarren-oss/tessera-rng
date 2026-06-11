@@ -35,7 +35,7 @@ fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
 **public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
 drain budgeting, multi-fault floors. Round 7 (branch `post-v1-round7`, ADR-0025..): paper-scale
-proof landed; ToR-pair drill-down next. **171 tests, gate PASS.**
+proof + ToR-pair drill-down landed. **177 tests, gate PASS.**
 
 ## Built so far
 
@@ -228,6 +228,18 @@ proof landed; ToR-pair drill-down next. **171 tests, gate PASS.**
   ~550 MB (machine numbers, recorded in the ADR — the published `scale_proof` artifact section
   is deterministic and freshness-bound by spot-check #4). Floors are NOT swept at scale
   (recorded; demo-scale floors remain the published floors).
+- **ToR-pair drill-down** (ADR-0026, closes the ADR-0015 deferral): `src/drilldown.ts` — the
+  on-demand second stage from a localized fault domain to impacted underlying ToR-pairs.
+  Exposure model mirrors the spray weights (optic → endpoint pairs at 1; panel → all at
+  1/nPanels; room → panels-in-room/nPanels); synthetic per-pair standardized-residual window;
+  detection REUSES detectPathClass + e-BH at the drill's own q (FDR over the EXAMINED pairs);
+  `maxPairs` cap with exposed/examined/truncated ALWAYS reported. Bound: true-culprit drill
+  ranks impacted pairs; clean drill FDR-quiet; **dilution honesty** (panel Δ=4 detects at view
+  level but is 0.4σ per pair — the drill says so instead of inventing impact; Δ=40 selects
+  broadly); cross-resource drill selects exactly the genuinely-crossing pair (pair-3-5);
+  deterministic; N1 carried. Recorded narrowings: mean-shift faults only; residual-level window
+  (production needs pair-level calibration, N2); selection-conditioned FDR; id-order truncation
+  sample. NOT in runPipeline/the audit — operator-initiated by design.
 
 ## Honest current limitations (NOT hidden)
 
