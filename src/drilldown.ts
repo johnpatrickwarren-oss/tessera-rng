@@ -70,9 +70,12 @@ const roomPanels = (room: number, params: SpraypointParams): number => {
 };
 
 /**
- * The ToR-pairs exposed to a resource, with exposure fractions (ADR-0015 spray weights at pair
- * granularity): optic-k → the nTors−1 pairs with endpoint k at exposure 1; panel-p → every pair
- * at 1/nPanels; room-r → every pair at (panels in r)/nPanels. Sorted by pair id (deterministic).
+ * The ToR-pairs exposed to a resource, with FLOW-level exposure fractions under the drill's
+ * one-panel-per-flow, both-endpoint-optics traffic model (ADR-0026): optic-k → the nTors−1
+ * pairs with endpoint k at exposure 1; panel-p → every pair at 1/nPanels; room-r → every pair
+ * at (panels in r)/nPanels. NOTE: this is NOT derivable from the fabric's leaf-local view
+ * weights — the recorded 2× convention divergences and the queued unification decision live in
+ * ADR-0026. Sorted by pair id (LEXICOGRAPHIC — deterministic; string order, not numeric).
  */
 export function exposedPairs(params: SpraypointParams, resource: ResourceId): ExposedPair[] {
   const out: ExposedPair[] = [];
@@ -93,7 +96,8 @@ export function exposedPairs(params: SpraypointParams, resource: ResourceId): Ex
   return out.sort((a, b) => (a.pair < b.pair ? -1 : a.pair > b.pair ? 1 : 0));
 }
 
-/** A pair's total p99 residual shift from the active ground-truth faults: Σ delta·exposure. */
+/** A pair's total p99 residual shift from the active ground-truth faults: Σ delta·exposure —
+ *  ADDITIVE across faults (both endpoint optics faulted ⇒ the joint pair shifts twice). */
 function pairShift(pair: string, params: SpraypointParams, faults: readonly DrillFault[], cache: Map<ResourceId, Map<string, number>>): number {
   let shift = 0;
   for (const f of faults) {

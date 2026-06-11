@@ -10,7 +10,7 @@ import { DEFAULT_SPRAYPOINT } from '../src/spraypoint';
 
 const P = DEFAULT_SPRAYPOINT; // 64 ToRs, 10 panels, 2 rooms
 
-test('exposure model mirrors the ADR-0015 spray weights at pair granularity', () => {
+test('the drill\'s FLOW-level exposure model (ADR-0026 — deliberately NOT the fabric\'s leaf-local view weights)', () => {
   const optic = exposedPairs(P, 'optic-3');
   assert.equal(optic.length, P.nTors - 1, 'an optic exposes its endpoint pairs');
   assert.ok(optic.every((e) => e.exposure === 1 && /(^pair-3-|^pair-\d+-3$)/.test(e.pair)));
@@ -64,10 +64,23 @@ test('truncation is REPORTED, never silent (instrumented-caveat)', () => {
   assert.equal(r.truncated, true);
 });
 
+test('multi-fault shifts are ADDITIVE: both endpoint optics faulted ⇒ the joint pair carries 2δ (ADR-0026)', () => {
+  // pair-3-5 is exposed to optic-3 AND optic-5 at 1 each → shift 2δ; every other endpoint pair
+  // of either optic carries δ. With δ=2 (sub-floor alone over 60 ticks, detectable at 2δ=4) the
+  // drill selects pair-3-5 FIRST — binding the additivity, not just the routing.
+  const r = drillDown({ params: P, resource: 'optic-3', faults: [
+    { resource_id: 'optic-3', delta: 2 },
+    { resource_id: 'optic-5', delta: 2 },
+  ], telemetry: { seed: 5, ticks: 60 }, q: 0.05 });
+  assert.equal(r.selected[0]?.pair, 'pair-3-5', 'the doubly-exposed pair carries the strongest evidence');
+});
+
 test('the drill is deterministic and carries N1', () => {
   const opts = { params: P, resource: 'optic-3', faults: [{ resource_id: 'optic-3', delta: 4 }], telemetry: { seed: 9, ticks: 40 }, q: 0.05 } as const;
   const a = drillDown(opts);
   const b = drillDown(opts);
   assert.equal(JSON.stringify(a), JSON.stringify(b), 'same seed ⇒ byte-identical report');
   assert.equal(a.correlational_not_causal, true);
+  // N1 shape bind: no per-pair root-cause (or any undeclared) field can exist on the report.
+  assert.deepEqual(Object.keys(a).sort(), ['correlational_not_causal', 'examined', 'exposed', 'q', 'resource', 'selected', 'truncated']);
 });

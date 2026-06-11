@@ -656,6 +656,8 @@
   },
   "scale_proof": {
     "leaves": 1456,
+    "per_tor_leaves": 960,
+    "per_panel_pair_leaves": 496,
     "edges": 513552,
     "resources": 996,
     "clean_selected": 0,

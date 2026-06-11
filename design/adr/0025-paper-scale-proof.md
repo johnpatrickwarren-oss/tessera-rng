@@ -43,11 +43,11 @@ says "10³–10⁴ path-classes" and nothing had ever run past 4×10².
 
 | Prescription | Binding test ("Then") |
 |---|---|
-| Paper-scale fabric is a named constant inside AC-1 | `spraypoint.test.ts`: leaf count 1,456 ∈ [100, 10000]; views sized 960 / 496 |
+| Paper-scale fabric is a named constant inside AC-1 | `spraypoint.test.ts`: leaf count 1,456 ∈ [100, 10000]; view sizes 960 / 496 asserted (added by the round-7 cold-eye fold-in — the original table cited an assertion that did not exist) |
 | Clean FDR at scale | scale test: zero selections on the clean paper-scale fabric |
 | Detection + localization at scale | scale test: optic and panel faults each detect and localize rank-1 |
 | Replay-clean at scale (AC-9) | scale test: byte-identical audits |
-| Published scale row is fresh | spot-check #4: the optic outcome recomputed in-suite vs the committed JSON; md emission asserted (the ADR-0020 C2 lesson) |
+| Published scale row is fresh | spot-check #4: the WHOLE deterministic section recomputed in-suite vs the committed JSON (4 paper-scale runs — this is what binds room rank-1 at scale); md emission asserted (the ADR-0020 C2 lesson) |
 
 ## Consequences
 

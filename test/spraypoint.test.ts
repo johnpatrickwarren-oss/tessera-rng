@@ -180,7 +180,9 @@ test('PAPER SCALE (ADR-0025): clean FDR holds, faults detect + localize, replay-
   const { PAPER_SPRAYPOINT } = await import('../src/spraypoint');
   const snap = generateSpraypointFabric(PAPER_SPRAYPOINT);
   assert.equal(snap.path_classes.length, 1456, '960 per-ToR + C(32,2)=496 pair leaves');
-  assert.ok(snap.path_classes.length <= 10000, 'inside AC-1');
+  assert.ok(snap.path_classes.length >= 100 && snap.path_classes.length <= 10000, 'inside AC-1 [100, 10000]');
+  assert.equal(snap.views![0].leaf_ids.length, 960, 'per_tor view sized to the paper');
+  assert.equal(snap.views![1].leaf_ids.length, 496, 'per_panel_pair view = C(32,2)');
 
   const clean = await runPipeline({ snapshot: snap, q: 0.05, telemetry: { seed: 1, ticks: 60 } });
   assert.equal(clean.selected_path_class_ids.length, 0, 'FDR control holds at 1,456 dependent leaves');

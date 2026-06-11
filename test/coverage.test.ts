@@ -65,7 +65,7 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
     },
     clean_spraypoint: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
     scale_proof: {
-      leaves: 1456, edges: 513552, resources: 996, clean_selected: 0,
+      leaves: 1456, per_tor_leaves: 960, per_panel_pair_leaves: 496, edges: 513552, resources: 996, clean_selected: 0,
       outcomes: [{ kind: 'optic', resource: 'optic-3', delta: 4, detected: true, rank1: 'optic-3' }],
     },
     multi_fault: {
@@ -170,9 +170,10 @@ test('SPOT-CHECK #3: the committed multi-fault cross_kind Δ=2 cell matches a fr
 });
 
 test('SPOT-CHECK #4: the committed paper-scale proof matches a fresh recomputation (ADR-0025)', async () => {
-  // same honest-partial pattern: the scale row is deterministic by construction, so the whole
-  // section recomputes and compares field-for-field (~3 paper-scale runs, the suite's largest
-  // single cost — accepted by ADR-0025). Fix a failure by re-running `pnpm coverage`.
+  // same honest-partial pattern: the scale row is deterministic by construction, so the WHOLE
+  // section recomputes and compares field-for-field (4 paper-scale runs — clean + three faults,
+  // the suite's largest single cost, accepted by ADR-0025; this is also what binds room rank-1
+  // at scale, which the suite scale test does not inject). Fix by re-running `pnpm coverage`.
   const { readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { scaleProof } = await import('../tools/coverage');

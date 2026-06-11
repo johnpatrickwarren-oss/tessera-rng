@@ -17,7 +17,7 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**v1 + post-v1 rounds 1–5 merged to `main` (PRs #1–#4); round 6 on `post-v1-round6`.** v1: all ten
+**v1 + post-v1 rounds 1–6 merged to `main` (PRs #1–#5); round 7 on `post-v1-round7`.** v1: all ten
 acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
 min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
 AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a
@@ -274,9 +274,11 @@ matrix, real-fabric validation.
 
 Out of scope / needs outside input: live-fabric validation (N2), real data-plane drain wiring
 (N4), the §3.2 signal-contract *fidelity* question (paper now read — ADR-0013 — but telemetry is
-out of its scope, so fidelity stays unprovable without real data). **Open spec decision (WO item 5,
-HALT-CLASS):** path-class granularity — 960 ToRs ⇒ ~460K ToR-pairs vs AC-1's [100,10000] bound;
-routed to the owner, not changed unilaterally.
+out of its scope, so fidelity stays unprovable without real data). The WO-item-5 granularity
+HALT was resolved by the owner in ADR-0015 (aggregation-view leaves). **Open owner decision
+(round-7 cold-eye):** unify the Spraypoint traffic model — the fabric's leaf-local view weights
+and the drill's flow-level exposures diverge by 2× conventions (recorded in ADR-0026);
+unification would change snapshot hashes, pinned δ-bands, and every published Spraypoint floor.
 
 ## Post-v1 round 3 — RNG-paper reconciliation work order (branch `post-v1-round2`)
 

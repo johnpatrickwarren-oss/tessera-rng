@@ -106,7 +106,7 @@ export interface CoverageReport {
   /** simultaneous two-fault floors on the Spraypoint fabric (ADR-0024) — attribution = BOTH injected resources in the top-2 culprits. */
   multi_fault: { deltas: number[]; cells: CoverageCell[]; floors: FloorRow[] };
   /** the paper-scale proof (ADR-0025): deterministic outcomes at 960 ToRs — wall-clock lives in the ADR, not here (artifact stays replay-stable). */
-  scale_proof: { leaves: number; edges: number; resources: number; clean_selected: number; outcomes: { kind: string; resource: string; delta: number; detected: boolean; rank1: string }[] };
+  scale_proof: { leaves: number; per_tor_leaves: number; per_panel_pair_leaves: number; edges: number; resources: number; clean_selected: number; outcomes: { kind: string; resource: string; delta: number; detected: boolean; rank1: string }[] };
   clean: { trials: number; mean_selected: number; false_positive_rate: number };
 }
 
@@ -404,7 +404,15 @@ export async function scaleProof(): Promise<CoverageReport['scale_proof']> {
     const a = await runPipeline({ snapshot: snap, q: Q, telemetry: { seed: 1, ticks: TICKS, degradation: { resource_id: f.resource, delta: 4, start_tick: 0 } } });
     outcomes.push({ kind: f.kind, resource: f.resource, delta: 4, detected: a.selected_path_class_ids.length > 0, rank1: a.culprits[0]?.resource_id ?? '(none)' });
   }
-  return { leaves: snap.path_classes.length, edges: snap.edges.length, resources: snap.resources.length, clean_selected: clean.selected_path_class_ids.length, outcomes };
+  return {
+    leaves: snap.path_classes.length,
+    per_tor_leaves: snap.views![0].leaf_ids.length,
+    per_panel_pair_leaves: snap.views![1].leaf_ids.length,
+    edges: snap.edges.length,
+    resources: snap.resources.length,
+    clean_selected: clean.selected_path_class_ids.length,
+    outcomes,
+  };
 }
 
 export async function computeCoverage(): Promise<CoverageReport> {
@@ -471,7 +479,7 @@ function renderMultiFault(L: string[], rep: CoverageReport): void {
 
 /** The ADR-0025 scale-proof table (extracted: complexity cap). */
 function renderScaleProof(L: string[], rep: CoverageReport): void {
-  L.push(`Fabric: **${rep.scale_proof.leaves} leaves** (960 per-ToR + 496 panel-pair views), ${rep.scale_proof.edges} weighted edges, ${rep.scale_proof.resources} resources — the upper range of AC-1. Clean run selects **${rep.scale_proof.clean_selected}** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.`);
+  L.push(`Fabric: **${rep.scale_proof.leaves} leaves** (${rep.scale_proof.per_tor_leaves} per-ToR + ${rep.scale_proof.per_panel_pair_leaves} panel-pair views), ${rep.scale_proof.edges} weighted edges, ${rep.scale_proof.resources} resources — the upper range of AC-1. Clean run selects **${rep.scale_proof.clean_selected}** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.`);
   L.push('');
   L.push('| fault kind | resource | Δ | detected | rank-1 |');
   L.push('|---|---|---|---|---|');
