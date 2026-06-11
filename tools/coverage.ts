@@ -40,7 +40,9 @@ export function topTargets(kind: ResourceKind, n: number): string[] {
 }
 
 export interface CoverageCell {
-  kind: ResourceKind;
+  /** a resource kind for the single-fault tables; a PAIR name (cross_kind/same_kind) for the
+   *  ADR-0024 multi-fault table — widened to string so the published JSON matches its schema. */
+  kind: string;
   delta: number;
   n: number;
   detected: number;
@@ -50,7 +52,7 @@ export interface CoverageCell {
 }
 
 export interface FloorRow {
-  kind: ResourceKind;
+  kind: string;
   detection_floor: number | null;
   attribution_floor: number | null;
 }
@@ -135,7 +137,7 @@ export async function cell(kind: ResourceKind, delta: number, targets: string[])
   return { kind, delta, n, detected, attributed, detection_rate: detected / n, attribution_rate: attributed / n };
 }
 
-export function floorFor(cells: CoverageCell[], kind: ResourceKind, key: 'detection_rate' | 'attribution_rate'): number | null {
+export function floorFor(cells: CoverageCell[], kind: string, key: 'detection_rate' | 'attribution_rate'): number | null {
   const rows = cells.filter((c) => c.kind === kind).sort((a, b) => a.delta - b.delta);
   for (const r of rows) if (r[key] >= FLOOR_RATE) return r.delta;
   return null;
@@ -368,7 +370,7 @@ export async function multiFaultCell(pairKind: string, delta: number): Promise<C
     const top2 = audit.culprits.slice(0, 2).map((c) => c.resource_id);
     if (isDetected && top2.includes(a) && top2.includes(b)) attributed += 1;
   }
-  return { kind: pairKind as ResourceKind, delta, n, detected, attributed, detection_rate: detected / n, attribution_rate: attributed / n };
+  return { kind: pairKind, delta, n, detected, attributed, detection_rate: detected / n, attribution_rate: attributed / n };
 }
 
 /** The multi-fault floor table (ADR-0024). */
@@ -379,9 +381,9 @@ async function multiFaultFloors(): Promise<{ deltas: number[]; cells: CoverageCe
     for (const delta of MULTI_FAULT_DELTAS) cells.push(await multiFaultCell(pairKind, delta));
   }
   const floors: FloorRow[] = pairKinds.map((kind) => ({
-    kind: kind as ResourceKind,
-    detection_floor: floorFor(cells, kind as ResourceKind, 'detection_rate'),
-    attribution_floor: floorFor(cells, kind as ResourceKind, 'attribution_rate'),
+    kind,
+    detection_floor: floorFor(cells, kind, 'detection_rate'),
+    attribution_floor: floorFor(cells, kind, 'attribution_rate'),
   }));
   return { deltas: MULTI_FAULT_DELTAS, cells, floors };
 }
@@ -438,10 +440,11 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('periodicity (Family D) — with the firing family that caught it, so a detection number is never');
   L.push('published without naming its mode. No mode is left in a footnote. The binary tables above are');
   L.push('the generated quasi-random fabric; the **Spraypoint sections** below measure the two-view');
-  L.push('FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, and its own');
-  L.push('clean-fabric FDR control. All floors here are the first Δ reaching ≥90% on an n=4 grid');
-  L.push('(2 targets × 2 seeds): with n=4 a floor means "first unanimous Δ" — a coarse, honest estimator,');
-  L.push('and floors are grid-resolution-limited (reported at grid points, not interpolated).');
+  L.push('FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, the');
+  L.push('multi-fault pair floors (ADR-0024), and its own clean-fabric FDR control. Every floor is the');
+  L.push('first Δ reaching ≥90% — single-fault tables on an n=4 grid (2 targets × 2 seeds), the');
+  L.push('multi-fault table on n=2 (FIXED pairs × 2 seeds): a floor means "first unanimous Δ" — a');
+  L.push('coarse, honest estimator, grid-resolution-limited (reported at grid points, not interpolated).');
   L.push('');
   L.push('## Coverage / saturation');
   L.push('');

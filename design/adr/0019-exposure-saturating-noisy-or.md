@@ -105,6 +105,12 @@ parameterization specifically. The κ mixture's contribution is the decisive **e
 - Scores are larger in saturated regimes (they are honest log-likelihood ratios over more
   decisive evidence); nothing downstream consumes absolute score magnitudes.
 
+## Mutation record
+
+`tomography.ts` 100 % (10/10 generated mutants) on the saturating scorer at landing, plus the
+hand-applied uniform-prior mutant (killed by the ADR-0014 fixture); re-verified at 12/12 after
+the cold-eye fold-in (commit messages 0c8222a / d7e6d7c carry the runs).
+
 ## Cold-eye fold-in (fresh-context review of 0c8222a)
 
 - **CRITICAL — stale honest-measurement artifacts, regenerated + bound.** `demos/demo.html` had

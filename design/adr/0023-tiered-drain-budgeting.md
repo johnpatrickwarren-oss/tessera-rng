@@ -38,7 +38,7 @@ On epoch'd runs, drain targets are chosen by **tier, then score**:
 
 | Prescription | Binding test ("Then") |
 |---|---|
-| Tier beats raw score across groups | `pipeline.test.ts` unit test on `drainTargets`: group-0 = [X:31.5, Y:1.5], group-1 = [Z:0.8] with k=2 ⇒ targets [X, Z] (the old flat sort yields [X, Y] — the starvation case, asserted as the contrast) |
+| Tier beats raw score across groups | `pipeline.test.ts` unit test on `drainTargets`: group-0 = [X:31.5, Y:1.5], group-1 = [Z:0.8] with k=2 ⇒ targets [X, Z]. The flat sort's [X, Y] outcome is the documented contrast — the tier assertion fails under it (not separately asserted; the old sort is not re-runnable) |
 | Within a tier, score then id | same test: tier-1 ordering by score desc with id tie-break |
 | One drain per resource | existing ADR-0018 dedupe behavior re-asserted through the tiered path |
 | Non-epoch'd path byte-identical | the existing `reroutes: []` byte-identity guard + the full v1 suite |

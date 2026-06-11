@@ -42,7 +42,7 @@ synthetic raw telemetry            per-cell calibration            per-path-clas
  reconvergence epochs reroute                                               │
  traffic mid-stream)                                                        ▼
    simulated route-drain   ◀──  tomographic localization   ◀──  hierarchical combine + e-BH
-   (strongest culprits,         (saturating noisy-OR mixture     FDR surface (which path-
+   (tiered drain targets,       (saturating noisy-OR mixture     FDR surface (which path-
     one drain per resource)      LLR over weighted incidence;     classes are degraded; on
                                  marginal-LLR set construction;   incidence change, e-process
                                  per evidence epoch;              wealth resets are RECORDED
@@ -68,7 +68,7 @@ Requires Node ≥ 20 and pnpm ≥ 11.
 ## What's built
 
 Synthetic fixtures only (no live fabric — deliberately, see the anti-scope). The v1 walking
-skeleton plus five post-v1 rounds, one ADR per real decision:
+skeleton plus six post-v1 rounds, one ADR per real decision:
 
 - **Detection** — three anytime-valid families per path-class with per-detector α-budget:
   Family A (multi-signal mean-shift betting e-process), Family C (Safe-Hotelling over a
@@ -81,18 +81,22 @@ skeleton plus five post-v1 rounds, one ADR per real decision:
   exposure-saturating leaky noisy-OR mixture LLR (an extreme fault fires even a 1/64-diluted
   leaf, and the model can say so), built into a minimal culprit set by **marginal-LLR greedy
   construction** (each pick's posterior folds into per-leaf residuals; later candidates score
-  only what remains surprising). Localizes simultaneous cross-kind faults. 100 % mutation
-  score on the new math.
+  only what remains surprising). Localizes simultaneous cross-kind faults; on epoch'd runs,
+  drain targets are tiered so every evidence group's strongest culprit drains first. 100 %
+  mutation score on the new math (recorded per round in the ADR trail).
 - **Production-shaped fabrics** — the Spraypoint two-view fabric (per-ToR ∪ per-panel-pair
-  aggregation leaves over ~460 K underlying ToR-pairs, complementary blind spots published),
-  reconciled against the RNG fabric paper (arXiv:2604.15261); **reconvergence epochs**
+  aggregation views over the underlying ToR-pair traffic — the production fabric's ~460 K
+  pairs deliberately exceed any per-pair leaf budget, which is exactly why the leaf is a view;
+  the default model is 64 ToRs ⇒ ~2 K pairs at 1/64 dilution), reconciled against the RNG
+  fabric paper (arXiv:2604.15261); **reconvergence epochs**
   (synthetic reroute events; e-process wealth resets recorded in the audit as deliberate,
   visible power loss); **simultaneous multi-fault injection** with exact composition.
-- **Honest measurement** — detection *and* attribution floors for every anomaly mode and both
-  fabric regimes (binary and fractional-dilution), per-view blind-spot maps, clean-fabric FDR
-  controls for each fabric, firing-mode attribution in every audit — caveats in the open, and
-  the published artifacts are **freshness-bound by tests** (a stale demo or coverage matrix
-  fails the suite).
+- **Honest measurement** — detection *and* attribution floors for every anomaly mode, both
+  fabric regimes (binary and fractional-dilution), AND simultaneous multi-fault pairs
+  (both-in-top-2), per-view blind-spot maps, clean-fabric FDR controls for each fabric,
+  firing-mode attribution in every audit — caveats in the open. The published artifacts are
+  freshness-bound by tests: the demo byte-exactly, the coverage matrix by spot-checked cells
+  (an honest partial bind, named as such in the tests).
 
 The statistical layer localizes to a shared-resource **fault domain**, never to a specific
 marginal optic — hardware root-cause is out of scope, and every culprit carries a

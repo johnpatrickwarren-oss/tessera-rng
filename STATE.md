@@ -17,7 +17,7 @@ localization module). See ADR-0001.
 
 ## Phase
 
-**v1 + post-v1 round 1 merged to `main`; round 2 on `post-v1-round2`.** v1: all ten
+**v1 + post-v1 rounds 1–5 merged to `main` (PRs #1–#4); round 6 on `post-v1-round6`.** v1: all ten
 acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
 min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
 AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a

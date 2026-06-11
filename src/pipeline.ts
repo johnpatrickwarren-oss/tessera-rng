@@ -53,7 +53,8 @@ export interface PipelineParams {
 /**
  * Per-evidence-epoch tomography (ADR-0018): selected leaves are grouped by the epoch their firing
  * evidence accrued in and localized against THAT epoch's snapshot; per-epoch culprit lists are
- * concatenated in epoch order (score-ranked within an epoch), unexplained sets unioned.
+ * concatenated in epoch order, each in greedy PICK order (the property ADR-0023's tiering
+ * assumes; pick order coincides with score order within a group), unexplained sets unioned.
  */
 function localizeByEvidenceEpoch(
   epochs: readonly SnapshotEpoch[],
@@ -91,6 +92,8 @@ function localizeByEvidenceEpoch(
  * epoch cannot be starved by another group's trailing marginal.
  */
 export function drainTargets(culprits: readonly Culprit[], k: number): Culprit[] {
+  // direct callers: culprits without localized_against_epoch tier-count as group 0 (the
+  // pipeline always stamps the field on epoch'd runs and never calls this otherwise).
   const tierWithin = new Map<number, number>();
   const tiered = culprits.map((c) => {
     const g = c.localized_against_epoch ?? 0;
@@ -98,7 +101,7 @@ export function drainTargets(culprits: readonly Culprit[], k: number): Culprit[]
     tierWithin.set(g, tier + 1);
     return { c, tier };
   });
-  tiered.sort((x, y) => x.tier - y.tier || y.c.score - x.c.score || (x.c.resource_id < y.c.resource_id ? -1 : 1));
+  tiered.sort((x, y) => x.tier - y.tier || y.c.score - x.c.score || (x.c.resource_id < y.c.resource_id ? -1 : x.c.resource_id > y.c.resource_id ? 1 : 0));
   const seen = new Set<string>();
   const out: Culprit[] = [];
   for (const { c } of tiered) {
@@ -174,9 +177,9 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
     : localize(snapshot, surface.selected_path_class_ids, locOpts);
 
-  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — and pick
-  // the strongest-scoring culprits across all epoch groups, one drain per resource. The v1 path
-  // is untouched (its culprit list is already score-ranked and resource-unique).
+  // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — picking
+  // targets by TIER then score (ADR-0023), one drain per resource. The v1 path is untouched
+  // (a single greedy list is already tier-ordered and resource-unique).
   const k = params.drain_top_k ?? 1;
   const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
   const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;

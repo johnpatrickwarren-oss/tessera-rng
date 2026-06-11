@@ -66,8 +66,8 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
     clean_spraypoint: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
     multi_fault: {
       deltas: [2],
-      cells: [{ kind: 'cross_kind' as never, delta: 2, n: 2, detected: 2, attributed: 2, detection_rate: 1, attribution_rate: 1 }],
-      floors: [{ kind: 'cross_kind' as never, detection_floor: 2, attribution_floor: 2 }],
+      cells: [{ kind: 'cross_kind', delta: 2, n: 2, detected: 2, attributed: 2, detection_rate: 1, attribution_rate: 1 }],
+      floors: [{ kind: 'cross_kind', detection_floor: 2, attribution_floor: 2 }],
     },
     spraypoint_views: [
       { fault_kind: 'optic', resource: 'optic-3', per_view_detected: { per_tor: 1 }, concentrated_by: 'per_tor' },

@@ -15,10 +15,11 @@ floor for EACH of the three anomaly modes — mean shift (Family A), covariance 
 periodicity (Family D) — with the firing family that caught it, so a detection number is never
 published without naming its mode. No mode is left in a footnote. The binary tables above are
 the generated quasi-random fabric; the **Spraypoint sections** below measure the two-view
-FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, and its own
-clean-fabric FDR control. All floors here are the first Δ reaching ≥90% on an n=4 grid
-(2 targets × 2 seeds): with n=4 a floor means "first unanimous Δ" — a coarse, honest estimator,
-and floors are grid-resolution-limited (reported at grid points, not interpolated).
+FRACTIONAL-dilution fabric (ADR-0015/0020) — per-view blind spots, dilution floors, the
+multi-fault pair floors (ADR-0024), and its own clean-fabric FDR control. Every floor is the
+first Δ reaching ≥90% — single-fault tables on an n=4 grid (2 targets × 2 seeds), the
+multi-fault table on n=2 (FIXED pairs × 2 seeds): a floor means "first unanimous Δ" — a
+coarse, honest estimator, grid-resolution-limited (reported at grid points, not interpolated).
 
 ## Coverage / saturation
 

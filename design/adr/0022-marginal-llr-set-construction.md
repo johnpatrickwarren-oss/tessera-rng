@@ -86,6 +86,12 @@ Replace the binary explained-set with **marginal-likelihood greedy set construct
 - Demo and coverage artifacts are byte-unchanged (the freshness binds passed without
   regeneration): no published scenario had a multi-culprit output that the marginal cover alters.
 
+## Mutation record
+
+`tomography.ts` + `telemetry.ts` 100 % (32/32 generated) at landing; 36/36 after the cold-eye
+fold-in (the admission gate and composition fixes added mutants — all killed; commits 63eca6b /
+fe2f090 carry the runs).
+
 ## Cold-eye fold-in (fresh-context review of 63eca6b)
 
 - **C2 — free-riding nested candidates.** Every FIRED member's marginal contribution is ≥ 0

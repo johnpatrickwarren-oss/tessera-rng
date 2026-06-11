@@ -58,7 +58,8 @@ Reading: **every measured floor equals its constituents' single-fault floors** �
 inherits the stronger fault's floor (the panel detects at Δ = 1; two optics need Δ = 2, exactly
 the single-optic floor), and joint attribution lands at Δ = 2 for both pairs because the optic
 side of each pair attributes at 2 on its own (ADR-0020). At Δ = 1 the cross-kind pair detects
-4/4 leaves but both-ranks in only 1/2 runs — the optic side is below its own attribution floor.
+in both runs (4 and 5 leaves selected) but both-ranks in only 1/2 — observed culprits
+[panel-7] and [panel-7, optic-3]: the optic side is below its own attribution floor.
 **No multi-fault-specific penalty beyond the constituents' own floors was observed on this
 grid** — the (favorable) finding, with the caveat that n = 2 per cell makes each floor a
 "first unanimous Δ" estimate on grid resolution.
