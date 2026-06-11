@@ -654,6 +654,35 @@
       }
     ]
   },
+  "scale_proof": {
+    "leaves": 1456,
+    "edges": 513552,
+    "resources": 996,
+    "clean_selected": 0,
+    "outcomes": [
+      {
+        "kind": "optic",
+        "resource": "optic-3",
+        "delta": 4,
+        "detected": true,
+        "rank1": "optic-3"
+      },
+      {
+        "kind": "shuffle_panel",
+        "resource": "panel-2",
+        "delta": 4,
+        "detected": true,
+        "rank1": "panel-2"
+      },
+      {
+        "kind": "room",
+        "resource": "room-1",
+        "delta": 4,
+        "detected": true,
+        "rank1": "room-1"
+      }
+    ]
+  },
   "clean": {
     "trials": 4,
     "mean_selected": 0,

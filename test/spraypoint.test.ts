@@ -173,3 +173,26 @@ test('CROSS-KIND simultaneous faults (optic + panel): both localized over the tw
   assert.ok(optic.member_path_class_ids.includes('tor-3'));
   assert.ok(panel.member_path_class_ids.some((l) => l.startsWith('pp-')));
 });
+
+// ── Paper-scale proof (ADR-0025): 960 ToRs, the upper range of AC-1, executed not extrapolated ──
+
+test('PAPER SCALE (ADR-0025): clean FDR holds, faults detect + localize, replay-clean at 1,456 leaves', async () => {
+  const { PAPER_SPRAYPOINT } = await import('../src/spraypoint');
+  const snap = generateSpraypointFabric(PAPER_SPRAYPOINT);
+  assert.equal(snap.path_classes.length, 1456, '960 per-ToR + C(32,2)=496 pair leaves');
+  assert.ok(snap.path_classes.length <= 10000, 'inside AC-1');
+
+  const clean = await runPipeline({ snapshot: snap, q: 0.05, telemetry: { seed: 1, ticks: 60 } });
+  assert.equal(clean.selected_path_class_ids.length, 0, 'FDR control holds at 1,456 dependent leaves');
+
+  const optic = await runPipeline({ snapshot: snap, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 4, start_tick: 0 } } });
+  assert.ok(optic.selected_path_class_ids.length > 0, 'an optic fault detects at scale');
+  assert.equal(optic.culprits[0]?.resource_id, 'optic-3', 'and localizes rank-1');
+
+  const panel = await runPipeline({ snapshot: snap, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'panel-2', delta: 4, start_tick: 0 } } });
+  assert.ok(panel.selected_path_class_ids.length > 0, 'a panel fault detects at scale');
+  assert.equal(panel.culprits[0]?.resource_id, 'panel-2', 'and localizes rank-1');
+
+  const replay = await runPipeline({ snapshot: snap, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 4, start_tick: 0 } } });
+  assert.equal(JSON.stringify(optic), JSON.stringify(replay), 'byte-identical at scale (AC-9)');
+});

@@ -33,8 +33,9 @@ a fabricated epoch-0 attribution — both fixed and bound, see ADR-0018). Rounds
 (C1 closed; latent room-fault defect fixed) + Spraypoint dilution floors, each with a cold-eye
 fold-in. Round 5 (branch `post-v1-round5`, ADR-0021/0022): multi-fault injection — whose e2e test
 immediately falsified the binary set-cover and forced marginal-LLR set construction. The repo is
-**public**. Round 6 (branch `post-v1-round6`, ADR-0023/0024 + docs): README brought current,
-tiered drain budgeting, multi-fault floors measured. **169 tests, gate PASS.**
+**public**. Round 6 (ADR-0023/0024 + docs, merged via PR #5): README brought current, tiered
+drain budgeting, multi-fault floors. Round 7 (branch `post-v1-round7`, ADR-0025..): paper-scale
+proof landed; ToR-pair drill-down next. **171 tests, gate PASS.**
 
 ## Built so far
 
@@ -218,6 +219,15 @@ tiered drain budgeting, multi-fault floors measured. **169 tests, gate PASS.**
   (n=2 "first unanimous Δ" estimator, recorded). A pre-measurement draft predicted lower floors
   and was corrected against observation. Bound by spot-check #3 + md-emission asserts. k≥3
   simultaneous faults remain example-tested, not floor-measured (recorded narrowing).
+
+## Post-v1 round 7 (branch `post-v1-round7`, off merged main)
+
+- **Paper-scale proof** (ADR-0025): `PAPER_SPRAYPOINT` (960×32×4 → 1,456 leaves, ~514K weighted
+  edges — AC-1's upper range, 13× past anything previously executed). Measured: clean FDR holds
+  at scale; optic/panel/room faults each detect and localize rank-1; replay-clean; ~0.7 s/run,
+  ~550 MB (machine numbers, recorded in the ADR — the published `scale_proof` artifact section
+  is deterministic and freshness-bound by spot-check #4). Floors are NOT swept at scale
+  (recorded; demo-scale floors remain the published floors).
 
 ## Honest current limitations (NOT hidden)
 

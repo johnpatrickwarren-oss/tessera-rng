@@ -64,6 +64,10 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
       floors: [{ kind: 'room', detection_floor: 2, attribution_floor: 2 }],
     },
     clean_spraypoint: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
+    scale_proof: {
+      leaves: 1456, edges: 513552, resources: 996, clean_selected: 0,
+      outcomes: [{ kind: 'optic', resource: 'optic-3', delta: 4, detected: true, rank1: 'optic-3' }],
+    },
     multi_fault: {
       deltas: [2],
       cells: [{ kind: 'cross_kind', delta: 2, n: 2, detected: 2, attributed: 2, detection_rate: 1, attribution_rate: 1 }],
@@ -101,6 +105,8 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   // the ADR-0024 multi-fault section must be EMITTED, not just typed (the ADR-0020 C2 lesson).
   assert.match(md, /Multi-fault floors/);
   assert.match(md, /\| cross_kind \| 2 \| 2 \|/, 'the multi-fault floors row renders from the report');
+  assert.match(md, /Paper-scale proof/);
+  assert.match(md, /\| optic \| optic-3 \| 4 \| yes \| optic-3 \|/, 'the scale outcomes render from the report');
   assert.match(md, /concentrated by/);
   assert.match(md, /per_tor/);
 });
@@ -161,4 +167,16 @@ test('SPOT-CHECK #3: the committed multi-fault cross_kind Δ=2 cell matches a fr
   assert.ok(committed, 'the cross_kind Δ=2 cell must exist in the committed matrix');
   const fresh = await multiFaultCell('cross_kind', 2);
   assert.deepEqual(committed, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
+});
+
+test('SPOT-CHECK #4: the committed paper-scale proof matches a fresh recomputation (ADR-0025)', async () => {
+  // same honest-partial pattern: the scale row is deterministic by construction, so the whole
+  // section recomputes and compares field-for-field (~3 paper-scale runs, the suite's largest
+  // single cost — accepted by ADR-0025). Fix a failure by re-running `pnpm coverage`.
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { scaleProof } = await import('../tools/coverage');
+  const rep = JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'coverage-saturation.json'), 'utf8'));
+  const fresh = await scaleProof();
+  assert.deepEqual(rep.scale_proof, JSON.parse(JSON.stringify(fresh)), 'coverage-matrices/ is stale — run `pnpm coverage`');
 });

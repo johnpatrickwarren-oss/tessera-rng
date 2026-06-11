@@ -149,6 +149,16 @@ optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-me
 | same_kind | 3 | 100% (2/2) | 100% (2/2) |
 | same_kind | 4 | 100% (2/2) | 100% (2/2) |
 
+## Paper-scale proof (ADR-0025) — 960 ToRs, executed not extrapolated
+
+Fabric: **1456 leaves** (960 per-ToR + 496 panel-pair views), 513552 weighted edges, 996 resources — the upper range of AC-1. Clean run selects **0** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.
+
+| fault kind | resource | Δ | detected | rank-1 |
+|---|---|---|---|---|
+| optic | optic-3 | 4 | yes | optic-3 |
+| shuffle_panel | panel-2 | 4 | yes | panel-2 |
+| room | room-1 | 4 | yes | room-1 |
+
 ## FDR control (clean fabric, no degradation)
 
 Across 4 clean trials over 300 path-classes: mean selected = **0**, false-positive rate = **0%** — e-BH holds the surface quiet under heavy correlation.
