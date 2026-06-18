@@ -35,7 +35,7 @@ follow, and Tessera-RNG addresses both:
 > **[`INTUITION.html`](INTUITION.html)** — the end-to-end walkthrough: how the pipeline turns
 > "something shifted" into "this shared resource is the culprit," traced through one incident
 > (a passive shuffler going soft), with the intuition and the math at every stage.
-> ([view rendered](https://htmlpreview.github.io/?https://github.com/johnpatrickwarren-oss/tessera-rng/blob/main/INTUITION.html))
+> ([view rendered](https://johnpwarren.dev/blog/tessera-rng/intuition/))
 
 ## How it works
 
