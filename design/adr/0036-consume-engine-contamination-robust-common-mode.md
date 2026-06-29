@@ -73,6 +73,24 @@ stays low and the optic is recoverable. **Clean fabric still selects 0** under c
 | Default OFF (incremental≡batch safe) | a default run is byte-identical to `commonModeRobust:false` |
 | Boundary moved, not removed (honest) | δ=32 still fails both ON and OFF |
 
+## Cold-eye fold-in (fresh-context review)
+
+Verdict: sound, no correctness defect — calib/live stripping is symmetric (incl. the epoch path), the
+primitive is pure and degenerate-safe, the engine is consumed (not forked) at the right granularity,
+and the headline numbers reproduce un-cherry-picked (clean fabric 0/20 false selections ON *and* OFF;
+δ=16 recovers 10/10 ON). Two MINOR gaps recorded here:
+
+- **Family A is NOT re-calibrated to the post-strip variance** (it uses a hardcoded σ²=1; only Family
+  C's Σ and Family D's nulls are re-estimated on the stripped calib residuals). Stripping a real
+  common-mode under-disperses Family A's input — but measured benign: on a low-coupling fabric the
+  variance barely moves (0.9944→0.9949, almost no common-mode to remove), and where a real common-mode
+  DOES exist it deflates exactly the diluted leak leaves, which against a unit-variance betting null is
+  **conservative** (loses wealth → fewer fires, never more). So the recovery is carried by the C/D
+  re-calibration + the tomography q₀ deflation, not by Family A — and false positives are suppressed,
+  not inflated (the 0/20 clean result confirms it).
+- **Session footgun (unguarded):** see the `calibrateForSession` comment — a `ctx` calibrated with the
+  flag must not be fed to `IncrementalSession` (batch-only this round). Scoped, documented, not guarded.
+
 ## Consequences
 
 - The ADR-0034 high-δ saturation is largely closed by **consuming engine code**, not re-engineering —

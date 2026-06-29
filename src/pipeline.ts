@@ -155,6 +155,10 @@ export function calibrateForSession(
   snapshot: FaultDomainSnapshot,
   telemetry: { seed: number; ticks: number; noiseCorr?: number[][]; arCoeffs?: number[][] },
   detect: DetectParams = DEFAULT_DETECT,
+  // ADR-0036: strip the robust common-mode from the calibration residuals too. FOOTGUN — only the
+  // BATCH pipeline strips the LIVE residuals to match; `IncrementalSession` does NOT yet. Do not feed
+  // a `ctx` calibrated with `commonModeRobust:true` into a session (its un-stripped live ticks would
+  // be scored against stripped Σ/D-nulls). Session support is deferred (ADR-0036 follow-up).
   commonModeRobust = false,
 ): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
   const calibRaw = generateTelemetry(snapshot, {
