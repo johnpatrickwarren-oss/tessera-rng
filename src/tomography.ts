@@ -67,6 +67,10 @@ export interface LocalizeOpts {
   /** fault-amplitude grid S the magnitude scorer mixes over with a 1/S prior (ADR-0029 D2); only used
    *  when `magnitude` is set. Fixed-form, not a tunable knob — the meaningful 1–4σ standardized range. */
   scales?: number[];
+  /** z-calibration (ADR-0033): the number of observations the magnitude e-values were ACCRUED over,
+   *  so z = √(2·max(ln E,0)/ticks) ≈ the per-tick shift θ (on μ's O(1) scale). Absent/1 ⇒ the raw
+   *  single-observation z. The pipeline passes its window tick count when it wires magnitude. */
+  magnitudeTicks?: number;
 }
 
 /** Fixed S grid + 1/S prior (ADR-0029 D2): admit the fault amplitude is unknown and mix, never fit it. */
@@ -176,12 +180,17 @@ function memberLLBase(fired: boolean, q0: number, logG: number): number {
  *  vs the evidence term). Calibrating z to the per-tick scale is a recorded prerequisite for the
  *  production pipeline flip (it does not affect this round: the scorer ships dormant). */
 const Z_MAX = 40;
-export function magnitudeZ(eValue: number): number {
+export function magnitudeZ(eValue: number, ticks = 1): number {
   // Throw on a NEGATIVE or NaN e-value (a contract violation that would otherwise silently NaN-vanish
   // the candidate via the `!(score > 0)` gate). +∞ is a legitimate extreme — clamp it, don't throw.
   if (Number.isNaN(eValue) || eValue < 0) throw new RangeError(`magnitudeZ: e-value must be ≥ 0 — got ${eValue}`);
+  // z-CALIBRATION (ADR-0033): the pipeline's e-value is ACCRUED over `ticks` observations, so
+  // ln E ≈ ticks·θ²/2. Dividing by ticks recovers the PER-TICK standardized shift z ≈ θ — putting z
+  // on the same O(1) scale as μ = S·L, so `μz − μ²/2` is a calibrated LR (the falsification term is
+  // no longer √ticks-dominated by the evidence term). ticks = 1 (default) is the single-observation
+  // interpretation: z(e^{θ²/2}) = θ exactly, the D1 identity for direct callers / unit fixtures.
   if (eValue === Infinity) return Z_MAX;
-  return Math.min(Z_MAX, Math.sqrt(2 * Math.max(Math.log(eValue), 0)));
+  return Math.min(Z_MAX, Math.sqrt((2 * Math.max(Math.log(eValue), 0)) / Math.max(ticks, 1)));
 }
 
 /** Soft-evidence member log-LR (ADR-0029): log[ N(z; μ, 1) / N(z; 0, 1) ] = μz − μ²/2, with μ = S·L
@@ -397,11 +406,12 @@ export function localize(
   // Fail-closed — a firing leaf with no supplied e-value in magnitude mode is a contract violation,
   // not a silent z = 0 (which would falsify the very resource it fired for).
   const mag = opts.magnitude;
+  const magTicks = opts.magnitudeTicks ?? 1;
   const zOf = (pc: PathClassId): number => {
     if (!mag || !fired.has(pc)) return 0;
     const e = mag.get(pc);
     if (e === undefined) throw new RangeError(`magnitude mode: firing leaf ${pc} has no e-value`);
-    return magnitudeZ(e);
+    return magnitudeZ(e, magTicks);
   };
 
   // Marginal-LLR set construction (ADR-0022): each pick folds its (δ, κ) posterior into the
