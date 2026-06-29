@@ -34,7 +34,7 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
-| fiber_bundle | 1 | 75% (3/4) | 50% (2/4) |
+| fiber_bundle | 1 | 75% (3/4) | 75% (3/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
 | power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
@@ -109,7 +109,7 @@ unreliable until Δ≳2.5, published, not implied away.
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
 | optic | 2 | 2 |
-| shuffle_panel | 2 | 3 |
+| shuffle_panel | 2 | 2 |
 | room | 1 | 3 |
 
 | fault kind | Δ | detection | attribution |
@@ -121,12 +121,12 @@ unreliable until Δ≳2.5, published, not implied away.
 | optic | 4 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 0.5 | 0% (0/4) | 0% (0/4) |
 | shuffle_panel | 1 | 0% (0/4) | 0% (0/4) |
-| shuffle_panel | 2 | 100% (4/4) | 75% (3/4) |
+| shuffle_panel | 2 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 3 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
 | room | 0.5 | 0% (0/4) | 0% (0/4) |
 | room | 1 | 100% (4/4) | 0% (0/4) |
-| room | 2 | 100% (4/4) | 0% (0/4) |
+| room | 2 | 100% (4/4) | 75% (3/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
 
@@ -140,25 +140,25 @@ optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-me
 
 | pair | detection floor (Δ) | attribution floor (Δ, both-in-top-2) |
 |---|---|---|
-| cross_kind | 2 | 3 |
+| cross_kind | 2 | 2 |
 | same_kind | 2 | 2 |
 
 | pair | Δ | detection | attribution (both-in-top-2) |
 |---|---|---|---|
 | cross_kind | 0.5 | 0% (0/2) | 0% (0/2) |
 | cross_kind | 1 | 50% (1/2) | 0% (0/2) |
-| cross_kind | 2 | 100% (2/2) | 50% (1/2) |
+| cross_kind | 2 | 100% (2/2) | 100% (2/2) |
 | cross_kind | 3 | 100% (2/2) | 100% (2/2) |
 | cross_kind | 4 | 100% (2/2) | 100% (2/2) |
 | same_kind | 0.5 | 0% (0/2) | 0% (0/2) |
-| same_kind | 1 | 50% (1/2) | 0% (0/2) |
+| same_kind | 1 | 50% (1/2) | 50% (1/2) |
 | same_kind | 2 | 100% (2/2) | 100% (2/2) |
 | same_kind | 3 | 100% (2/2) | 100% (2/2) |
 | same_kind | 4 | 100% (2/2) | 100% (2/2) |
 
 ## Paper-scale proof (ADR-0025) — 960 ToRs, executed not extrapolated
 
-Fabric: **1456 leaves** (960 per-ToR + 496 panel-pair views), 513552 weighted edges, 996 resources — the upper range of AC-1. Clean run selects **0** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.
+Fabric: **1456 leaves** (960 per-ToR + 496 panel-pair views), 1434192 weighted edges, 996 resources — the upper range of AC-1. Clean run selects **0** (FDR holds at scale). Wall-clock/memory are machine numbers and live in ADR-0025, keeping this artifact replay-stable. Floors are NOT swept at this scale (recorded); the demo-scale floors above remain the published floors.
 
 | fault kind | resource | Δ | detected | rank-1 |
 |---|---|---|---|---|

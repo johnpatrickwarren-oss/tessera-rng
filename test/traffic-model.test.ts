@@ -83,28 +83,21 @@ function enumeratePairExposure(pair: { i: number; j: number }, resource: string,
   return cross / total;
 }
 
-/** The ONE recorded ADR-0028 narrowing: a tor leaf's PARTNER optics are not edges. */
-function isRecordedCrossOpticOmission(leaf: string, resource: string): boolean {
-  return leaf.startsWith('tor-') && resource.startsWith('optic-') && resource !== `optic-${leaf.slice(4)}`;
-}
-
 function checkFabricAgainstEnumeration(params: SpraypointParams): void {
   const snap = generateSpraypointFabric(params);
   const ref = enumerateViewWeights(params);
   const edgeWeight = new Map<string, number>();
   for (const e of snap.edges) edgeWeight.set(`${e.path_class}→${e.resource}`, e.weight ?? 1);
-  // every enumerated nonzero traversal probability has exactly that edge weight...
+  // ADR-0035 cutover: the fabric now FULLY matches the enumerated flow space — the ADR-0028
+  // cross-optic omission is retired (the partner-optic edge IS emitted at its true 1/(nTors−1)),
+  // because the magnitude scorer can use it. So there is no longer an omission exception: every
+  // enumerated nonzero traversal probability is exactly that edge weight, both ways (completeness).
   let checked = 0;
   for (const [leaf, m] of ref) {
     for (const r of snap.resources) {
       const want = m.get(r.id) ?? 0;
       const got = edgeWeight.get(`${leaf}→${r.id}`);
-      if (isRecordedCrossOpticOmission(leaf, r.id)) {
-        // ...EXCEPT the recorded narrowing, asserted from BOTH sides so it can never rot
-        // silently: the flow space says the traversal is real, the fabric deliberately omits it.
-        assert.equal(want, 1 / (params.nTors - 1), `${leaf}→${r.id}: the omitted term's true probability`);
-        assert.equal(got, undefined, `${leaf}→${r.id}: the cross-optic edge is the RECORDED ADR-0028 omission — adding it back requires re-deciding the narrowing on the record (see the rejected full-support measurements)`);
-      } else if (want === 0) {
+      if (want === 0) {
         assert.equal(got, undefined, `${leaf}→${r.id}: zero-probability traversal must have NO edge`);
       } else {
         assert.equal(got, want, `${leaf}→${r.id}: fabric weight must equal the enumerated P(cross|leaf)`);
@@ -123,7 +116,7 @@ test('KEYSTONE (ADR-0028): fabric view weights ARE the enumerated flow-space pro
 test('KEYSTONE (ADR-0028): holds on an ASYMMETRIC fabric (uneven panels per room)', () => {
   // 4 panels over 3 rooms: room-0={p0,p3}, room-1={p1}, room-2={p2} — the case where the old
   // flat 1/nRooms tor-leaf convention was simply wrong (1/3 each vs true 1/2, 1/4, 1/4).
-  checkFabricAgainstEnumeration({ nTors: 6, nPanels: 4, nRooms: 3 });
+  checkFabricAgainstEnumeration({ nTors: 6, nPanels: 4, nRooms: 3, crossOptic: true });
 });
 
 test('KEYSTONE (ADR-0028): drill exposures derive from the SAME space — both fabrics', () => {
@@ -147,7 +140,7 @@ test('closed forms on the DEFAULT fabric, exact (the ADR-0028 weight table)', ()
   const w = (leaf: string, r: string): number | undefined =>
     snap.edges.find((e) => e.path_class === leaf && e.resource === r)?.weight;
   assert.equal(w('tor-3', 'optic-3'), 1, 'own optic: every flow crosses it');
-  assert.equal(w('tor-3', 'optic-7'), undefined, 'partner optic: the recorded ADR-0028 omission (true P = 1/63, bound in the keystone)');
+  assert.equal(w('tor-3', 'optic-7'), 1 / 63, 'partner optic: now EMITTED at its true 1/(nTors−1) — the ADR-0028 omission is retired (ADR-0035 cutover)');
   assert.equal(w('tor-3', 'panel-2'), 1 / 10, 'panels uniform');
   assert.equal(w('tor-3', 'room-0'), 5 / 10, 'room = its panel share (even split here)');
   assert.equal(w('pp-0-1', 'panel-0'), 1 / 2, 'one panel per flow — NOT the old two-panel w=1');
@@ -156,7 +149,7 @@ test('closed forms on the DEFAULT fabric, exact (the ADR-0028 weight table)', ()
   assert.equal(w('pp-0-2', 'room-0'), 1, 'both panels in the room (0%2 = 2%2 = 0)');
   assert.equal(w('pp-0-1', 'room-0'), 1 / 2, 'split rooms: half each');
   assert.equal(w('pp-0-1', 'room-1'), 1 / 2);
-  assert.equal(snap.source_version, 'sp2:64x10x2', 'the unified-model marker (ADR-0028)');
+  assert.equal(snap.source_version, 'sp3:64x10x2', 'the cross-optic full-support marker (ADR-0035 cutover)');
 });
 
 test('degenerate params are rejected: a one-ToR fabric has an EMPTY flow space (ADR-0028)', () => {
@@ -168,8 +161,8 @@ test('degenerate params are rejected: a one-ToR fabric has an EMPTY flow space (
 });
 
 test('an EMPTY room (nRooms > nPanels) is never traversed — no edge, not a fabricated 1/nRooms', () => {
-  const snap = generateSpraypointFabric({ nTors: 4, nPanels: 2, nRooms: 3 }); // room-2 holds no panel
+  const snap = generateSpraypointFabric({ nTors: 4, nPanels: 2, nRooms: 3, crossOptic: true }); // room-2 holds no panel
   assert.ok(snap.resources.some((r) => r.id === 'room-2'), 'the room exists as a resource');
   assert.ok(!snap.edges.some((e) => e.resource === 'room-2'), 'but carries zero traffic ⇒ zero edges');
-  checkFabricAgainstEnumeration({ nTors: 4, nPanels: 2, nRooms: 3 });
+  checkFabricAgainstEnumeration({ nTors: 4, nPanels: 2, nRooms: 3, crossOptic: true });
 });

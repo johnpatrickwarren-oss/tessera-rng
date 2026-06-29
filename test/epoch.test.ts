@@ -191,7 +191,11 @@ test('the degradation follows the ACTIVE epoch: a leaf rerouted off the faulty r
 import { runPipeline } from '../src/pipeline';
 import { generateSpraypointFabric, DEFAULT_SPRAYPOINT } from '../src/spraypoint';
 
-const SP = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
+// Epoch/reroute machinery (ADR-0018) is tested on the non-cross-optic fabric: rerouting optic-3
+// must cleanly remove tor-3's only optic-3 edge, which the cross-optic full-support default
+// (ADR-0035) would muddy with a residual 1/(nTors−1) partner edge. crossOptic (ADR-0031) is a
+// fabric-model concern, orthogonal to the reroute machinery under test here.
+const SP = generateSpraypointFabric({ ...DEFAULT_SPRAYPOINT, crossOptic: false });
 const REROUTE = [{ at_tick: 40, resource_id: 'optic-3', fraction: 1, seed: 5 }];
 const FAULT = { resource_id: 'optic-3', delta: 4, start_tick: 0 };
 

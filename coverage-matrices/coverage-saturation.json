@@ -96,9 +96,9 @@
       "delta": 1,
       "n": 4,
       "detected": 3,
-      "attributed": 2,
+      "attributed": 3,
       "detection_rate": 0.75,
-      "attribution_rate": 0.5
+      "attribution_rate": 0.75
     },
     {
       "kind": "fiber_bundle",
@@ -283,7 +283,7 @@
         {
           "magnitude": 0.2,
           "detection_rate": 1,
-          "attribution_rate": 0.5,
+          "attribution_rate": 0.75,
           "family": "C"
         },
         {
@@ -450,9 +450,9 @@
         "delta": 2,
         "n": 4,
         "detected": 4,
-        "attributed": 3,
+        "attributed": 4,
         "detection_rate": 1,
-        "attribution_rate": 0.75
+        "attribution_rate": 1
       },
       {
         "kind": "shuffle_panel",
@@ -495,9 +495,9 @@
         "delta": 2,
         "n": 4,
         "detected": 4,
-        "attributed": 0,
+        "attributed": 3,
         "detection_rate": 1,
-        "attribution_rate": 0
+        "attribution_rate": 0.75
       },
       {
         "kind": "room",
@@ -527,7 +527,7 @@
       {
         "kind": "shuffle_panel",
         "detection_floor": 2,
-        "attribution_floor": 3
+        "attribution_floor": 2
       },
       {
         "kind": "room",
@@ -573,9 +573,9 @@
         "delta": 2,
         "n": 2,
         "detected": 2,
-        "attributed": 1,
+        "attributed": 2,
         "detection_rate": 1,
-        "attribution_rate": 0.5
+        "attribution_rate": 1
       },
       {
         "kind": "cross_kind",
@@ -609,9 +609,9 @@
         "delta": 1,
         "n": 2,
         "detected": 1,
-        "attributed": 0,
+        "attributed": 1,
         "detection_rate": 0.5,
-        "attribution_rate": 0
+        "attribution_rate": 0.5
       },
       {
         "kind": "same_kind",
@@ -645,7 +645,7 @@
       {
         "kind": "cross_kind",
         "detection_floor": 2,
-        "attribution_floor": 3
+        "attribution_floor": 2
       },
       {
         "kind": "same_kind",
@@ -658,7 +658,7 @@
     "leaves": 1456,
     "per_tor_leaves": 960,
     "per_panel_pair_leaves": 496,
-    "edges": 513552,
+    "edges": 1434192,
     "resources": 996,
     "clean_selected": 0,
     "outcomes": [
