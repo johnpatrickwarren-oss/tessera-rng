@@ -128,7 +128,16 @@ residuals (calibration + live), opt-in via `commonModeRobust`. **Extends cross-o
 still 0 — using engine code, NOT a re-engineered tomography null. Default OFF (no churn,
 incremental≡batch holds; session support + default cutover deferred). Gate `no-god-module`
 loosened 20→21 on the record (domain.ts type contract, same admitted case as ADR-0017). **231
-tests, gate PASS.**
+tests, gate PASS.** Cold-eye: sound, no defect; folded in the Family-A variance asymmetry +
+session-footgun notes. Merged via PR #21.
+ADR-0037 (engine consumption review — companion to ADR-0036): the other two candidates evaluated
+and **decided not to consume**, on evidence. **e-BH conditional-calibration REJECTED** — zero power
+boost: Tessera's e-process e-values sit at the Ville bound (`1/x`), so the boost (which needs a
+sub-worst-case null tail) has nothing to exploit; the valid Markov fallback is provably zero-gain.
+**`fleet/localize` RECONCILED, kept `tomography.ts`** — different problem (engine = per-shard victim
+ranking ≈ Tessera's detection+surface; Tessera tomography = the downstream resource-attribution
+inverse the engine doesn't do, ADR-0001). Net consumption review: **1 adopted, 1 rejected, 1
+reconciled** — consume where the engine adds capability, decline where it adds nothing or subtracts.
 
 ## Built so far
 
