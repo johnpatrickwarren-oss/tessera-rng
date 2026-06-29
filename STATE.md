@@ -54,6 +54,16 @@ coarse n=4) and a new top-level **`VALIDATION.md`** that splits the validation i
 (impl invariants / synthetic-model / **external = deliberately empty**). The highest-leverage
 in-scope next step — a synthetic sensitivity/degradation study — is sketched in **ADR-0032
 (PROPOSED)**; ADR-0031 stays reserved for the ADR-0029 cross-optic Phase 2.
+Degradation study (branch `adr-0032-degradation-study`, **ADR-0032 ACCEPTED**): built the
+synthetic perturbation harness (`tools/degradation.ts`) + envelope
+(`coverage-matrices/degradation-saturation.{json,md}`), perturbing the telemetry the stack sees
+along four axes (signal noise, missingness, observation delay, aggregation/weight error) and
+re-measuring detection/attribution — n=32/cell, byte-identity-at-zero anchor bound to
+`runPipeline`, anti-self-confirming tests (no-op mutant kills 5/11). **Headline finding:** the
+dominant failure mode is **silent mis-attribution, not silence** (detection stays ~100% while
+attribution collapses), and **signal noise is the sharpest axis** (attribution gone by ~0.5σ of
+uncalibrated noise under dilution — motivates ADR-0029). Routing churn deferred-with-rationale
+(reuses the ADR-0017/0018 epoch path). **209 tests, gate PASS.** README/VALIDATION.md updated.
 
 ## Built so far
 

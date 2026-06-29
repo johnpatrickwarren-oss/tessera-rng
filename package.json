@@ -18,6 +18,8 @@
     "demo": "node tools/build-demo.js",
     "precoverage": "tsc -p tsconfig.test.json",
     "coverage": "node tools/coverage.js",
+    "predegradation": "tsc -p tsconfig.test.json",
+    "degradation": "node tools/degradation.js",
     "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json"
   },
   "dependencies": {

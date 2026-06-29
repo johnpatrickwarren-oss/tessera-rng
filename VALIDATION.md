@@ -44,8 +44,10 @@ by Tier 3.
 | Multi-fault ranking | cross-kind pairs recover both-in-top-2 on tested cases | Under-sampled (n=2); "tested cases," not a characterized regime. |
 | Paper-scale computational feasibility | full stack at 960 ToRs / 1,456 leaves / ~513k weighted edges, clean selection 0, representative faults rank-1 | A **computational** smoke proof (it runs, deterministically, at scale) — not a statistical power study at scale. |
 | ToR-pair drill-down | operator-initiated; fleet → fault domain → impacted pairs, truncation always reported | A **prototype**, not a production diagnostic: residual-level synthetic window, selection-conditioned FDR, id-order truncation sampling; production needs pair-level calibration. |
+| Degradation / sensitivity envelope (ADR-0032) | `coverage-matrices/degradation-saturation.{json,md}`: detection + attribution measured as telemetry quality degrades along 4 axes (signal noise, missingness, observation delay, aggregation/weight error), n=32 per cell, frontier stable across a held-out seed block | Synthetic perturbation of the clean stream — a breakdown frontier *on the model*, not real-telemetry robustness. **Headline finding:** the dominant failure mode is **silent mis-attribution, not silence** — detection stays ~100% while attribution collapses; and **signal noise is the sharpest axis** (attribution gone by ~0.5σ of added uncalibrated noise, which floods the noisy-OR localizer with spurious firing leaves and tips rank-1 to the wrong resource). Weight/aggregation error, by contrast, is the most robust axis (the localizer tolerates ±90% incidence-weight mismatch). Routing churn is **not** an axis here (reuses the ADR-0017/0018 epoch machinery). |
 
-**Status: sufficient for the synthetic model; do not read as operational performance.**
+**Status: sufficient for the synthetic model; do not read as operational performance.** The
+degradation envelope now bounds *how far* the model tolerates departures — synthetically.
 
 ## Tier 3 — external validation (NOT done — deliberately out of v1 scope)
 
@@ -65,12 +67,18 @@ fill it with synthetic stand-ins.
 
 ## The highest-leverage next step (still in synthetic scope)
 
-External validation (Tier 3) needs real data and is correctly deferred. The most valuable work
-that does **not** breach the synthetic anti-scope is a **sensitivity / degradation study**:
-hold the fabric fixed and sweep signal noise, missingness, observation delay, routing churn, and
-telemetry-aggregation error, measuring where detection and localization floors break. That
-converts "coherent under its own world" into "characterized failure envelope" — a bounded,
-synthetic answer to *how close to the model does the world have to be?* — without claiming real
-telemetry it doesn't have. Scoped in **ADR-0032 (PROPOSED)**.
+External validation (Tier 3) needs real data and is correctly deferred. The most valuable
+in-scope work was a **sensitivity / degradation study** — now **built** (ADR-0032, the envelope
+row above): it holds the fabric fixed and sweeps signal noise, missingness, observation delay, and
+aggregation error, measuring where attribution breaks. That converted "coherent under its own
+world" into a *characterized failure envelope* — a bounded, synthetic answer to *how close to the
+model must the world be?* — without claiming real telemetry.
+
+What it surfaced sets the next steps, both still synthetic-or-design:
+- **Routing-churn axis** — the one degradation axis deferred from ADR-0032 (it reuses the
+  ADR-0017/0018 epoch/reroute machinery); measure it against the epoch path.
+- **The noise fragility** — attribution collapsing by ~0.5σ of *uncalibrated* noise argues for a
+  live-calibration-tracking story and reinforces ADR-0029 (magnitude scorer). A design question,
+  owner-deferred.
 
 _Last updated: 2026-06-29._
