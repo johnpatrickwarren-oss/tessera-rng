@@ -162,12 +162,26 @@ function memberLLBase(fired: boolean, q0: number, logG: number): number {
  * E ≤ 1 ⇒ z = 0 (clean members sit at zero). Literal effect size for Family A; a monotone evidence
  * proxy for C/D (admissible because tomography is RANKING, N1 — recorded, not hidden).
  */
+/** z is capped at a large-but-finite value: a combined e-value CAN overflow to +∞ (a hugely-fired
+ *  leaf), which is genuine "infinitely strong" evidence — but z=∞ ⇒ μz=∞ ⇒ NaN in logMixExp. Cap so
+ *  the LR stays finite. The cap DOES bite in the extreme-δ regime where accrued e-values overflow
+ *  (recorded in ADR-0031): there it flattens magnitude discrimination — part of why high-δ recovery
+ *  is lost. It never bites a moderate-δ value, where recovery holds.
+ *
+ *  SCALE CAVEAT (ADR-0031 cold-eye): the pipeline feeds the MULTI-TICK ACCRUED combined e-value, so
+ *  ln E ≈ T·θ²/2 and z ≈ θ·√T (≈ 7.7·θ at T=60), NOT the literal per-tick shift θ the unit identity
+ *  z(e^{θ²/2})=θ suggests. Since √T inflates every firing leaf uniformly, z stays a MONOTONE evidence
+ *  proxy — valid for RANKING (N1), which is all tomography claims — but `μz − μ²/2` is NOT a calibrated
+ *  per-tick LR in production (μ ~ O(1–4), z ~ O(10–40), so the −μ²/2 falsification term is under-scaled
+ *  vs the evidence term). Calibrating z to the per-tick scale is a recorded prerequisite for the
+ *  production pipeline flip (it does not affect this round: the scorer ships dormant). */
+const Z_MAX = 40;
 export function magnitudeZ(eValue: number): number {
-  // Fail LOUD on a non-finite/negative e-value: otherwise z = NaN/∞ silently vanishes the candidate
-  // (dropped by the `!(score > 0)` gate) with no diagnostic. e-values are finite and ≥ 0 by
-  // construction, so this is a contract guard, not an expected path.
-  if (!Number.isFinite(eValue) || eValue < 0) throw new RangeError(`magnitudeZ: e-value must be finite and ≥ 0 — got ${eValue}`);
-  return Math.sqrt(2 * Math.max(Math.log(eValue), 0));
+  // Throw on a NEGATIVE or NaN e-value (a contract violation that would otherwise silently NaN-vanish
+  // the candidate via the `!(score > 0)` gate). +∞ is a legitimate extreme — clamp it, don't throw.
+  if (Number.isNaN(eValue) || eValue < 0) throw new RangeError(`magnitudeZ: e-value must be ≥ 0 — got ${eValue}`);
+  if (eValue === Infinity) return Z_MAX;
+  return Math.min(Z_MAX, Math.sqrt(2 * Math.max(Math.log(eValue), 0)));
 }
 
 /** Soft-evidence member log-LR (ADR-0029): log[ N(z; μ, 1) / N(z; 0, 1) ] = μz − μ²/2, with μ = S·L
@@ -182,8 +196,9 @@ function memberSoftLR(z: number, mu: number): number {
  * cell (δ, κ, S) a member's predicted mean is μ = S·L, where L = 1 − G·(1−δ)^{κw} is the lit fraction
  * COMBINING the picked set's residual unlit factor G = exp(logG) with the candidate's own lighting.
  * The base subtracts the candidate-OFF prediction (L_base = 1 − G) in the SAME mixture, so the
- * difference isolates the candidate's marginal lighting; at the first pick (G ≡ 1, L_base = 0) the base
- * is the μ = 0 null and the score is exactly logMixExp(faulty). The returned cells carry (δ, κ) so the
+ * difference isolates the candidate's marginal lighting. With the q₀ leak (ADR-0031) G = (1−q₀)·exp(logG),
+ * so at the FIRST pick G = 1−q₀, L_base = q₀, and the base is the base-rate null μ = S·q₀ (only the μ = 0
+ * null in the q₀→0 limit). The returned cells carry (δ, κ) so the
  * posterior fold (`posteriorQuietFactors`/`foldPosterior`) is reused UNCHANGED — S only re-weights the
  * posterior, it is not part of the residual quiet factor E_post[(1−δ)^{κw}].
  */
@@ -191,12 +206,18 @@ function resourceMagnitudeLLR(
   a: Acc,
   logG: ReadonlyMap<PathClassId, number>,
   zOf: (pc: PathClassId) => number,
+  q0: number,
   grid: number[],
   kappas: number[],
   scales: number[],
 ): { score: number; cells: MixCell[] } | null {
   if (a.firing.length === 0) return null;
   const logZ = Math.log(kappas.reduce((s, k) => s + 1 / k, 0) * scales.reduce((s, S) => s + 1 / S, 0) * grid.length);
+  // q₀-aware null (ADR-0031): the leak (1−q₀) multiplies the unlit factor, so the NULL lit fraction
+  // is q₀ (a member firing at the base rate is not evidence) — the magnitude analogue of the binary
+  // scorer's `log(1−q₀) + logG + κw·log(1−δ)` quiet log-prob. At q₀→0 the leak vanishes and this
+  // recovers the ADR-0029 Phase-1 (μ=0 null) form, so small-q₀ default-preservation is unchanged.
+  const leak = 1 - q0;
   const faulty: MixCell[] = [];
   const base: { ll: number; logPrior: number }[] = [];
   for (const d of grid) {
@@ -206,7 +227,7 @@ function resourceMagnitudeLLR(
         let llF = 0;
         let llB = 0;
         for (const m of a.members) {
-          const G = Math.exp(logG.get(m.pc) ?? 0);
+          const G = leak * Math.exp(logG.get(m.pc) ?? 0);
           const z = zOf(m.pc);
           const litWith = 1 - G * Math.exp(k * m.weight * Math.log1p(-d));
           llF += memberSoftLR(z, S * litWith);
@@ -330,7 +351,7 @@ function bestMarginal(
   for (const [resource, a] of acc) {
     if (picked.has(resource) || !hasUnexplainedFiring(a, logG, opts.q0)) continue;
     const p = opts.magnitude
-      ? resourceMagnitudeLLR(a, logG, zOf, opts.grid, opts.kappas, opts.scales ?? DEFAULT_SCALES)
+      ? resourceMagnitudeLLR(a, logG, zOf, opts.q0, opts.grid, opts.kappas, opts.scales ?? DEFAULT_SCALES)
       : resourceLLR(a, logG, opts.q0, opts.grid, opts.kappas);
     if (!p || !(p.score > 0)) continue;
     if (!best || p.score > best.score || (p.score === best.score && resource < best.resource)) best = { resource, ...p };

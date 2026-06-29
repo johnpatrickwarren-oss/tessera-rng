@@ -39,6 +39,14 @@ export interface SpraypointParams {
   nPanels: number;
   /** number of rooms the panels sit in. */
   nRooms: number;
+  /**
+   * OPT-IN full-support variant (ADR-0031): emit each tor leaf's partner-optic edges at the true
+   * `P = 1/(nTors−1)` (the ADR-0028 recorded omission). DEFAULT OFF — the existing fabric, its
+   * hashes/floors and the ADR-0028 narrowing-bind test are unchanged. ON is only sound WITH the
+   * magnitude scorer (ADR-0029): the binary fire/quiet scorer drowns in the diluted quiet members
+   * (the measured ADR-0028 rejection this round reverses). `source_version` marks `sp3:` when on.
+   */
+  crossOptic?: boolean;
 }
 
 /** Documented defaults — 64 ToRs + C(10,2)=45 panel-pairs = 109 leaves, inside AC-1's [100, 10000]. */
@@ -75,6 +83,12 @@ function buildResources(params: SpraypointParams): Array<{ id: ResourceId; kind:
  */
 function torLeafEdges(leaf: string, i: number, params: SpraypointParams): FaultDomainEdge[] {
   const edges: FaultDomainEdge[] = [{ path_class: leaf, resource: opticId(i), relationship: 'traverses', weight: 1 }];
+  // Partner-optic cross edges (ADR-0031 opt-in): true P = 1/(nTors−1) per partner. Off by default
+  // (the ADR-0028 omission); on only WITH the magnitude scorer that can use the diluted evidence.
+  if (params.crossOptic) {
+    const w = 1 / (params.nTors - 1);
+    for (let j = 0; j < params.nTors; j++) if (j !== i) edges.push({ path_class: leaf, resource: opticId(j), relationship: 'traverses', weight: w });
+  }
   for (let p = 0; p < params.nPanels; p++) edges.push({ path_class: leaf, resource: panelId(p), relationship: 'traverses', weight: 1 / params.nPanels });
   for (let r = 0; r < params.nRooms; r++) {
     const share = panelsInRoom(r, params) / params.nPanels;
@@ -145,9 +159,9 @@ export function generateSpraypointFabric(params: SpraypointParams = DEFAULT_SPRA
     views,
     fetched_at_ts: 0,
     source_id: 'synthetic-spraypoint-fabric',
-    // `sp2` marks the unified flow model (ADR-0028) — artifacts produced before/after the
-    // unification differ by hash anyway; the marker says WHY.
-    source_version: `sp2:${params.nTors}x${params.nPanels}x${params.nRooms}`,
+    // `sp2` marks the unified flow model (ADR-0028); `sp3` the opt-in cross-optic full-support
+    // variant (ADR-0031) — artifacts differ by hash anyway; the marker says WHY.
+    source_version: `${params.crossOptic ? 'sp3' : 'sp2'}:${params.nTors}x${params.nPanels}x${params.nRooms}`,
   };
 }
 

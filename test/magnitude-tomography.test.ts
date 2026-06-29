@@ -71,31 +71,37 @@ test('default preservation AT SMALL q₀: a BINARIZED magnitude reproduces the b
   assert.deepEqual(magBinarized.explained_path_class_ids, binary.explained_path_class_ids, 'and the explained set');
 });
 
-test('DIVERGENCE (recorded, instrumented-caveat): the magnitude null is q₀-BLIND — diverges from binary at high q₀', () => {
-  // The binary LLR null is base-rate aware (a fleet-wide event firing at ≈q₀ is NOT evidence); the
-  // magnitude scorer's null is μ=0, with no q₀ term. So at a high q₀ they DISAGREE. Pinned here in
-  // the open: this is the gap the ADR Risk flagged (map q₀ to a null offset) and it is a REQUIRED
-  // prerequisite for the Phase-2 pipeline flip — until then the magnitude scorer stays dormant.
+test('q₀-aware null (ADR-0031): base-rate firing is not evidence, but a genuinely strong shift still is', () => {
+  // The ADR-0029 cold-eye found the magnitude null was q₀-blind (μ=0), so it blamed a fleet-wide
+  // base-rate event the binary scorer correctly rejects. ADR-0031 threads the (1−q₀) leak into the
+  // lit fraction (null lit fraction = q₀). Now the behavior is correct AND honest:
   const edges = ['f1', 'f2', 'f3', 'q1', 'q2'].map((p) => E(p, 'bundle-0', 1));
   const s = snap(edges, { 'bundle-0': 'fiber_bundle' });
   const firing = ['f1', 'f2', 'f3'];
-  const flat = new Map(firing.map((pc) => [pc, Math.exp(8)]));
+  const boundary = new Map(firing.map((pc) => [pc, Math.exp(0.5)])); // z≈1 — firing just past threshold
+  const strong = new Map(firing.map((pc) => [pc, Math.exp(8)]));     // z=4 — a 4σ shift
 
-  // q₀=0.5 (fleet-wide event): binary correctly blames NOTHING …
-  const binary = localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.5 });
-  assert.equal(binary.culprits.length, 0, 'binary: base-rate firing is not evidence');
-  // … but binarized magnitude (q₀-blind null) fabricates a culprit — the recorded divergence.
-  const mag = localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.5, magnitude: flat });
-  assert.equal(mag.culprits[0]?.resource_id, 'bundle-0', 'magnitude: q₀-blind null blames a fleet-wide event (KNOWN gap, Phase-2 blocker)');
+  // Binary correctly blames NOTHING at a fleet-wide q₀=0.5 …
+  assert.equal(localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.5 }).culprits.length, 0);
+  // … and the q₀-aware magnitude scorer now AGREES when the firing is only boundary-strength
+  // (the divergence the cold-eye flagged is CLOSED) …
+  assert.equal(localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.5, magnitude: boundary }).culprits.length, 0,
+    'boundary-strength firing at the base rate is no longer fabricated into a culprit');
+  // … but a genuinely STRONG shift (4σ) is real evidence even at q₀=0.5 — magnitude SEES the
+  // strength the binary fire/quiet bit cannot. This is the intended improvement, not a bug.
+  assert.equal(localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.5, magnitude: strong }).culprits[0]?.resource_id, 'bundle-0',
+    'a 4σ shift is evidence regardless of base rate — the magnitude scorer is strictly more informed');
 
-  // At the quiet-fleet q₀=0.05 they AGREE again — bounding the divergence to high base rates.
-  assert.equal(localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.05 }).culprits[0]?.resource_id, 'bundle-0');
-  assert.equal(localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.05, magnitude: flat }).culprits[0]?.resource_id, 'bundle-0');
+  // On a quiet fleet (q₀=0.05) both magnitudes blame, matching binary — the leak vanishes as q₀→0.
+  assert.equal(localize(s, firing, { ...DEFAULT_LOCALIZE, q0: 0.05, magnitude: boundary }).culprits[0]?.resource_id, 'bundle-0');
 });
 
-test('magnitudeZ fails loud on a non-finite or negative e-value (no silent NaN-vanish)', () => {
-  assert.throws(() => magnitudeZ(Infinity), /finite/);
+test('magnitudeZ: NaN/negative throw; +∞ clamps to a finite cap (no silent NaN-vanish, ADR-0031)', () => {
   assert.throws(() => magnitudeZ(-1), /≥ 0/);
+  assert.throws(() => magnitudeZ(NaN), /≥ 0/);
+  // a combined e-value CAN overflow to +∞ (a hugely-fired leaf) — legitimate extreme evidence, so it
+  // clamps to a finite z rather than throwing or NaN-vanishing the candidate.
+  assert.ok(Number.isFinite(magnitudeZ(Infinity)) && magnitudeZ(Infinity) > 0, '+∞ clamps to a finite z');
 });
 
 test('no regression with REAL (varied) magnitudes: the follow-the-traffic culprit still wins (ADR-0014/0019)', () => {
