@@ -12,6 +12,7 @@ import { StaticFaultDomainSource } from './fault-domain-source';
 import { generateTelemetry } from './telemetry';
 import type { DegradationSpec } from './telemetry';
 import { buildCalibration, standardizeAll } from './calibration';
+import { stripCommonMode } from './common-mode';
 import { detectAll, DEFAULT_DETECT } from './detect';
 import type { DetectParams } from './detect';
 import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './family-c';
@@ -48,6 +49,14 @@ export interface PipelineParams {
    * byte-identical v1 audit.
    */
   reroutes?: readonly RerouteEvent[];
+  /**
+   * OPT-IN contamination-robust common-mode removal (ADR-0036): strip the engine's robust per-tick
+   * cross-leaf common-mode from the residuals (calibration + live) before detection. Addresses the
+   * ADR-0034 high-δ saturation — a fleet-wide fault's shared shift no longer inflates q₀. Default
+   * OFF: the cut-over default path (and the incremental session, which does not yet support it) are
+   * byte-unchanged, so incremental≡batch holds. Batch path only for now (session support deferred).
+   */
+  commonModeRobust?: boolean;
 }
 
 /**
@@ -146,6 +155,7 @@ export function calibrateForSession(
   snapshot: FaultDomainSnapshot,
   telemetry: { seed: number; ticks: number; noiseCorr?: number[][]; arCoeffs?: number[][] },
   detect: DetectParams = DEFAULT_DETECT,
+  commonModeRobust = false,
 ): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
   const calibRaw = generateTelemetry(snapshot, {
     seed: telemetry.seed ^ 0xca11b,
@@ -154,7 +164,9 @@ export function calibrateForSession(
     arCoeffs: telemetry.arCoeffs,
   });
   const calibration = buildCalibration(calibRaw.series);
-  const calibResiduals = standardizeAll(calibRaw.series, calibration);
+  // Common-mode removal (ADR-0036) must be applied to the calibration residuals TOO, so Family C's Σ
+  // and Family D's nulls are estimated under the same regime the live detector sees (else mismatch).
+  const calibResiduals = commonModeRobust ? stripCommonMode(standardizeAll(calibRaw.series, calibration)) : standardizeAll(calibRaw.series, calibration);
   const familyCCell = makeFamilyCCellFromCovariance(estimateBaselineCovariance(calibResiduals).sigma, detect.alphaC);
   const familyDCells = estimateFamilyDNull(calibResiduals);
   return { calibration, ctx: { familyCCell, familyDCells } };
@@ -167,7 +179,8 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
 
   // Per-cell calibration substrate (AC-7): clean window, distinct seed (the shared prelude).
   const detect = params.detect ?? DEFAULT_DETECT;
-  const { calibration, ctx } = calibrateForSession(snapshot, params.telemetry, detect);
+  const cmRobust = params.commonModeRobust ?? false;
+  const { calibration, ctx } = calibrateForSession(snapshot, params.telemetry, detect, cmRobust);
   const { familyCCell, familyDCells } = ctx;
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
@@ -177,7 +190,9 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const seg = epochs ? segmentPlan(epochs, params.telemetry.ticks) : null;
 
   const liveRaw = generateTelemetry(snapshot, epochs ? { ...params.telemetry, epochs } : params.telemetry);
-  const residuals = standardizeAll(liveRaw.series, calibration);
+  const standardized = standardizeAll(liveRaw.series, calibration);
+  // ADR-0036: strip the engine's robust common-mode from the live residuals too (q₀-saturation fix).
+  const residuals = cmRobust ? stripCommonMode(standardized) : standardized;
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
 
   return assembleAudit({ snapshot, snapshot_hash, q: params.q, verdicts, epochs, resets: seg?.resets ?? null, drain_top_k: params.drain_top_k ?? 1 });

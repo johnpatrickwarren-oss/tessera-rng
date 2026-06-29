@@ -119,6 +119,16 @@ distinct phenomenon). demo.html + coverage regenerated. The high-δ limit (ADR-0
 The default v1 pipeline fabric (`generateFabric`) is unchanged; `crossOptic:false` stays supported.
 The **ADR-0028→0029→0031→0033→0034→0035 arc is closed — cross-optic localization is live.**
 **224 tests, gate PASS.**
+**Expand engine consumption (directive: don't re-engineer what the engine has).** ADR-0036
+(branch `adr-0036-consume-engine-common-mode`): **consumed** the engine's contamination-robust
+common-mode (`fleet/common-mode` `robustLocation`) as `src/common-mode.ts` `stripCommonMode` — a
+compose-layer that strips the robust per-tick cross-leaf common-mode from Tessera's standardized
+residuals (calibration + live), opt-in via `commonModeRobust`. **Extends cross-optic recovery
+≈δ6→≈δ16** (δ=16: 0/4→4/4), closing most of the ADR-0034 saturation, in-band preserved, clean FDR
+still 0 — using engine code, NOT a re-engineered tomography null. Default OFF (no churn,
+incremental≡batch holds; session support + default cutover deferred). Gate `no-god-module`
+loosened 20→21 on the record (domain.ts type contract, same admitted case as ADR-0017). **231
+tests, gate PASS.**
 
 ## Built so far
 
