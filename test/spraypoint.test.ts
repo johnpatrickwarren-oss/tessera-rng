@@ -83,14 +83,18 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   // retired below; the κ=1 grid also ranks the true optic) — what this test binds is the
   // QUANTITATIVE κ-mixture margin: saturation supplies the decisive evidence (score floor
   // asserts), so a mutant that ignores κ collapses the margin and fails.
+  // Bound on the NON-cross-optic (sp2) fabric: this binds the ADR-0019 saturation into the diluted
+  // PAIR leaves (2/nTors), a distinct phenomenon from the ADR-0035 cross-optic fleet saturation
+  // whose extreme-δ limit is separately characterized (ADR-0034). crossOptic:false isolates it.
+  const SP2 = generateSpraypointFabric({ ...DEFAULT_SPRAYPOINT, crossOptic: false });
   for (const delta of [64, 128]) {
-    const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
+    const a = await runPipeline({ snapshot: SP2, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
     assert.equal(a.culprits[0]?.resource_id, 'optic-3', `the saturating LLR holds the true optic at δ=${delta}`);
   }
-  const a = await runPipeline({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 128, start_tick: 0 } } });
+  const a = await runPipeline({ snapshot: SP2, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 128, start_tick: 0 } } });
   const sel = a.selected_path_class_ids;
   assert.ok(sel.length > 30, 'the leakage premise still holds — the pair view saturates at δ=128');
-  const q0 = q0Of(sel.length, SNAP.path_classes.length);
+  const q0 = q0Of(sel.length, SP2.path_classes.length);
   // CONTROL 1 RETIRED (ADR-0028): under the unified weights the legacy linear scorer no longer
   // flips on this fixture — the original ADR-0016 flip was conditioned on the old two-panel
   // w=1 / source-side 1/nTors conventions (observed: legacy now also picks optic-3 at δ=128).
@@ -102,10 +106,10 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   // parameterization), so the κ-mixture bind is QUANTITATIVE — saturation supplies the decisive
   // evidence margin (observed 33.7 vs 3.9 under the sp2 weights). A mutant that ignores κ
   // (k·w → w) collapses the default to the κ=1 score and fails the floor assert.
-  const noSat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0, kappas: [1] });
+  const noSat = localize(SP2, sel, { ...DEFAULT_LOCALIZE, q0, kappas: [1] });
   assert.equal(noSat.culprits[0]?.resource_id, 'optic-3');
   assert.ok(noSat.culprits[0].score < 5, `κ=1 score stays small (got ${noSat.culprits[0].score})`);
-  const sat = localize(SNAP, sel, { ...DEFAULT_LOCALIZE, q0 });
+  const sat = localize(SP2, sel, { ...DEFAULT_LOCALIZE, q0 });
   assert.ok(sat.culprits[0].score > 20, `the κ mixture supplies the saturation margin (got ${sat.culprits[0].score})`);
   // MINIMAL SET (ADR-0022): the optic's posterior (high κ) already predicts the whole pair view,
   // so no panel/room earns a positive MARGINAL score — exactly one culprit. Kills a

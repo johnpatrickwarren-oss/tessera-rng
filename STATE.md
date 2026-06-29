@@ -106,6 +106,19 @@ already +∞). **Decision: accept the bounded limit** (δ≥8 is an unmissable k
 concentration-robust null, and upstream e-value scaling (an engine extension-point request, never
 forked). The ADR-0028→0029→0031→0033→0034 arc closes with an honest, characterized boundary.
 **224 tests, gate PASS.**
+**Production cutover (branch `adr-0035-production-cutover`, ADR-0035 ACCEPTED):** turned the arc on
+in production. (A) `assembleAudit` flips the localizer to the **magnitude scorer** (raw z, ADR-0033;
+incremental≡batch preserved as both share assembleAudit); (B) `DEFAULT_SPRAYPOINT`/`PAPER_SPRAYPOINT`
+set **`crossOptic: true`** — the ADR-0028 omission is retired. **Measured before commit: zero floor
+regressions, several improvements** (room attribution Δ=2 0%→75%; shuffle_panel & cross_kind
+attribution floors 3→2; fiber_bundle 50%→75%), clean FDR still 0 at paper scale, all faults rank-1
+at 960 ToRs. Bind-tests rewritten on the record: the traffic-model keystone is now omission-free
+(fabric fully matches the enumeration), the cross-optic test asserts default-on + opt-out, and the
+epoch (ADR-0018) + C1 (ADR-0019) tests are pinned to `crossOptic:false` (orthogonal machinery /
+distinct phenomenon). demo.html + coverage regenerated. The high-δ limit (ADR-0034) ships bounded.
+The default v1 pipeline fabric (`generateFabric`) is unchanged; `crossOptic:false` stays supported.
+The **ADR-0028→0029→0031→0033→0034→0035 arc is closed — cross-optic localization is live.**
+**224 tests, gate PASS.**
 
 ## Built so far
 

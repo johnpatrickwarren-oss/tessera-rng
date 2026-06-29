@@ -200,7 +200,14 @@ export function assembleAudit(args: {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
   const surface = buildSurface(verdicts, q);
 
-  const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 };
+  // Production cutover (ADR-0035): the localizer uses the magnitude scorer — each selected leaf's
+  // combined e-value threads in as evidence magnitude (ADR-0029), q₀-aware (ADR-0031), on the RAW
+  // accrued scale (ADR-0033: the operationally favourable low-δ band). On non-cross-optic fabrics
+  // this is ranking-equivalent to the binary scorer (default-preservation); on the cross-optic
+  // fabric it recovers cross-kind faults in the operating band (ADR-0031; high-δ bounded, ADR-0034).
+  const eByPc = new Map(verdicts.map((v) => [v.path_class_id, v.e_value]));
+  const magnitude = new Map(surface.selected_path_class_ids.map((pc) => [pc, eByPc.get(pc)!]));
+  const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0, magnitude };
   const loc = epochs
     ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
     : localize(snapshot, surface.selected_path_class_ids, locOpts);

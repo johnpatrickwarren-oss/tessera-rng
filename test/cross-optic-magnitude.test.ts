@@ -26,21 +26,24 @@ async function recover(snap: FaultDomainSnapshot, delta: number, seed: number): 
   const surface = buildSurface(audit.verdicts, 0.05);
   const eOf = new Map(audit.verdicts.map((v) => [v.path_class_id, v.e_value]));
   const mag = new Map(surface.selected_path_class_ids.map((pc) => [pc, eOf.get(pc)!]));
+  // BINARY baseline computed explicitly (no magnitude) — the pipeline default is now magnitude
+  // (ADR-0035), so we localize both ways from the same detection surface to keep the contrast.
+  const bin = localize(snap, surface.selected_path_class_ids, { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0 });
   const m = localize(snap, surface.selected_path_class_ids, { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0, magnitude: mag });
-  return { binary: top2(audit.culprits), magnitude: top2(m.culprits) };
+  return { binary: top2(bin.culprits), magnitude: top2(m.culprits) };
 }
 
-test('cross-optic fabric (opt-in): a tor leaf gains nTors−1 partner-optic edges at 1/(nTors−1); the DEFAULT fabric has none', () => {
+test('cross-optic edges are emitted BY DEFAULT (ADR-0035 cutover); opting out restores the sp2 omission', () => {
   const partner = CROSS.edges.filter((e) => e.path_class === 'tor-3' && e.resource.startsWith('optic-') && e.resource !== 'optic-3');
-  assert.equal(partner.length, DEFAULT_SPRAYPOINT.nTors - 1, 'every partner optic is an edge');
+  assert.equal(partner.length, DEFAULT_SPRAYPOINT.nTors - 1, 'every partner optic is an edge by default');
   for (const e of partner) assert.ok(Math.abs((e.weight ?? 1) - 1 / (DEFAULT_SPRAYPOINT.nTors - 1)) < 1e-12, 'partner weight = 1/(nTors−1)');
   assert.ok(CROSS.source_version.startsWith('sp3:'), 'marked sp3 (full-support variant)');
 
-  // the ADR-0028 omission is UNCHANGED on the default fabric — no silent fabric change.
-  const def = generateSpraypointFabric(DEFAULT_SPRAYPOINT);
-  const defPartner = def.edges.filter((e) => e.path_class === 'tor-3' && e.resource.startsWith('optic-') && e.resource !== 'optic-3');
-  assert.equal(defPartner.length, 0, 'default fabric still omits cross-optic edges (ADR-0028)');
-  assert.ok(def.source_version.startsWith('sp2:'));
+  // opting OUT (crossOptic:false) restores the historic ADR-0028 omission — the binary-era fabric.
+  const noCross = generateSpraypointFabric({ ...DEFAULT_SPRAYPOINT, crossOptic: false });
+  const none = noCross.edges.filter((e) => e.path_class === 'tor-3' && e.resource.startsWith('optic-') && e.resource !== 'optic-3');
+  assert.equal(none.length, 0, 'crossOptic:false omits the cross-optic edges (the retired sp2 fabric)');
+  assert.ok(noCross.source_version.startsWith('sp2:'));
 });
 
 test('ACCEPTANCE BAR: magnitude recovers the cross-kind optic 4/4 seeds where binary gets 0/4 (δ∈{3,4,5,6})', async () => {
