@@ -73,6 +73,19 @@ Default preservation holds byte-for-byte **at small q₀**; the cold-eye caught 
 is **q₀-blind** and diverges at high q₀ (would blame a fleet-wide event) — re-scoped, divergence
 pinned by a recorded fixture, and the q₀-aware null made a **hard prerequisite for the Phase-2 flip**
 (ADR-0031). μz-drop mutant kills 3 tests. **218 tests, gate PASS.**
+Cross-optic re-add + magnitude Phase 2 (branch `adr-0031-cross-optic-magnitude`, **ADR-0031
+ACCEPTED, in-band**): (1) made the magnitude scorer **q₀-aware** (a `(1−q₀)` leak on the unlit
+fraction — closes the ADR-0029 divergence: boundary firing at high q₀ is no longer fabricated into a
+culprit, while a genuine 4σ shift still is); (2) added an **opt-in `crossOptic`** Spraypoint variant
+re-adding partner-optic edges at `1/(nTors−1)` (the ADR-0028 omission; default OFF, marked `sp3:`);
+(3) **acceptance bar**: on the cross-optic fabric the magnitude scorer recovers cross-kind optic-3 +
+panel-7 **4/4 seeds at δ∈{3–6}** where binary recovers **0/4** — reversing the ADR-0028 rejection.
+**Recorded limitation:** at δ≥8 the cross-optic leak saturates the fleet (estimated q₀→0.37–0.70)
+and recovery is lost — magnitude is better in-band, equal (both fail) out-of-band, never worse;
+z is a monotone ranking proxy (the pipeline feeds an accrued e-value ≈θ√T, calibration deferred to
+the cutover). Pipeline default flip
+deliberately NOT done (anti-scope; production cutover is the next recorded step). q₀-leak + μz
+mutants both caught. **221 tests, gate PASS.**
 
 ## Built so far
 
