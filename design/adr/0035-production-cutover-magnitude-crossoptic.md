@@ -59,9 +59,13 @@ Regenerated the coverage matrix and compared floors to the committed (pre-cutove
 
 ## Anti-scope (must-never)
 
-- **The default v1 pipeline fabric (`generateFabric`) is unchanged** — only the Spraypoint
-  production fabrics go cross-optic. On non-cross-optic fabrics the magnitude scorer is
-  ranking-equivalent to binary (default-preservation, ADR-0029) — the flip is safe there too.
+- **The default v1 pipeline fabric (`generateFabric`) is unchanged** as a *fabric* — only the
+  Spraypoint production fabrics go cross-optic. But the localizer flips to magnitude **everywhere**,
+  so v1-fabric AUDITS do change — *only as measured improvements*, not ranking-equivalence: the
+  regenerated matrix shows v1-path attribution gains (fiber_bundle Δ=1 0.5→0.75; covariance_flip
+  Δρ=0.2 0.5→0.75, detection held), i.e. a rank-1 culprit improved in ≥1 trial, with **zero
+  regressions**. (Default-preservation, ADR-0029, is the small-q₀ *ranking* guarantee; in practice
+  the graded evidence does strictly better here, as the Consequences below note.)
 - **The high-δ limit ships, bounded (ADR-0034)** — not hidden: a δ≥8 fleet-saturating optic fault is
   not localized to a single optic. The operating band is solved; the limit is pinned by tests.
 - **No new tunable knob.** Raw z (ADR-0033), fixed S/κ priors, q₀ from the surface — all as decided.
@@ -76,3 +80,21 @@ Regenerated the coverage matrix and compared floors to the committed (pre-cutove
   just on cross-optic faults — the magnitude scorer's graded evidence helps the existing modes too.
 - Remaining open items are the two ADR-0034 future directions (contamination-robust null; upstream
   e-value scaling), unchanged by this round.
+
+## Cold-eye fold-in (fresh-context review of the cutover)
+
+- **Corrected (was a false durable claim):** the anti-scope originally said the magnitude flip is
+  "ranking-equivalent on non-cross-optic fabrics." The regenerated matrix proves v1-fabric audits
+  *change* — as measured improvements (the rank-1 culprit improved in ≥1 trial), zero regressions.
+  Reworded above so a future reader is not misled across an irreversible cutover.
+- **Safety pinned:** added a test (`cross-optic-magnitude.test.ts`) exercising the **production
+  default (cross-optic) fabric through `runPipeline`** across δ∈{8,16,32}×4 seeds — a saturating
+  fault is never localized to a *wrong* optic (the high-δ failure is incomplete, not confidently
+  wrong). This was previously documented (ADR-0034) but not test-pinned.
+- **Recorded coverage gap (MINOR):** the epoch'd per-evidence-epoch localization (ADR-0018) is still
+  only exercised on `crossOptic:false`; the epoch'd × cross-optic-default combination is untested
+  (epoch runs require explicit `reroutes`, so it is not a default production path). Left as a noted
+  gap, not closed this round.
+- Cold-eye independently confirmed: magnitude wiring correct/complete (no spurious throw,
+  `selected ⊆ verdicts`), incremental ≡ batch preserved, raw z (no `magnitudeTicks`), and the
+  bind-test rewrites faithful (the keystone is strengthened, not weakened).

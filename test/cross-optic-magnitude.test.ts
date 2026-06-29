@@ -74,3 +74,19 @@ test('RECORDED LIMITATION (instrumented-caveat): out of band (δ≥8) the fleet 
     assert.ok(!bothRecovered(magnitude), `δ=${delta}: magnitude ALSO fails under fleet saturation — the recorded limitation`);
   }
 });
+
+test('SAFETY (ADR-0035 cutover, production default fabric): a saturating fault is never localized to a WRONG optic', async () => {
+  // ADR-0035 ships cross-optic by DEFAULT, so exercise the real pipeline path on the default fabric.
+  // The high-δ failure mode (ADR-0034) must be "incomplete" (the true optic is missed), NEVER
+  // "confidently wrong" (a spurious optic blamed). Verified across the saturation band × seeds.
+  const snap = generateSpraypointFabric(DEFAULT_SPRAYPOINT); // cross-optic by default now
+  for (const delta of [8, 16, 32]) {
+    for (const seed of [1, 2, 3, 4]) {
+      const a = await runPipeline({ snapshot: snap, q: 0.05, telemetry: { seed, ticks: 60, degradations: [
+        { resource_id: 'optic-3', delta, start_tick: 0 }, { resource_id: 'panel-7', delta, start_tick: 0 },
+      ] } });
+      const wrongOptic = a.culprits.find((c) => c.resource_id.startsWith('optic-') && c.resource_id !== 'optic-3');
+      assert.equal(wrongOptic, undefined, `δ=${delta} seed=${seed}: no spurious optic culprit (${wrongOptic?.resource_id}) — failure is incomplete, not wrong`);
+    }
+  }
+});
