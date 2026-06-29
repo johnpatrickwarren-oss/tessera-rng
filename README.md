@@ -19,10 +19,12 @@ by the time a threshold alarm fires, the path-margin is already spent. Two hard 
 follow, and Tessera-RNG addresses both:
 
 1. **Multiplicity at scale** — monitor 10³–10⁴ heavily-correlated path-classes without
-   false-positive blowup (measured, not extrapolated: the coverage matrix's paper-scale proof
-   runs the full stack at 1,456 leaves / 960 ToRs). *Solved by reuse:* hierarchical e-value combination + **e-BH FDR**,
+   false-positive blowup. *Solved by reuse:* hierarchical e-value combination + **e-BH FDR**,
    which controls the false-discovery rate **under arbitrary dependence** (load-bearing, since
-   path-class signals are correlated through shared fiber/optic/shuffle hardware).
+   path-class signals are correlated through shared fiber/optic/shuffle hardware). The guarantee
+   is a *theorem, conditional on valid per-path-class e-values*; what we measure is narrower —
+   that clean synthetic fabrics select nothing, including at paper scale (1,456 leaves / 960
+   ToRs) — not an empirical FDR curve over many null regimes. See [`VALIDATION.md`](VALIDATION.md).
 2. **Localization** — turn "something shifted" into "this shared physical resource is the
    culprit" on a topology where **hop distance does not encode fault domain**. *Solved by new
    math:* network tomography — a saturating leaky noisy-OR likelihood over a fault-domain
@@ -65,7 +67,7 @@ operational.
 ## Quickstart
 
 ```bash
-pnpm install          # resolves the engine git-dep (deploysignal-engine#v0.3.1-pre)
+pnpm install          # resolves the engine git-dep (deploysignal-engine#v0.6.0-pre)
 pnpm test             # tsc -p tsconfig.test.json && node --test test/*.test.js
 pnpm typecheck
 pnpm demo             # -> demos/demo.html  (eight deterministic scenarios, single file)
@@ -86,7 +88,10 @@ skeleton plus eight post-v1 rounds, one ADR per real decision:
   blind to). Per-cell calibration (HoD × DoW × traffic-class) with AR(p) pre-whitening and a
   min-sample pooled fallback.
 - **Selection** — hierarchical e-value combine + e-BH FDR, valid under the arbitrary
-  dependence the shared hardware creates (clean fabrics select nothing, measured).
+  dependence the shared hardware creates — a theorem *conditional on valid per-path-class
+  e-values*. Empirically we show only that clean synthetic fabrics select nothing (4 trials per
+  fabric, FP rate 0); that corroborates input validity in the synthetic null, it does not
+  measure FDR across regimes ([`VALIDATION.md`](VALIDATION.md)).
 - **Localization** — the tomographic solver over **weighted (fractional) incidence**: an
   exposure-saturating leaky noisy-OR mixture LLR (an extreme fault fires even a 1/64-diluted
   leaf, and the model can say so), built into a minimal culprit set by **marginal-LLR greedy
@@ -106,7 +111,9 @@ skeleton plus eight post-v1 rounds, one ADR per real decision:
 - **Honest measurement** — detection *and* attribution floors for every anomaly mode, both
   fabric regimes (binary and fractional-dilution), AND simultaneous multi-fault pairs
   (both-in-top-2), per-view blind-spot maps, clean-fabric FDR controls for each fabric,
-  firing-mode attribution in every audit — caveats in the open. The published artifacts are
+  firing-mode attribution in every audit — caveats in the open. Floors are coarse **n=4**
+  (2 seeds × 2 targets; multi-fault n=2) point estimates, grid-resolution-limited — regression
+  artifacts that detect drift, not robust operating curves. The published artifacts are
   freshness-bound by tests: the demo byte-exactly, the coverage matrix by spot-checked cells
   (an honest partial bind, named as such in the tests).
 
@@ -124,6 +131,8 @@ math, and a fresh-context cold-eye review closing every round — several of whi
 the build's own headline claims before they shipped (the trail records each one).
 
 - [`STATE.md`](STATE.md) — the cold-readable "now".
+- [`VALIDATION.md`](VALIDATION.md) — what is and isn't validated, in three tiers (the external
+  tier is deliberately empty in v1 — read this before reading any claim as operational).
 - [`design/spec/v1-spec.md`](design/spec/v1-spec.md) — the v1 contract (anti-scope first; ACs).
 - [`design/adr/`](design/adr/) — one ADR per real decision (start at ADR-0001).
 

@@ -47,6 +47,13 @@ but byte-identical and re-exported; `updateBettingState` gained an optional `ar1
 by a clean `tsc` and **198 tests green** against the new tree. No engine surface adopted yet
 (e-BH boosting, AR(1)-aware betting, `localizeFaults` are deferred to their own ADRs). Gotcha
 recorded in ADR-0030: `pnpm` prints `0.5.0-pre`, but the lockfile SHA is the truth.
+Validation-honesty pass (branch `validation-honesty-pass`): an external review prompted a
+language softening (README FDR/floor claims re-pinned to what's actually measured — a theorem
+conditional on valid e-values + clean-fabric FP=0, not a measured FDR curve; floors flagged as
+coarse n=4) and a new top-level **`VALIDATION.md`** that splits the validation into three tiers
+(impl invariants / synthetic-model / **external = deliberately empty**). The highest-leverage
+in-scope next step — a synthetic sensitivity/degradation study — is sketched in **ADR-0032
+(PROPOSED)**; ADR-0031 stays reserved for the ADR-0029 cross-optic Phase 2.
 
 ## Built so far
 
