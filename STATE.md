@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-06-11._
+`design/adr/`. Last updated: 2026-06-29._
 
 ## What this is
 
@@ -40,17 +40,25 @@ anytime-valid made operational. The recommended post-v1 roadmap is COMPLETE. Rou
 (branch `post-v1-round9`, ADR-0028): the owner ruled on the three queued decisions ("follow the
 recommendations") — the Spraypoint traffic model is UNIFIED (this round), epoch wealth carryover
 stays deferred, the live-fabric seam doc waits for a real consumer. **198 tests, gate PASS.**
+Round 10 (branch `engine-bump-v0.6.0-pre`, ADR-0030): the engine git-dep was bumped
+`v0.3.1-pre` → `v0.6.0-pre` (53 commits ahead; resolved commit `b942b5b2`). The bump is
+**pin-only** — the 9-import consumption surface is compile-compatible (Safe-Hotelling relocated
+but byte-identical and re-exported; `updateBettingState` gained an optional `ar1Phi`), verified
+by a clean `tsc` and **198 tests green** against the new tree. No engine surface adopted yet
+(e-BH boosting, AR(1)-aware betting, `localizeFaults` are deferred to their own ADRs). Gotcha
+recorded in ADR-0030: `pnpm` prints `0.5.0-pre`, but the lockfile SHA is the truth.
 
 ## Built so far
 
 - **Scaffold** — `pnpm` + `tsc` + `node --test` toolchain mirroring Tessera (tsconfig.json,
   tsconfig.test.json, .npmrc, .gitignore). Product → `src/`, tests → `test/`, demo →
   `demos/`, honest-measurement → `coverage-matrices/`, decisions → `design/`.
-- **Engine git-dep proven** (halt-check #1) — `deploysignal-engine#v0.3.1-pre` installs and
-  imports cleanly; `test/smoke-engine-import.test.ts` exercises Family A betting e-process,
-  Welford per-shard runtime, hierarchical combine, e-BH FDR, and snapshot hashing — **5/5
-  green**. (One smoke assertion initially encoded the e-BH threshold wrong; the engine was
-  right, the test was fixed — confirming the engine isn't rubber-stamping.)
+- **Engine git-dep proven** (halt-check #1) — `deploysignal-engine` installs and imports
+  cleanly; `test/smoke-engine-import.test.ts` exercises Family A betting e-process, Welford
+  per-shard runtime, hierarchical combine, e-BH FDR, and snapshot hashing — **5/5 green**. (One
+  smoke assertion initially encoded the e-BH threshold wrong; the engine was right, the test was
+  fixed — confirming the engine isn't rubber-stamping.) Pin is now **`#v0.6.0-pre`** (ADR-0030);
+  originally proven at `#v0.3.1-pre`.
 - **archgate wired** — `DISCIPLINES.md` (Anchor disciplines, distilled) + `arch-gate-usage.md`
   (sprag's canonical usage doc, installed by `sprag init`), both `@`-referenced from
   `CLAUDE.md`. sprag gate over `src/` with 6 invariants (complexity-12 primary,

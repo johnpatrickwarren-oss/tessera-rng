@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tessera-RNG — End-to-End Intuition: Localizing a Fault on a Flat Network</title>
+<style>
+  :root {
+    --bg: #f3efe6;
+    --card: #ffffff;
+    --ink: #1c1a17;
+    --ink-dim: #5a574f;
+    --ink-mute: #8a877e;
+    --line: #e2ddd0;
+    --green: #3d5b3f;
+    --green-bg: #e9efe7;
+    --red: #8a3324;
+    --red-bg: #f6e9e5;
+    --cal: #0f8a7e;   --cal-bg: #e2f2f0;
+    --famA: #2d6fd1;  --famA-bg: #e9f0fa;
+    --famC: #8b3fc7;  --famC-bg: #f1e9f7;
+    --famD: #d18d2d;  --famD-bg: #fbf3e5;
+    --surf: #c7286b;  --surf-bg: #fae5ee;
+    --neutral: #bdb9b1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  header {
+    background: var(--green);
+    color: #f2efe6;
+    padding: 28px 40px;
+    border-bottom: 5px solid #2c4630;
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.2px; }
+  header .subtitle { margin-top: 6px; color: #cdd8cd; font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 30px 40px 60px; }
+
+  .preamble, .incident {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+  }
+  .preamble p, .incident p { margin: 0 0 10px; }
+  .preamble p:last-child, .incident p:last-child { margin-bottom: 0; }
+  .incident { border-left: 5px solid var(--red); background: #fffdfb; }
+  .incident h2 { margin: 0 0 10px; font-size: 16px; }
+  .incident .clock {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    color: var(--red); font-weight: 700;
+  }
+
+  /* pipeline strip */
+  .pipe {
+    display: flex; align-items: stretch; gap: 0; margin: 0 0 30px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px; overflow-x: auto;
+  }
+  .pipe .step {
+    flex: 1 1 0; min-width: 120px; text-align: center; padding: 8px 6px; position: relative;
+  }
+  .pipe .step:not(:last-child)::after {
+    content: "→"; position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+    color: var(--ink-mute); font-size: 16px;
+  }
+  .pipe .step .n {
+    display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 50%;
+    color: white; font-weight: 700; font-size: 12px; margin-bottom: 6px;
+  }
+  .pipe .step .t { font-weight: 600; font-size: 13px; }
+  .pipe .step .d { font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+  .s0 .n{background:var(--cal)} .s1 .n{background:var(--famA)} .s2 .n{background:var(--surf)}
+  .s3 .n{background:var(--green)} .s4 .n{background:#6b6b6b}
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--line);
+    border-radius: 6px;
+    padding: 22px 26px 26px;
+    margin-bottom: 22px;
+  }
+  .card.cal { border-left-color: var(--cal); }
+  .card.detect { border-left-color: var(--famA); }
+  .card.surface { border-left-color: var(--surf); }
+  .card.tomo { border-left-color: var(--green); }
+  .card.drain { border-left-color: #6b6b6b; }
+  .card-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  .card-title { font-size: 17px; font-weight: 600; margin: 0; }
+  .card-title .stg {
+    display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center;
+    border-radius: 4px; color: white; font-weight: 700; margin-right: 10px; vertical-align: middle; font-size: 13px;
+  }
+  .cal .stg{background:var(--cal)} .detect .stg{background:var(--famA)} .surface .stg{background:var(--surf)}
+  .tomo .stg{background:var(--green)} .drain .stg{background:#6b6b6b}
+  .card-subtitle { color: var(--ink-dim); font-size: 13px; font-style: italic; }
+  .card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  .visual-panel { background: #fbfaf6; border: 1px solid var(--line); border-radius: 4px; padding: 16px; }
+  .visual-panel svg { display: block; width: 100%; height: auto; }
+  .visual-caption { margin-top: 10px; font-size: 12px; color: var(--ink-mute); text-align: center; font-style: italic; }
+  .text-panel { font-size: 14px; }
+  .text-panel h3 {
+    margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--ink-dim); font-weight: 600;
+  }
+  .text-panel h3:not(:first-child) { margin-top: 14px; }
+  .text-panel p { margin: 0; }
+  .text-panel code { font-family: ui-monospace,"SF Mono",Menlo,monospace; font-size: 12.5px; background:#f0ece2; padding:1px 4px; border-radius:3px; }
+  .incident-note {
+    display: block; margin-top: 14px; padding: 10px 12px; border-radius: 0 3px 3px 0;
+    border-left: 3px solid var(--red); background: var(--red-bg); font-size: 13px;
+  }
+  .incident-note strong { color: var(--red); }
+  .fire-bullet, .check-bullet { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .fire-bullet { background:#d93025; } .check-bullet { background:#1e9e4f; }
+
+  .shared-concepts { margin-top: 36px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 22px 26px 26px; }
+  .shared-concepts > h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+  .concepts-intro { margin: 0 0 20px; color: var(--ink-dim); font-size: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .concept-category {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-mute);
+    margin: 4px 0 14px; padding: 6px 0; border-top: 2px solid var(--ink); font-weight: 600;
+  }
+  .concept { margin-bottom: 22px; padding-bottom: 20px; border-bottom: 1px dashed var(--line); }
+  .concept:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .concept-title { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+  .concept .quick { background: #f3f5f2; border-left: 3px solid var(--green); padding: 10px 14px; margin: 0 0 12px; font-size: 14px; border-radius: 0 3px 3px 0; }
+  .concept .deeper { margin: 0 0 12px; font-size: 14px; color: #333; }
+  .concept .deeper p { margin: 0 0 8px; } .concept .deeper p:last-child { margin-bottom: 0; }
+  .concept code { font-family: ui-monospace,"SF Mono",Menlo,monospace; font-size:12.5px; background:#f0ece2; padding:1px 4px; border-radius:3px; }
+  .concept .skeptic { background: #fdf8ea; border-left: 3px solid var(--famD); padding: 10px 14px; margin: 0; font-size: 13px; border-radius: 0 3px 3px 0; }
+  .concept .skeptic strong { color: #8a5920; }
+  .honest { background: var(--green-bg); border:1px solid #cdd8cd; border-radius:6px; padding:18px 22px; margin-top:28px; }
+  .honest h2 { margin:0 0 8px; font-size:16px; color:var(--green); }
+  .honest p { margin:0 0 8px; font-size:14px; } .honest p:last-child{margin-bottom:0;}
+  @media (max-width: 760px) { .card-body { grid-template-columns: 1fr; } main { padding: 20px; } .pipe{flex-direction:column} .pipe .step::after{display:none} }
+  @media print { body { background: white; } .card, .preamble, .incident, .shared-concepts, .honest { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tessera-RNG — Localizing a Fault on a Flat Network</h1>
+  <div class="subtitle">End-to-end intuition: how one statistical pipeline turns "something on the fabric shifted" into "this shared resource is the culprit" — on a topology where hop distance means nothing. One incident, five stages.</div>
+</header>
+
+<main>
+  <div class="preamble">
+    <p><strong>What this is.</strong> Tessera-RNG is operational observability for flat random-graph (RNG) datacenter networks — the kind described in <em>"RNG: Flat Datacenter Networks at Scale"</em> (arXiv:2604.15261). It reuses the same statistical engine as <a href="https://johnpwarren.dev/blog/deploysignal/">DeploySignal</a> and <a href="https://johnpwarren.dev/blog/tessera/">Tessera</a> — betting e-processes, hierarchical e-value combination, e-BH FDR control — repointed from GPU-cluster shards to network <strong>path-classes</strong> and physical <strong>fault domains</strong>.</p>
+    <p><strong>The problem it solves.</strong> In a fat-tree, topology is the diagnostic: hop distance tells you which shared infrastructure two endpoints have in common. An RNG sprays every flow across 50+ edge-disjoint paths, so hop distance carries no fault-domain signal. Tessera-RNG localizes by <strong>incidence</strong> (what a path-class physically traverses), not distance — and it accumulates statistical evidence so it catches a drift <em>before</em> it would cross any static threshold.</p>
+    <p><strong>How to read this.</strong> One card per pipeline stage, in order. Each card has the intuition, what happens during the worked incident below, and the actual math. The detector families (A/C/D) live inside Stage&nbsp;1. The new math is Stage&nbsp;3 (tomography). Shared concepts and honest limitations are at the end.</p>
+  </div>
+
+  <div class="incident">
+    <h2>🔧 The worked incident — one passive shuffler goes soft</h2>
+    <p><span class="clock">02:14</span> &nbsp;A passive shuffler, <code>PS-7</code>, begins a slow common-mode degradation — a few tenths of a microsecond of added latency and a sliver of extra loss. Every flow that Spraypoint happens to route through <code>PS-7</code> is affected, but only <em>fractionally</em>: a given ToR-pair sprays its traffic across many paths, so <code>PS-7</code> carries weight <code>w ≈ 0.1–0.3</code> of that pair's traffic. No single path-class moves enough to trip a dashboard alert. There are ~1,456 monitored path-classes; perhaps 80 of them ride <code>PS-7</code> to some degree.</p>
+    <p>We will follow that signal through all five stages and watch the system end at: <strong><code>PS-7</code> ranked #1 culprit, drained, replay-clean audit emitted</strong> — while the ~1,376 healthy path-classes are correctly left alone.</p>
+  </div>
+
+  <div class="pipe">
+    <div class="step s0"><div class="n">0</div><div class="t">Calibrate</div><div class="d">learn "normal" per cell</div></div>
+    <div class="step s1"><div class="n">1</div><div class="t">Detect</div><div class="d">A / C / D e-processes per leaf</div></div>
+    <div class="step s2"><div class="n">2</div><div class="t">Surface</div><div class="d">combine + e-BH FDR</div></div>
+    <div class="step s3"><div class="n">3</div><div class="t">Localize</div><div class="d">noisy-OR set-cover → culprit</div></div>
+    <div class="step s4"><div class="n">4</div><div class="t">Drain + Audit</div><div class="d">act, then replay-clean record</div></div>
+  </div>
+
+  <!-- STAGE 0 -->
+  <div class="card cal">
+    <div class="card-header">
+      <div class="card-title"><span class="stg">0</span>Calibration — what "normal" means here</div>
+      <div class="card-subtitle">Per-cell baselines + temporal pre-whitening (AC-7, ADR-0004/0006/0008)</div>
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="visual-panel">
+          <svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg">
+            <text x="10" y="14" font-size="11" fill="#5a574f" font-weight="600">"normal" is a grid of cells, not one line</text>
+            <!-- HoD x DoW grid -->
+            <g transform="translate(40,30)">
+              <text x="-6" y="-6" font-size="9" fill="#8a877e" text-anchor="end">DoW</text>
+              <text x="150" y="135" font-size="9" fill="#8a877e" text-anchor="middle">hour-of-day →</text>
+              <g>
+                <!-- rows -->
+                <!-- generate 7x12 grid -->
+                <!-- row 0 -->
+                <g fill="#e2f2f0" stroke="#cfe5e1">
+                  <rect x="0" y="0" width="24" height="14"/><rect x="26" y="0" width="24" height="14"/><rect x="52" y="0" width="24" height="14"/><rect x="78" y="0" width="24" height="14"/><rect x="104" y="0" width="24" height="14"/><rect x="130" y="0" width="24" height="14"/><rect x="156" y="0" width="24" height="14"/><rect x="182" y="0" width="24" height="14"/><rect x="208" y="0" width="24" height="14"/><rect x="234" y="0" width="24" height="14"/><rect x="260" y="0" width="24" height="14"/><rect x="286" y="0" width="24" height="14"/>
+                </g>
+              </g>
+              <!-- replicate rows with slight tone variation -->
+              <g fill="#dff0ed" stroke="#cfe5e1">
+                <rect x="0" y="16" width="24" height="14"/><rect x="26" y="16" width="24" height="14"/><rect x="52" y="16" width="24" height="14"/><rect x="78" y="16" width="24" height="14"/><rect x="104" y="16" width="24" height="14"/><rect x="130" y="16" width="24" height="14"/><rect x="156" y="16" width="24" height="14"/><rect x="182" y="16" width="24" height="14"/><rect x="208" y="16" width="24" height="14"/><rect x="234" y="16" width="24" height="14"/><rect x="260" y="16" width="24" height="14"/><rect x="286" y="16" width="24" height="14"/>
+              </g>
+              <g fill="#e8f4f2" stroke="#cfe5e1">
+                <rect x="0" y="32" width="24" height="14"/><rect x="26" y="32" width="24" height="14"/><rect x="52" y="32" width="24" height="14"/><rect x="78" y="32" width="24" height="14"/><rect x="104" y="32" width="24" height="14"/><rect x="130" y="32" width="24" height="14"/><rect x="156" y="32" width="24" height="14"/><rect x="182" y="32" width="24" height="14"/><rect x="208" y="32" width="24" height="14"/><rect x="234" y="32" width="24" height="14"/><rect x="260" y="32" width="24" height="14"/><rect x="286" y="32" width="24" height="14"/>
+              </g>
+              <!-- highlight the active cell (02:00, this DoW) -->
+              <rect x="26" y="16" width="24" height="14" fill="#0f8a7e" stroke="#0a6f65" stroke-width="1.5"/>
+              <text x="38" y="60" font-size="8" fill="#0a6f65" text-anchor="middle">Tue 02:00 has its</text>
+              <text x="38" y="70" font-size="8" fill="#0a6f65" text-anchor="middle">own baseline</text>
+            </g>
+            <!-- pre-whitening mini -->
+            <text x="10" y="170" font-size="11" fill="#5a574f" font-weight="600">AR(p) pre-whitening: correlated noise → near-iid</text>
+            <polyline points="20,200 35,188 50,205 65,190 80,206 95,192 110,204 125,191 140,205 155,193" fill="none" stroke="#8a877e" stroke-width="1.3"/>
+            <text x="160" y="200" font-size="14" fill="#8a877e">⟶</text>
+            <polyline points="200,198 215,200 230,196 245,201 260,197 275,200 290,198 305,201 320,197 335,199" fill="none" stroke="#0f8a7e" stroke-width="1.3"/>
+            <text x="88" y="222" font-size="9" fill="#8a877e" text-anchor="middle">AR(2) telemetry</text>
+            <text x="268" y="222" font-size="9" fill="#0f8a7e" text-anchor="middle">whitened residual</text>
+          </svg>
+          <div class="visual-caption">Each path-class is de-meaned against its own (hour-of-day × day-of-week × traffic-class) cell, then temporally whitened. Detectors see near-iid residuals.</div>
+        </div>
+      </div>
+      <div class="text-panel">
+        <h3>Intuition</h3>
+        <p>Before you can say a signal "shifted," you need an honest model of normal. Traffic is diurnal, weekly, and temporally autocorrelated — so "normal" is not a flat line, it's a grid of cells, each with its own mean and spread, and the noise within a cell has memory.</p>
+        <h3>The math</h3>
+        <p>Baselines keyed by <code>(hour-of-day × day-of-week × traffic-class)</code> capture seasonality as structure, not noise. A per-signal <code>AR(p)</code> model (order chosen by BIC, cap 6) pre-whitens temporal autocorrelation so residuals are near-iid — the assumption every downstream test needs. Cells with <code>n &lt; 30</code> samples borrow a pooled estimate instead of a noisy per-cell one (ADR-0006), so small fabrics don't false-alarm.</p>
+        <span class="incident-note"><strong>During the incident:</strong> before 02:14 the calibration window saw <code>PS-7</code>'s leaves behaving normally for their cell, so the substrate has a tight, correct "normal" to measure the 02:14 drift against — no seasonality artifact to confuse it.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE 1 -->
+  <div class="card detect">
+    <div class="card-header">
+      <div class="card-title"><span class="stg">1</span>Detection — accumulate evidence, per leaf, three ways</div>
+      <div class="card-subtitle">Betting e-processes: Family A (mean) · C (joint) · D (periodicity) (AC-2, ADR-0003/0007/0009)</div>
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="visual-panel">
+          <svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+            <text x="10" y="14" font-size="11" fill="#5a574f" font-weight="600">signal stays under any single-tick line…</text>
+            <line x1="20" y1="40" x2="385" y2="40" stroke="#d93025" stroke-dasharray="3,3" stroke-width="0.8"/>
+            <text x="22" y="36" font-size="9" fill="#d93025">static threshold (never crossed)</text>
+            <line x1="20" y1="78" x2="385" y2="78" stroke="#aaa" stroke-dasharray="2,2" stroke-width="0.5"/>
+            <text x="22" y="74" font-size="9" fill="#888">cell baseline</text>
+            <polyline points="20,80 50,77 80,79 110,74 140,76 170,72 200,74 230,70 260,72 290,68 320,70 350,66 380,68" fill="none" stroke="#2d6fd1" stroke-width="1.5"/>
+            <text x="200" y="100" font-size="9" fill="#888" text-anchor="middle">a small drift on one PS-7 leaf (δ·w)</text>
+
+            <text x="10" y="128" font-size="11" fill="#5a574f" font-weight="600">…but the betting e-process wealth compounds and fires</text>
+            <line x1="20" y1="235" x2="385" y2="235" stroke="#aaa" stroke-width="0.5"/>
+            <text x="22" y="233" font-size="9" fill="#888">e = 1 (no evidence)</text>
+            <line x1="20" y1="165" x2="385" y2="165" stroke="#d93025" stroke-dasharray="3,3" stroke-width="0.8"/>
+            <text x="22" y="161" font-size="9" fill="#d93025">fire bound  e ≥ 1/α</text>
+            <polyline points="20,233 50,231 80,228 110,223 140,216 170,207 200,196 230,183 260,168 280,158" fill="none" stroke="#2d6fd1" stroke-width="1.8"/>
+            <circle cx="280" cy="158" r="4" fill="#d93025" stroke="white" stroke-width="1.5"/>
+            <text x="290" y="154" font-size="10" fill="#d93025" font-weight="600">FIRE</text>
+            <text x="200" y="248" font-size="9" fill="#888" text-anchor="middle">time →</text>
+          </svg>
+          <div class="visual-caption">The leaf never crosses a static line. Cumulative e-process wealth crosses the anytime-valid bound and fires — catching the creep, not just the spike.</div>
+        </div>
+      </div>
+      <div class="text-panel">
+        <h3>Intuition</h3>
+        <p>Each path-class gets a statistical accumulator that bets, every tick, against "this leaf is healthy." Evidence compounds, so a slow drift that never crosses a single-tick threshold still fires once enough evidence piles up. Because the test is <em>anytime-valid</em> (Ville's inequality), you can check it every tick without inflating the false-alarm rate.</p>
+        <h3>Three families, one combined e-value</h3>
+        <p><span class="fire-bullet"></span><strong>A (mean):</strong> a betting e-process per signal; catches level shifts in <code>p99_latency</code>, <code>retransmit_rate</code>, <code>loss_rate</code>, <code>ecmp_imbalance</code>, <code>path_completion</code>. Family e-value = mean of per-signal e-values (valid under dependence).<br>
+        <span class="fire-bullet"></span><strong>C (joint):</strong> Safe-Hotelling on a Ledoit-Wolf <em>learned</em> covariance — fires on a correlation flip with every marginal mean and variance unchanged.<br>
+        <span class="fire-bullet"></span><strong>D (periodicity):</strong> a spectral e-detector over the residual's autocorrelation — fires on a developing oscillation with no change in level or spread.</p>
+        <span class="incident-note"><strong>During the incident:</strong> on the ~80 leaves that ride <code>PS-7</code>, Family A's wealth climbs as the small latency+loss shift accrues; the most-exposed leaves (higher <code>w</code>) fire first. A handful with a correlation change but no mean move are caught by C. Healthy leaves' wealth hovers near 1.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE 2 -->
+  <div class="card surface">
+    <div class="card-header">
+      <div class="card-title"><span class="stg">2</span>Surface — which leaves are really degraded, without false-positive blowup</div>
+      <div class="card-subtitle">Hierarchical combine + e-BH FDR control under arbitrary dependence (AC-3, ADR-0001)</div>
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="visual-panel">
+          <svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+            <text x="10" y="14" font-size="11" fill="#5a574f" font-weight="600">~1,456 leaves' e-values, sorted</text>
+            <!-- e-BH staircase -->
+            <line x1="40" y1="30" x2="40" y2="210" stroke="#333" stroke-width="1"/>
+            <line x1="40" y1="210" x2="385" y2="210" stroke="#333" stroke-width="1"/>
+            <text x="34" y="34" font-size="9" fill="#666" text-anchor="end">e</text>
+            <text x="210" y="228" font-size="9" fill="#666" text-anchor="middle">rank →</text>
+            <!-- e-BH line -->
+            <line x1="40" y1="200" x2="385" y2="120" stroke="#c7286b" stroke-dasharray="4,3" stroke-width="1.2"/>
+            <text x="300" y="128" font-size="9" fill="#c7286b">e-BH cutoff (FDR ≤ q=0.05)</text>
+            <!-- selected (above): red dots; not selected: gray -->
+            <g fill="#c7286b">
+              <circle cx="60" cy="50" r="3"/><circle cx="78" cy="58" r="3"/><circle cx="96" cy="66" r="3"/><circle cx="114" cy="74" r="3"/><circle cx="132" cy="82" r="3"/><circle cx="150" cy="92" r="3"/><circle cx="168" cy="100" r="3"/><circle cx="186" cy="110" r="3"/>
+            </g>
+            <g fill="#bdb9b1">
+              <circle cx="204" cy="150" r="3"/><circle cx="222" cy="158" r="3"/><circle cx="240" cy="165" r="3"/><circle cx="258" cy="170" r="3"/><circle cx="276" cy="176" r="3"/><circle cx="294" cy="181" r="3"/><circle cx="312" cy="186" r="3"/><circle cx="330" cy="190" r="3"/><circle cx="348" cy="194" r="3"/><circle cx="366" cy="197" r="3"/>
+            </g>
+            <text x="120" y="42" font-size="9" fill="#c7286b" font-weight="600">selected: the PS-7 leaves</text>
+            <text x="300" y="205" font-size="9" fill="#8a877e">not selected: the healthy fleet</text>
+          </svg>
+          <div class="visual-caption">e-BH picks a cutoff so the <em>expected</em> false-discovery rate across all selected leaves stays ≤ q — even though the leaves are statistically dependent.</div>
+        </div>
+      </div>
+      <div class="text-panel">
+        <h3>Intuition</h3>
+        <p>One leaf firing isn't proof — at 10³–10⁶ leaves, even a tiny per-leaf error rate would flood you with false alarms. The surface stage answers "which leaves are degraded?" with a fleet-wide guarantee instead of a per-leaf hope.</p>
+        <h3>The math</h3>
+        <p>Per-leaf e-values are merged into a fleet e-value by averaging (<code>combineAverage</code>) — valid under <em>arbitrary</em> dependence, which matters because path-classes share fabric and are correlated. Then e-BH (the e-value Benjamini-Hochberg procedure) selects the degraded set with the false-discovery rate controlled at a target <code>q</code> (here 0.05), again under arbitrary dependence. The selected fraction also yields the fleet base firing rate <code>q₀ = (|selected| + ½)/(|leaves| + 1)</code> — Stage 3 needs it.</p>
+        <span class="incident-note"><strong>During the incident:</strong> e-BH selects the PS-7 leaves whose evidence crossed, and leaves the ~1,376 healthy ones out. The output is a set of selected path-class IDs and <code>q₀</code> — not yet a culprit, just "these leaves, with FDR ≤ 5%."</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE 3 -->
+  <div class="card tomo">
+    <div class="card-header">
+      <div class="card-title"><span class="stg">3</span>Tomography — from degraded leaves to the shared resource</div>
+      <div class="card-subtitle">Incidence hypergraph + saturating noisy-OR marginal-LLR set-cover (AC-5, ADR-0014/0019/0022)</div>
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="visual-panel">
+          <svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+            <text x="10" y="14" font-size="11" fill="#5a574f" font-weight="600">candidate resources, scored by their members' fire pattern</text>
+            <!-- selected leaves row -->
+            <text x="10" y="40" font-size="9" fill="#8a877e">selected leaves</text>
+            <g>
+              <circle cx="60" cy="60" r="6" fill="#c7286b"/><circle cx="100" cy="60" r="6" fill="#c7286b"/><circle cx="140" cy="60" r="6" fill="#c7286b"/><circle cx="180" cy="60" r="6" fill="#c7286b"/><circle cx="220" cy="60" r="6" fill="#c7286b"/><circle cx="260" cy="60" r="6" fill="#c7286b"/>
+              <!-- a couple of quiet leaves for the decoy -->
+              <circle cx="300" cy="60" r="6" fill="#bdb9b1"/><circle cx="340" cy="60" r="6" fill="#bdb9b1"/>
+            </g>
+            <!-- PS-7 candidate (explains all red) -->
+            <circle cx="160" cy="150" r="13" fill="#3d5b3f"/>
+            <text x="160" y="178" font-size="10" fill="#3d5b3f" text-anchor="middle" font-weight="600">PS-7  (score #1)</text>
+            <g stroke="#3d5b3f" stroke-width="1.6" opacity="0.85">
+              <line x1="160" y1="138" x2="60" y2="66"/><line x1="160" y1="138" x2="100" y2="66"/><line x1="160" y1="138" x2="140" y2="66"/><line x1="160" y1="138" x2="180" y2="66"/><line x1="160" y1="138" x2="220" y2="66"/><line x1="160" y1="138" x2="260" y2="66"/>
+            </g>
+            <!-- decoy optic (explains some red but also has quiet members) -->
+            <circle cx="320" cy="150" r="9" fill="#bdb9b1"/>
+            <text x="320" y="176" font-size="9" fill="#8a877e" text-anchor="middle">decoy optic</text>
+            <g stroke="#bdb9b1" stroke-width="1.4">
+              <line x1="320" y1="142" x2="260" y2="66"/><line x1="320" y1="142" x2="300" y2="66"/><line x1="320" y1="142" x2="340" y2="66"/>
+            </g>
+            <text x="320" y="200" font-size="8" fill="#8a877e" text-anchor="middle">2 of its 3 members</text>
+            <text x="320" y="210" font-size="8" fill="#8a877e" text-anchor="middle">stayed quiet → falsified</text>
+          </svg>
+          <div class="visual-caption">PS-7 explains the whole selected set and has no quiet members pulling it down → ranks #1. A decoy optic that touches a few selected leaves is falsified by its own quiet members.</div>
+        </div>
+      </div>
+      <div class="text-panel">
+        <h3>Intuition</h3>
+        <p>Every candidate fault domain (each optic, shuffler, panel, room) has a set of <em>members</em> — the path-classes that physically traverse it, each with a traffic weight <code>w</code>. Score each candidate by how well its members' fire-pattern matches "this resource is faulty" vs "the fleet's quiet." The resource that explains the selected leaves <em>and</em> isn't contradicted by its own quiet members wins. This is the part that replaces hop-distance localization — it's pure incidence.</p>
+        <h3>The math</h3>
+        <p>A member's quiet probability is the true noisy-OR: clean <code>(1−q₀)</code>, faulty <code>(1−q₀)·(1−δ)^{κ·w}</code> — a fault of strength <code>δ</code> leaks through <code>κ·w</code> exposure. Each candidate's score is a log-likelihood ratio mixed over <code>δ ∈ {0.3, 0.6, 0.9} × κ ∈ {1, 16, 256}</code> with a fixed <code>1/κ</code> scale prior (not a tunable knob). Greedy set-cover picks the highest-scoring resource, folds its prediction in, and re-scores the rest <em>marginally</em> — so two simultaneous faults each get found and a single fault yields a single minimal culprit. Output: a ranked culprit list.</p>
+        <span class="incident-note"><strong>During the incident:</strong> all selected leaves share exactly one member — <code>PS-7</code> — and its weighted noisy-OR explains their firing cleanly. Candidate optics/panels that touch a few of the leaves are penalized by their quiet members. <code>PS-7</code> lands <strong>rank-1</strong>.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE 4 -->
+  <div class="card drain">
+    <div class="card-header">
+      <div class="card-title"><span class="stg">4</span>Drain + Audit — act, then make the decision reproducible</div>
+      <div class="card-subtitle">Simulated route-drain + replay-clean AuditRecord (AC-6/AC-9, ADR-0018/0023)</div>
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="visual-panel">
+          <svg viewBox="0 0 400 230" xmlns="http://www.w3.org/2000/svg">
+            <text x="10" y="16" font-size="11" fill="#5a574f" font-weight="600">AuditRecord (deterministic, replay-clean)</text>
+            <rect x="20" y="28" width="360" height="180" rx="4" fill="#fbfaf6" stroke="#e2ddd0"/>
+            <g font-family="ui-monospace,Menlo,monospace" font-size="10" fill="#1c1a17">
+              <text x="34" y="50">selected_path_class_ids: [ …80 leaves… ]</text>
+              <text x="34" y="70">firing_families: { A: 71, C: 9, D: 0 }</text>
+              <text x="34" y="90">culprits: [</text>
+              <text x="48" y="106">{ resource_id: "PS-7",</text>
+              <text x="62" y="122">kind: "passive_shuffler",</text>
+              <text x="62" y="138" fill="#3d5b3f" font-weight="700">rank: 1,  score: 34.2,</text>
+              <text x="62" y="154">supporting_views: ["per_tor","per_panel_pair"],</text>
+              <text x="62" y="170" fill="#8a3324">correlational_not_causal: true }</text>
+              <text x="34" y="186">]</text>
+              <text x="34" y="202">drain_actions: [ drain PS-7 → alternates ]</text>
+            </g>
+          </svg>
+          <div class="visual-caption">Same fabric + same telemetry ⇒ byte-identical record on replay. Every verdict is budget-accountable and names what it factually is.</div>
+        </div>
+      </div>
+      <div class="text-panel">
+        <h3>Intuition</h3>
+        <p>Localizing is only useful if you can act and then defend the call. The drain stage simulates rerouting traffic off the culprit; the audit stage emits a single deterministic record of the whole decision — what fired, what was selected, what was localized, and what was acted on.</p>
+        <h3>The math / mechanics</h3>
+        <p>Drain targets rank by <em>tier then score</em> (ADR-0023): every evidence group's rank-1 culprit drains before any group's rank-2, so a real fault localized later still acts ahead of a weaker marginal pick. The <code>AuditRecord</code> carries the firing-family tally, the ranked culprits each tagged <code>correlational_not_causal: true</code> and <code>localized_against_epoch</code>, and is <em>replay-clean</em>: identical inputs produce a byte-identical record, so every verdict has reproducible provenance.</p>
+        <span class="incident-note"><strong>During the incident:</strong> <code>PS-7</code> is drained to same-kind alternates; the record shows 71 leaves caught by Family&nbsp;A, 9 by C, and <code>PS-7</code> rank-1 — flagged correlational, not a hardware root-cause claim. Re-running the same inputs reproduces it exactly.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARED CONCEPTS -->
+  <div class="shared-concepts">
+    <h2>Shared Concepts — the vocabulary, for a mixed audience</h2>
+    <p class="concepts-intro">Each concept has a one-line definition, an intuition-level explanation, and the skeptical question you'd get with a drafted answer.</p>
+
+    <div class="concept-category">Primary — what makes RNG observability different</div>
+
+    <div class="concept">
+      <div class="concept-title">Path-class — the monitored leaf</div>
+      <div class="quick"><strong>Quick:</strong> An aggregated equivalence class of flows between a ToR-pair over the fabric. It maps 1:1 to the engine's "shard" abstraction — that's why the GPU-cluster engine transferred.</div>
+      <div class="deeper">
+        <p>Tessera watched cluster shards; Tessera-RNG watches path-classes. Same statistical object — a continuously-observed entity emitting a signal vector each tick — so the engine's per-entity e-process, the hierarchical combine, and e-BH all apply unchanged. At production scale the leaf becomes an <em>aggregation-view class</em>: the union of a <code>per_tor</code> view and a <code>per_panel_pair</code> view over the underlying ToR-pair traffic.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "Why not monitor individual ToR-pairs?" &rarr; There are ~460K of them at scale; aggregating m fault-sharing pairs cuts noise by √m, which <em>adds</em> power in the diluted-spray regime. ToR-pair stays the underlying entity; per-pair drill-down is an on-demand second stage.</div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-title">Two views — complementary blind spots</div>
+      <div class="quick"><strong>Quick:</strong> <code>per_tor</code> concentrates optic/router faults and smears panel faults; <code>per_panel_pair</code> concentrates panel/room faults and smears optic faults. Monitoring both covers all fault kinds.</div>
+      <div class="deeper">
+        <p>On a Spraypoint fabric every fault is diluted everywhere — one optic is ≈1/d of a ToR's sprayed traffic. A single aggregation view therefore has a blind spot. The two views are chosen so their blind spots are complementary: an optic fault that vanishes into the panel-pair view stands out in the per-ToR view, and vice-versa. Room faults show in both. The views are statistically dependent, which is exactly why the combine and e-BH must be arbitrary-dependence-valid.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "Doesn't watching the same traffic twice double-count?" &rarr; The dependence is handled by the AoE merge and e-BH (both valid under arbitrary dependence); a clean fabric still selects zero. A one-view-vs-union double-count check came back negative — no view-multiplicity correction was needed.</div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-title">Fault domain &amp; incidence hypergraph — localizing without hop distance</div>
+      <div class="quick"><strong>Quick:</strong> A fault domain is a shared physical resource (optic, shuffler, panel, room). The incidence hypergraph records which path-classes traverse which resources. Localization is set-cover over this graph — not a walk over the wiring.</div>
+      <div class="deeper">
+        <p>In a tree, hop distance encodes shared infrastructure, so distance localizes. An RNG sprays each flow over 50+ edge-disjoint paths, so hop distance carries no fault-domain signal. Tessera-RNG instead asks "what do the firing leaves physically have in common?" — which is incidence, not distance. The edge carries a fractional traffic weight <code>w ∈ (0,1]</code> (Spraypoint dilution); a fault shifts a leaf by <code>δ·w</code>, honest dilution.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "Isn't incidence just topology by another name?" &rarr; No — topology (hop distance, hierarchy) is dead on an RNG by construction. Incidence is "which shared box does this traffic ride through," which survives randomization because it's about the physical resource, not the route length.</div>
+    </div>
+
+    <div class="concept-category">Mathematical — for the math-comfortable</div>
+
+    <div class="concept">
+      <div class="concept-title">e-value / betting e-process — evidence that compounds</div>
+      <div class="quick"><strong>Quick:</strong> An e-value is a bet against the null. Wealth ≥ 1/α means "fire." It accumulates over time, so it catches creep, not just spikes.</div>
+      <div class="deeper">
+        <p>A betting e-process starts with wealth 1 and reinvests each tick against "this leaf is healthy." Under the null its expected wealth never grows, so by Ville's inequality the probability it <em>ever</em> exceeds 1/α is ≤ α — that's what makes it <em>anytime-valid</em>: you can evaluate every tick without inflating the false-alarm rate. A slow drift compounds wealth until it crosses the bound, which a single-tick threshold would never catch.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "If you keep looking every tick, doesn't your false-positive rate compound?" &rarr; No — that's exactly what Ville's inequality prevents. It's one accumulating test with a bound over the whole observation window, not 600 independent threshold checks.</div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-title">e-BH FDR control — a fleet-wide guarantee</div>
+      <div class="quick"><strong>Quick:</strong> e-BH selects the degraded leaves so the expected false-discovery rate among them is ≤ q — and it holds under arbitrary dependence between leaves.</div>
+      <div class="deeper">
+        <p>Per-leaf error control doesn't scale: at 10³–10⁶ correlated leaves, any fixed per-leaf rate floods the operator. e-BH controls the <em>rate of false discoveries across the selected set</em> instead. The "e" version is load-bearing here because path-classes are dependent (shared fabric, two views of the same traffic), and e-BH's FDR guarantee survives arbitrary dependence where the classical p-value BH would need independence assumptions.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "How do you know it isn't just quiet because the threshold is loose?" &rarr; A clean fabric is run as a control and selects zero at the same q; the detection floors are measured and published per fault kind, not assumed.</div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-title">Saturating noisy-OR member model — the scorer's likelihood</div>
+      <div class="quick"><strong>Quick:</strong> A member's quiet probability under a fault is <code>(1−q₀)·(1−δ)^{κ·w}</code>, mixed over a <code>δ × κ</code> grid with a fixed <code>1/κ</code> prior. It's why a saturating optic fault doesn't masquerade as a diluted panel fault.</div>
+      <div class="deeper">
+        <p>The exponent <code>κ·w</code> is exposure: a member carrying weight <code>w</code> of a fault of strength <code>δ</code>, with <code>κ</code> independent "draws," saturates as exposure grows. Mixing over <code>δ ∈ {0.3,0.6,0.9}</code> and <code>κ ∈ {1,16,256}</code> with a <code>1/κ</code> (Jeffreys-style scale) prior means a candidate can't jump to the saturated cells for free — it pays a prior cost unless it's the only hypothesis the data supports. This fixed form closed a real defect: at extreme fault strength an optic's leakage into 1/64-diluted pair leaves is <em>expected</em>, so coarse pair-view resources are correctly falsified by their quiet per-ToR members.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "Isn't the δ/κ grid just knobs you tuned to the answer?" &rarr; The prior is a fixed form, not a tunable parameter; a uniform κ prior was tried and lost the follow-the-traffic discrimination (recorded). The scorer reduces exactly to the simpler ADR-0019 form at the first pick, and the new math holds 100% mutation score.</div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-title">rank-1 / attribution floor — what "localized" claims</div>
+      <div class="quick"><strong>Quick:</strong> The localizer returns a ranked culprit list. "rank-1" means the true resource is the top suspect — stronger than "detected," which only says something is wrong.</div>
+      <div class="deeper">
+        <p>Detection (did a leaf shift?) and selection (which leaves, FDR-controlled?) precede localization (which resource?). Localization scores every candidate and ranks them; rank-1 means no decoy outscored the true culprit. Multi-fault attribution is defined as both injected resources landing in the top-2. The floors are honest: a room fault can detect on every seed yet attribute to the wrong <em>kind</em> at small magnitude (true boundary ≈1.5–2) — published as a reliable alarm with an unreliable culprit, not implied away.</p>
+      </div>
+      <div class="skeptic"><strong>Skeptic:</strong> "Is rank-1 a root-cause diagnosis?" &rarr; No. It identifies the shared-resource <em>fault domain</em> the firing leaves have in common, tagged <code>correlational_not_causal</code>. Which component inside that resource failed is out of scope.</div>
+    </div>
+  </div>
+
+  <!-- HONEST STATUS -->
+  <div class="honest">
+    <h2>Honest status — what this is and isn't</h2>
+    <p>Everything above runs on a <strong>synthetic fabric built from the paper's published numbers</strong> (960 ToRs, degree 64, the Spraypoint path counts) — a simulacrum of the structure RNG describes, not a copy of Amazon's network. The arXiv paper documents topology, routing, and scale but treats telemetry as out of scope, so the five-signal contract (<code>p99_latency, retransmit_rate, loss_rate, ecmp_imbalance, path_completion</code>) is a <strong>plausible but unconfirmed assumption</strong>. The method's validity rides on the correlation structure those signals carry, not on the exact five.</p>
+    <p>So the claim is narrow and deliberate: on this simulacrum, under this contract, the math is FDR-controlled and the fault domain is identifiable to the shared-resource set — <strong>unfalsified, not validated</strong>. The one thing that would settle it is a trace from a real fabric, which the paper did not publish. Tomography claims identifiability of the shared-resource set and nothing stronger; hardware root cause is out of scope, and every culprit is labeled correlational, not causal.</p>
+  </div>
+
+</main>
+</body>
+</html>

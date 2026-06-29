@@ -32,6 +32,11 @@ follow, and Tessera-RNG addresses both:
 
 ![RNG network observability intuition](design/rng-observability-intuition.svg)
 
+> **[`INTUITION.html`](INTUITION.html)** — the end-to-end walkthrough: how the pipeline turns
+> "something shifted" into "this shared resource is the culprit," traced through one incident
+> (a passive shuffler going soft), with the intuition and the math at every stage.
+> ([view rendered](https://johnpwarren.dev/blog/tessera-rng/intuition/))
+
 ## How it works
 
 ```
