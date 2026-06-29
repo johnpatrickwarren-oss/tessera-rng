@@ -115,7 +115,11 @@ skeleton plus eight post-v1 rounds, one ADR per real decision:
   (2 seeds × 2 targets; multi-fault n=2) point estimates, grid-resolution-limited — regression
   artifacts that detect drift, not robust operating curves. The published artifacts are
   freshness-bound by tests: the demo byte-exactly, the coverage matrix by spot-checked cells
-  (an honest partial bind, named as such in the tests).
+  (an honest partial bind, named as such in the tests). A **degradation envelope** (ADR-0032,
+  `pnpm degradation`) sweeps telemetry noise, missingness, delay, and incidence-weight error and
+  publishes the breakdown frontier — the headline being that degradation causes *silent
+  mis-attribution, not silence* (detection holds while the culprit rank flips), with signal noise
+  the sharpest axis. Synthetic Tier-2 only — see [`VALIDATION.md`](VALIDATION.md).
 
 The statistical layer localizes to a shared-resource **fault domain**, never to a specific
 marginal optic — hardware root-cause is out of scope, and every culprit carries a

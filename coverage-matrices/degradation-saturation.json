@@ -1,0 +1,202 @@
+{
+  "generated_for": "spraypoint:64x10x2",
+  "operating_point": {
+    "fabric": "DEFAULT_SPRAYPOINT",
+    "fault_resource_kind": "optic",
+    "delta": 3,
+    "ticks": 60,
+    "q": 0.05
+  },
+  "n_per_cell": 32,
+  "telemetry_seeds": 2,
+  "perturbation_seeds": 8,
+  "clean": {
+    "detection_rate": 1,
+    "attribution_rate": 1
+  },
+  "axes": [
+    {
+      "axis": "signal_noise",
+      "unit": "extra σ (raw)",
+      "knob": "noiseStd",
+      "points": [
+        {
+          "intensity": 0,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.05,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.1,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.25,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0.53125
+        },
+        {
+          "intensity": 0.5,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0
+        },
+        {
+          "intensity": 1,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0
+        },
+        {
+          "intensity": 2,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0
+        }
+      ],
+      "attribution_breakdown": 0.25,
+      "detection_breakdown": null
+    },
+    {
+      "axis": "missingness",
+      "unit": "drop probability",
+      "knob": "missingness",
+      "points": [
+        {
+          "intensity": 0,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.1,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.25,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.5,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.8,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0
+        }
+      ],
+      "attribution_breakdown": 0.8,
+      "detection_breakdown": null
+    },
+    {
+      "axis": "observation_delay",
+      "unit": "lag (ticks)",
+      "knob": "delayTicks",
+      "points": [
+        {
+          "intensity": 0,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 1,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 3,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 8,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0.75
+        },
+        {
+          "intensity": 20,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 0.5
+        }
+      ],
+      "attribution_breakdown": 8,
+      "detection_breakdown": null
+    },
+    {
+      "axis": "aggregation_error",
+      "unit": "± weight frac",
+      "knob": "aggregationError",
+      "points": [
+        {
+          "intensity": 0,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.1,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.25,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.5,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        },
+        {
+          "intensity": 0.9,
+          "n": 32,
+          "detection_rate": 1,
+          "attribution_rate": 1
+        }
+      ],
+      "attribution_breakdown": null,
+      "detection_breakdown": null
+    }
+  ],
+  "joint": [
+    {
+      "regime": "degraded_telemetry (noise 1σ + 25% missing)",
+      "detection_rate": 1,
+      "attribution_rate": 0,
+      "n": 32
+    },
+    {
+      "regime": "lossy_aggregation (50% missing + ±25% weight)",
+      "detection_rate": 1,
+      "attribution_rate": 0.9375,
+      "n": 32
+    }
+  ],
+  "caveat": "Synthetic Tier-2 measurement (VALIDATION.md): a breakdown frontier on the synthetic model, NOT a claim of real-world robustness. Calibration is on a CLEAN window, so perturbations both mask faults (attribution falls) and raise false alarms (detection of *something* can rise) — both reported. Routing churn is not an axis here (reuses the ADR-0017/0018 epoch machinery)."
+}
