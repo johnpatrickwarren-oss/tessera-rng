@@ -160,7 +160,7 @@ This touches the most-tuned code in the repo. Where the cold-eye must look harde
 - **Phase 1 (this ADR, authorized-pending):** magnitude scorer on the EXISTING fabric. Prove no
   regression on every ADR-0019/0022 test + the anti-self-confirming magnitude fixture + the
   default-preservation guard. Snapshot hashes and published floors **do not move**.
-- **Phase 2 (separate ADR-0030):** re-add the ADR-0028 cross-optic edges and measure against the
+- **Phase 2 (separate ADR-0031):** re-add the ADR-0028 cross-optic edges and measure against the
   acceptance bar. Hashes and floors move again here, and only here. Splitting isolates the
   variable: a Phase-2 regression is a fabric interaction, not the scorer.
 
