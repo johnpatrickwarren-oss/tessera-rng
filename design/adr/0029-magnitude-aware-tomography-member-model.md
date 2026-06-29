@@ -1,8 +1,13 @@
 # ADR 0029 — Magnitude-aware tomography member model
 
-- **Status:** PROPOSED (spec-first; not yet built). Phase 1 is the authorized-pending scope; the
-  two design questions ADR-0028 routed to the owner are resolved below with rationale.
-- **Date:** 2026-06-14
+- **Status:** ACCEPTED — **Phase 1 BUILT, OPT-IN / DORMANT** (`src/tomography.ts`,
+  `test/magnitude-tomography.test.ts`). The scorer activates only when `opts.magnitude` is passed;
+  the pipeline does NOT pass it (owner-ratified: keep the pipeline on the binary scorer so no
+  freshness-bound artifact — demo/replay/coverage — churns). 218 tests green, gate PASS. **The
+  default-preservation claim is re-scoped (see Build note): it holds byte-for-byte at the surface's
+  typical small q₀, but the magnitude null is q₀-blind and DIVERGES at high q₀ — a recorded gap and a
+  hard prerequisite for the Phase-2 flip.** Phase 2 (cross-optic re-add) remains ADR-0031.
+- **Date:** 2026-06-14 (spec); 2026-06-29 (Phase 1 built)
 - **Decision owner:** Tessera-RNG (post-v1 round 10 spec; owner-authorized direction "follow the
   recommendations", continuing the ADR-0028 lineage)
 - **Relates to:** ADR-0019 (exposure-saturating noisy-OR), ADR-0022 (marginal-LLR set
@@ -132,7 +137,7 @@ re-derived for the magnitude mixture (see Risk).
 |---|---|
 | Magnitude is genuinely USED (anti-self-confirming core) | a fixture with two candidates of IDENTICAL fire-patterns but DIFFERENT member magnitudes — the scorer discriminates; deleting the `μz` term ⇒ test passes-as-before ⇒ FAILS (proves it is not the binary model in disguise) |
 | `z(E)` transform | unit test: `z(E)=0` for `E ≤ 1`; monotone increasing in `E`; `z ≈ θ` recovered on a seeded N(θ,1) e-process within tolerance |
-| Strict generalization / default preservation | with magnitude thresholded at the selection boundary, `localize()` reproduces the current binary ranking byte-for-byte on the existing fixtures |
+| Default preservation **at small q₀** (re-scoped per cold-eye) | with magnitude binarized (firing → constant supra-threshold e-value, quiet → z=0), `localize()` reproduces the binary ranking + explained set byte-for-byte on the ADR-0014 decoy fixture (`DEFAULT_LOCALIZE` q₀=0.01). NOT a global identity — the magnitude null is μ=0 (q₀-blind), so it diverges at high q₀; pinned by the divergence fixture below |
 | No regression — C1 closure (ADR-0019) | optic-3 rank-1 across the full δ sweep incl. saturation; the discriminating-control floor holds |
 | No regression — set construction (ADR-0022) | minimal single-fault set; cross-kind multi-fault recovery; spurious-winner guard; posterior-fold deletion/prior-instead-of-posterior mutants die; no view-multiplicity knob |
 | Posterior fold re-derived correctly | the fold uses the magnitude-mixture weights; its deletion mutant still fails a test |
@@ -163,6 +168,44 @@ This touches the most-tuned code in the repo. Where the cold-eye must look harde
 - **Phase 2 (separate ADR-0031):** re-add the ADR-0028 cross-optic edges and measure against the
   acceptance bar. Hashes and floors move again here, and only here. Splitting isolates the
   variable: a Phase-2 regression is a fabric interaction, not the scorer.
+  **HARD PREREQUISITE for the Phase-2 flip (new, from the Phase-1 cold-eye):** implement the
+  q₀-aware magnitude null (the ADR Risk bullet — map q₀ to a null mean offset) BEFORE wiring the
+  magnitude scorer into the pipeline. As built, the null is μ=0; under a high surface `base_rate_q0`
+  (a fleet-wide event) the magnitude scorer would fabricate a shared-resource culprit the binary
+  scorer correctly rejects — a false-positive regression. Dormant in Phase 1, so no live risk; the
+  divergence is pinned by a test so it cannot be flipped on silently.
+
+## Build note (Phase 1, 2026-06-29)
+
+Built as an **opt-in** generalization in `src/tomography.ts`: `magnitudeZ(E)=√(2·max(ln E,0))`;
+`memberSoftLR(z,μ)=μz−μ²/2` (= log[N(z;μ,1)/N(z;0,1)], exact); `resourceMagnitudeLLR` mixes the
+soft-evidence LR over the (δ,κ,S) grid with prior ∝(1/κ)(1/S), the candidate-off base subtracted in
+the SAME mixture (so the marginal LLR is 0 at the first pick, G≡1). The posterior fold
+(`posteriorQuietFactors`/`foldPosterior`) and the admission gate are **reused unchanged** — S is not
+stored in `MixCell` and does not enter the residual quiet factor, so the fold marginalizes S out
+correctly (cold-eye confirmed, no S-leak). Fail-closed: a firing leaf missing from the magnitude
+map throws; `magnitudeZ` throws on a non-finite/negative e-value (no silent NaN-vanish).
+
+**Owner-ratified scope:** Phase 1 keeps the pipeline on the binary scorer (magnitude dormant), so
+the 209 pre-existing tests, demo bytes, replay/coverage artifacts, snapshot hashes and published
+floors are all unchanged **by construction** — satisfying "Phase 1 changes only the scorer and must
+not move any hash or floor" without churning a single artifact. The behavior win lands at the
+Phase-2 flip (with the q₀ prerequisite above).
+
+**Cold-eye fold-in (fresh-context review of the Phase-1 build):** one CRITICAL — the default-
+preservation claim was overstated (the magnitude null is q₀-blind; binarized magnitude diverges
+from the base-rate-aware binary null at high q₀, e.g. blaming a fleet-wide q₀=0.5 event the binary
+scorer rejects). Resolved per instrumented-caveat (§7): the claim is re-scoped to small q₀, the
+divergence is **recorded by a pinned fixture** (`DIVERGENCE … the magnitude null is q₀-BLIND`), and
+the q₀ offset is now a hard Phase-2 prerequisite (above). The reviewer confirmed the core math, the
+first-pick=0 property, the fold reuse (no S-leak), and that the μz term genuinely binds (dropping it
+kills 3 tests).
+
+### Mutation record
+Hand-mutant: `memberSoftLR` → `−μ²/2` (drop the μz support term). Recompiled, ran
+`test/magnitude-tomography.test.js`: **3 fail** (`discriminates by magnitude`, default-preservation,
+`no regression with REAL magnitudes`) — the magnitude term is load-bearing, not incidental.
+Reverted; 9/9 green.
 
 ## References
 

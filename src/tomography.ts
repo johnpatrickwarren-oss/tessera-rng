@@ -54,7 +54,23 @@ export interface LocalizeOpts {
   legacy?: boolean;
   /** collateral weight λ for the legacy scorer only. */
   collateralWeight?: number;
+  /**
+   * OPT-IN magnitude scorer (ADR-0029, Phase 1): per-firing-leaf combined e-value. When present,
+   * the member likelihood generalizes from Bernoulli(`fired`) to the continuous soft-evidence LR
+   * `μz − μ²/2` (z = magnitudeZ(e_value); quiet members z = 0). ABSENT ⇒ the exact binary scorer
+   * above, byte-for-byte (the default-preservation guarantee). The (δ, κ) mixture, the 1/κ prior,
+   * the marginal-LLR construction and the posterior fold are unchanged in form. Every firing leaf
+   * MUST appear in the map (fail-closed). The pipeline does NOT pass this in Phase 1 — it is proven
+   * dormant; the flip to magnitude-by-default is Phase 2 (ADR-0031), alongside the cross-optic fabric.
+   */
+  magnitude?: ReadonlyMap<PathClassId, number>;
+  /** fault-amplitude grid S the magnitude scorer mixes over with a 1/S prior (ADR-0029 D2); only used
+   *  when `magnitude` is set. Fixed-form, not a tunable knob — the meaningful 1–4σ standardized range. */
+  scales?: number[];
 }
+
+/** Fixed S grid + 1/S prior (ADR-0029 D2): admit the fault amplitude is unknown and mix, never fit it. */
+export const DEFAULT_SCALES: number[] = Object.freeze([1, 2, 4]) as number[];
 
 export const DEFAULT_LOCALIZE: LocalizeOpts = Object.freeze({
   grid: Object.freeze([0.3, 0.6, 0.9]) as number[],
@@ -137,6 +153,71 @@ function memberLLMarginal(fired: boolean, q0: number, logG: number, d: number, k
 function memberLLBase(fired: boolean, q0: number, logG: number): number {
   const logQuiet = Math.log1p(-q0) + logG;
   return fired ? Math.log(-Math.expm1(logQuiet)) : logQuiet;
+}
+
+/**
+ * Magnitude currency (ADR-0029 D1): z(E) = √(2·max(ln E, 0)). An e-value's growth rate E[log E] is
+ * the alt-vs-null KL, which for a standardized mean shift θ is θ²/2 — so log E ≈ θ²/2 and z ≈ θ,
+ * mapping the combined e-value back to the standardized-shift scale the Gaussian LR below lives on.
+ * E ≤ 1 ⇒ z = 0 (clean members sit at zero). Literal effect size for Family A; a monotone evidence
+ * proxy for C/D (admissible because tomography is RANKING, N1 — recorded, not hidden).
+ */
+export function magnitudeZ(eValue: number): number {
+  // Fail LOUD on a non-finite/negative e-value: otherwise z = NaN/∞ silently vanishes the candidate
+  // (dropped by the `!(score > 0)` gate) with no diagnostic. e-values are finite and ≥ 0 by
+  // construction, so this is a contract guard, not an expected path.
+  if (!Number.isFinite(eValue) || eValue < 0) throw new RangeError(`magnitudeZ: e-value must be finite and ≥ 0 — got ${eValue}`);
+  return Math.sqrt(2 * Math.max(Math.log(eValue), 0));
+}
+
+/** Soft-evidence member log-LR (ADR-0029): log[ N(z; μ, 1) / N(z; 0, 1) ] = μz − μ²/2, with μ = S·L
+ *  the predicted standardized shift of a member whose lit fraction is L. Large μ + large z ⇒ support;
+ *  large μ + z≈0 ⇒ −μ²/2 falsification; tiny μ + z≈0 ⇒ ≈0 (no spurious falsification of diluted leaves). */
+function memberSoftLR(z: number, mu: number): number {
+  return mu * z - (mu * mu) / 2;
+}
+
+/**
+ * Magnitude marginal-LLR (ADR-0029) — the soft-evidence generalization of `resourceLLR`. In mixture
+ * cell (δ, κ, S) a member's predicted mean is μ = S·L, where L = 1 − G·(1−δ)^{κw} is the lit fraction
+ * COMBINING the picked set's residual unlit factor G = exp(logG) with the candidate's own lighting.
+ * The base subtracts the candidate-OFF prediction (L_base = 1 − G) in the SAME mixture, so the
+ * difference isolates the candidate's marginal lighting; at the first pick (G ≡ 1, L_base = 0) the base
+ * is the μ = 0 null and the score is exactly logMixExp(faulty). The returned cells carry (δ, κ) so the
+ * posterior fold (`posteriorQuietFactors`/`foldPosterior`) is reused UNCHANGED — S only re-weights the
+ * posterior, it is not part of the residual quiet factor E_post[(1−δ)^{κw}].
+ */
+function resourceMagnitudeLLR(
+  a: Acc,
+  logG: ReadonlyMap<PathClassId, number>,
+  zOf: (pc: PathClassId) => number,
+  grid: number[],
+  kappas: number[],
+  scales: number[],
+): { score: number; cells: MixCell[] } | null {
+  if (a.firing.length === 0) return null;
+  const logZ = Math.log(kappas.reduce((s, k) => s + 1 / k, 0) * scales.reduce((s, S) => s + 1 / S, 0) * grid.length);
+  const faulty: MixCell[] = [];
+  const base: { ll: number; logPrior: number }[] = [];
+  for (const d of grid) {
+    for (const k of kappas) {
+      for (const S of scales) {
+        const logPrior = -Math.log(k) - Math.log(S) - logZ;
+        let llF = 0;
+        let llB = 0;
+        for (const m of a.members) {
+          const G = Math.exp(logG.get(m.pc) ?? 0);
+          const z = zOf(m.pc);
+          const litWith = 1 - G * Math.exp(k * m.weight * Math.log1p(-d));
+          llF += memberSoftLR(z, S * litWith);
+          llB += memberSoftLR(z, S * (1 - G));
+        }
+        faulty.push({ ll: llF, logPrior, d, k });
+        base.push({ ll: llB, logPrior });
+      }
+    }
+  }
+  return { score: logMixExp(faulty) - logMixExp(base), cells: faulty };
 }
 
 /**
@@ -243,11 +324,14 @@ function bestMarginal(
   picked: ReadonlySet<ResourceId>,
   logG: ReadonlyMap<PathClassId, number>,
   opts: LocalizeOpts,
+  zOf: (pc: PathClassId) => number,
 ): { resource: ResourceId; score: number; cells: MixCell[] } | null {
   let best: { resource: ResourceId; score: number; cells: MixCell[] } | null = null;
   for (const [resource, a] of acc) {
     if (picked.has(resource) || !hasUnexplainedFiring(a, logG, opts.q0)) continue;
-    const p = resourceLLR(a, logG, opts.q0, opts.grid, opts.kappas);
+    const p = opts.magnitude
+      ? resourceMagnitudeLLR(a, logG, zOf, opts.grid, opts.kappas, opts.scales ?? DEFAULT_SCALES)
+      : resourceLLR(a, logG, opts.q0, opts.grid, opts.kappas);
     if (!p || !(p.score > 0)) continue;
     if (!best || p.score > best.score || (p.score === best.score && resource < best.resource)) best = { resource, ...p };
   }
@@ -288,6 +372,17 @@ export function localize(
   };
   if (opts.legacy) return localizeLegacy(fired, acc, mkCulprit, opts);
 
+  // Magnitude currency (ADR-0029): firing leaves carry z = magnitudeZ(e_value), quiet leaves z = 0.
+  // Fail-closed — a firing leaf with no supplied e-value in magnitude mode is a contract violation,
+  // not a silent z = 0 (which would falsify the very resource it fired for).
+  const mag = opts.magnitude;
+  const zOf = (pc: PathClassId): number => {
+    if (!mag || !fired.has(pc)) return 0;
+    const e = mag.get(pc);
+    if (e === undefined) throw new RangeError(`magnitude mode: firing leaf ${pc} has no e-value`);
+    return magnitudeZ(e);
+  };
+
   // Marginal-LLR set construction (ADR-0022): each pick folds its (δ, κ) posterior into the
   // residual quiet factors, so the next candidate is scored on what remains SURPRISING — no
   // binary explained-set, no weight threshold. A leaf is reported "explained" when the picked
@@ -296,7 +391,7 @@ export function localize(
   const picked = new Set<ResourceId>();
   const culprits: Culprit[] = [];
   while (culprits.length < opts.maxResources) {
-    const best = bestMarginal(acc, picked, logG, opts);
+    const best = bestMarginal(acc, picked, logG, opts, zOf);
     if (!best) break;
     picked.add(best.resource);
     foldPosterior(acc.get(best.resource)!, posteriorQuietFactors(acc.get(best.resource)!, best.cells), logG);

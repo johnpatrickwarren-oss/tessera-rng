@@ -64,6 +64,15 @@ dominant failure mode is **silent mis-attribution, not silence** (detection stay
 attribution collapses), and **signal noise is the sharpest axis** (attribution gone by ~0.5σ of
 uncalibrated noise under dilution — motivates ADR-0029). Routing churn deferred-with-rationale
 (reuses the ADR-0017/0018 epoch path). **209 tests, gate PASS.** README/VALIDATION.md updated.
+Magnitude scorer (branch `adr-0029-magnitude-scorer`, **ADR-0029 Phase 1 ACCEPTED, OPT-IN/DORMANT**):
+generalized the tomography member likelihood from Bernoulli(`fired`) to the continuous soft-evidence
+LR `μz−μ²/2` (z=√(2·max(ln E,0)), μ=S·L) mixed over (δ,κ,S), activated only via `opts.magnitude` —
+the pipeline does NOT pass it (owner-ratified: zero artifact churn; the 209 prior tests unchanged by
+construction). Posterior fold + admission gate reused unchanged (cold-eye confirmed no S-leak).
+Default preservation holds byte-for-byte **at small q₀**; the cold-eye caught that the magnitude null
+is **q₀-blind** and diverges at high q₀ (would blame a fleet-wide event) — re-scoped, divergence
+pinned by a recorded fixture, and the q₀-aware null made a **hard prerequisite for the Phase-2 flip**
+(ADR-0031). μz-drop mutant kills 3 tests. **218 tests, gate PASS.**
 
 ## Built so far
 
