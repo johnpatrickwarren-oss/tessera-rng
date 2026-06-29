@@ -82,10 +82,18 @@ re-adding partner-optic edges at `1/(nTors−1)` (the ADR-0028 omission; default
 panel-7 **4/4 seeds at δ∈{3–6}** where binary recovers **0/4** — reversing the ADR-0028 rejection.
 **Recorded limitation:** at δ≥8 the cross-optic leak saturates the fleet (estimated q₀→0.37–0.70)
 and recovery is lost — magnitude is better in-band, equal (both fail) out-of-band, never worse;
-z is a monotone ranking proxy (the pipeline feeds an accrued e-value ≈θ√T, calibration deferred to
-the cutover). Pipeline default flip
+z is a monotone ranking proxy (the pipeline feeds an accrued e-value ≈θ√T). Pipeline default flip
 deliberately NOT done (anti-scope; production cutover is the next recorded step). q₀-leak + μz
 mutants both caught. **221 tests, gate PASS.**
+z-calibration (branch `adr-0033-z-calibration`, **ADR-0033 ACCEPTED**): discharged the ADR-0031
+z-scale prerequisite. Added opt-in `magnitudeTicks` (z = √(2·max(ln E,0)/ticks) ≈ per-tick θ) and
+**measured it end-to-end** — the finding: calibration is a **band tradeoff, not a fix**. Raw
+(accrued) z recovers cross-kind at low δ (3–4, 4/4) where calibrated fails (0/4); calibrated recovers
+at very high δ (32, 4/4) where raw fails — neither dominates. **Decision: keep RAW accrued z as the
+operational default** (the low-δ band is the system's founding purpose — catch subtle faults before
+the margin is spent; δ=32 is already a klaxon). Reframes the cold-eye's "miscalibration": z is a
+monotone ranking proxy (N1), and which scale ranks best is an operating-point question. Scorer stays
+dormant. **223 tests, gate PASS.**
 
 ## Built so far
 
