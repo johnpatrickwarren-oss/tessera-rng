@@ -94,6 +94,18 @@ operational default** (the low-δ band is the system's founding purpose — catc
 the margin is spent; δ=32 is already a klaxon). Reframes the cold-eye's "miscalibration": z is a
 monotone ranking proxy (N1), and which scale ranks best is an operating-point question. Scorer stays
 dormant. **223 tests, gate PASS.**
+High-δ saturation characterized (branch `adr-0034-high-delta-saturation`, **ADR-0034 ACCEPTED**):
+diagnosed the ADR-0031 δ≥8 limitation to **two upstream root causes** — (1) the firing-fraction q₀
+(ADR-0016 null) is self-corrupting: a fault's fleet-wide cross-optic leak fires the whole fleet,
+inflating q₀ to 0.37–0.70, which then masks the very fault (pinned in test: optic-3 unranked at the
+corrupted q₀, recovered at the clean rate); (2) e-values overflow to +∞ at δ≥32, losing magnitude
+discrimination upstream of tomography. The obvious fixes are fragile: a q₀ cap only partially recovers
+(δ=8: 2→3/4) AND breaks the genuine fleet-wide-event rejection; raising Z_MAX is useless (e-value
+already +∞). **Decision: accept the bounded limit** (δ≥8 is an unmissable klaxon; the operating band
+δ≈3–6 is solved), with two principled fix directions recorded for future work — a magnitude-
+concentration-robust null, and upstream e-value scaling (an engine extension-point request, never
+forked). The ADR-0028→0029→0031→0033→0034 arc closes with an honest, characterized boundary.
+**224 tests, gate PASS.**
 
 ## Built so far
 
