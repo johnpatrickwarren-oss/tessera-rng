@@ -78,6 +78,7 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
       { fault_kind: 'shuffle_panel', resource: 'panel-2', per_view_detected: { per_panel_pair: 9 }, concentrated_by: 'per_panel_pair' },
     ],
     clean: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
+    realistic_regime: { trials: 4, calib_ticks: 336, live_ticks: 168, mean_sd_false_positives: 108, robust_false_positives: 0 },
   };
   const md = renderMarkdown(rep);
   assert.match(md, /detection \| attribution/);

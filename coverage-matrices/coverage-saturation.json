@@ -689,5 +689,12 @@
     "trials": 4,
     "mean_selected": 0,
     "false_positive_rate": 0
+  },
+  "realistic_regime": {
+    "trials": 4,
+    "calib_ticks": 336,
+    "live_ticks": 168,
+    "mean_sd_false_positives": 434,
+    "robust_false_positives": 0
   }
 }
