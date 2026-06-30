@@ -18,22 +18,34 @@ import { robustLocation } from '@johnpatrickwarren-oss/deploysignal-engine/fleet
 import type { PathClassId } from './domain';
 
 /**
+ * Strip the per-signal robust common-mode across leaves from ONE tick's residual vectors, IN PLACE.
+ * Leaves are processed in sorted id order so the `robustLocation` input is identical to the batch
+ * path's — the incremental≡batch byte-equality contract (ADR-0027) depends on it. The shared per-tick
+ * primitive used by both the batch `stripCommonMode` and the incremental session.
+ */
+export function stripCommonModeTick(byLeaf: Map<PathClassId, number[]>): void {
+  const pcs = [...byLeaf.keys()].sort();
+  if (pcs.length === 0) return;
+  const nSignals = byLeaf.get(pcs[0])!.length;
+  for (let s = 0; s < nSignals; s++) {
+    const commonMode = robustLocation(pcs.map((pc) => byLeaf.get(pc)![s]));
+    for (const pc of pcs) byLeaf.get(pc)![s] -= commonMode;
+  }
+}
+
+/**
  * Remove the per-(tick, signal) robust common-mode across leaves from a standardized residual map.
- * Pure: returns a fresh map; the input is untouched. With one leaf the common-mode IS that leaf, so
- * residuals go to 0 — a degenerate single-leaf fabric has no cross-leaf common-mode to speak of.
+ * Pure: returns a fresh map; the input is untouched. Leaves processed in sorted id order (matches
+ * the session — byte-equality). With one leaf the common-mode IS that leaf, so residuals go to 0.
  */
 export function stripCommonMode(residuals: ReadonlyMap<PathClassId, number[][]>): Map<PathClassId, number[][]> {
-  const pcs = [...residuals.keys()];
+  const pcs = [...residuals.keys()].sort();
   const out = new Map<PathClassId, number[][]>(pcs.map((pc) => [pc, residuals.get(pc)!.map((row) => [...row])]));
   if (pcs.length === 0) return out;
   const ticks = residuals.get(pcs[0])!.length;
-  const nSignals = ticks > 0 ? residuals.get(pcs[0])![0].length : 0;
   for (let t = 0; t < ticks; t++) {
-    for (let s = 0; s < nSignals; s++) {
-      const column = pcs.map((pc) => residuals.get(pc)![t][s]);
-      const commonMode = robustLocation(column);
-      for (const pc of pcs) out.get(pc)![t][s] -= commonMode;
-    }
+    const column = new Map<PathClassId, number[]>(pcs.map((pc) => [pc, out.get(pc)![t]]));
+    stripCommonModeTick(column);
   }
   return out;
 }

@@ -46,6 +46,20 @@ test('KEYSTONE (ADR-0027): incremental ≡ batch byte-for-byte — single fault'
   await assertEquivalence({ snapshot: SNAP, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 4, start_tick: 0 } } });
 });
 
+test('KEYSTONE (ADR-0038): incremental ≡ batch byte-for-byte WITH opt-in common-mode removal (session support)', async () => {
+  // The session strips the per-tick common-mode identically to the batch path (sorted leaves, same
+  // robustLocation). A high-δ cross-kind fault, where common-mode genuinely changes the result, so
+  // this is a real byte-equality test, not a trivial pass. Calibration AND live must both opt in.
+  const params: PipelineParams = { snapshot: SNAP, q: 0.05, commonModeRobust: true, telemetry: { seed: 1, ticks: 60, degradations: [
+    { resource_id: 'optic-3', delta: 16, start_tick: 0 }, { resource_id: 'panel-7', delta: 16, start_tick: 0 },
+  ] } };
+  const batch = await runPipeline(params);
+  const { calibration, ctx } = calibrateForSession(SNAP, params.telemetry, undefined, true);
+  const session = openSession({ snapshot: SNAP, calibration, q: params.q, ctx, commonModeRobust: true });
+  streamInto(session, params);
+  assert.equal(JSON.stringify(session.audit()), JSON.stringify(batch), 'incremental ≡ batch under common-mode removal');
+});
+
 test('KEYSTONE (ADR-0027): incremental ≡ batch byte-for-byte — simultaneous multi-fault', async () => {
   await assertEquivalence({
     snapshot: SNAP,

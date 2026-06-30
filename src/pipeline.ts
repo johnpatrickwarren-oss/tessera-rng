@@ -50,11 +50,13 @@ export interface PipelineParams {
    */
   reroutes?: readonly RerouteEvent[];
   /**
-   * OPT-IN contamination-robust common-mode removal (ADR-0036): strip the engine's robust per-tick
-   * cross-leaf common-mode from the residuals (calibration + live) before detection. Addresses the
-   * ADR-0034 high-δ saturation — a fleet-wide fault's shared shift no longer inflates q₀. Default
-   * OFF: the cut-over default path (and the incremental session, which does not yet support it) are
-   * byte-unchanged, so incremental≡batch holds. Batch path only for now (session support deferred).
+   * Contamination-robust common-mode removal (ADR-0036), OPT-IN (default OFF). Strips the engine's
+   * robust per-tick cross-leaf common-mode from the residuals (calibration + live) before detection —
+   * lifts the ADR-0034 high-δ cross-optic saturation (a fleet-wide fault's shared shift no longer
+   * inflates q₀). ADR-0038 measured the DEFAULT cutover and REJECTED it: common-mode also strips a
+   * BROAD fault's OWN signal (it mislocalized a room fault), so it is a tradeoff, not a strict win —
+   * use it when concentrated-fault-amid-leak is the regime, not as a blanket default. The incremental
+   * session (`SessionParams.commonModeRobust`) strips identically, so opting in keeps incremental≡batch.
    */
   commonModeRobust?: boolean;
 }
@@ -155,10 +157,11 @@ export function calibrateForSession(
   snapshot: FaultDomainSnapshot,
   telemetry: { seed: number; ticks: number; noiseCorr?: number[][]; arCoeffs?: number[][] },
   detect: DetectParams = DEFAULT_DETECT,
-  // ADR-0036: strip the robust common-mode from the calibration residuals too. FOOTGUN — only the
-  // BATCH pipeline strips the LIVE residuals to match; `IncrementalSession` does NOT yet. Do not feed
-  // a `ctx` calibrated with `commonModeRobust:true` into a session (its un-stripped live ticks would
-  // be scored against stripped Σ/D-nulls). Session support is deferred (ADR-0036 follow-up).
+  // ADR-0036: strip the robust common-mode from the calibration residuals too. Default OFF — ADR-0038
+  // evaluated the default cutover and REJECTED it (common-mode strips a BROAD fault's own signal:
+  // it mislocalized a room fault). It stays opt-in. The IncrementalSession now strips live ticks
+  // identically (sorted leaves, same robustLocation), so when a caller DOES opt in, a `ctx` calibrated
+  // here composes with a session opened under the same flag and incremental≡batch holds.
   commonModeRobust = false,
 ): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
   const calibRaw = generateTelemetry(snapshot, {
