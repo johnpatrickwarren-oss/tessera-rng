@@ -176,7 +176,17 @@ one-sided cost into the published WIN — added a realistic-regime FDR section t
 that builds the null from aberration-laden history: **mean/sd false-positives 434 / 4 trials, robust 0**.
 The coverage now shows the tradeoff whole (clean-data cost AND realistic-data win). Honest caveats:
 aberration intensity is a modeled parameter (the 434 scales with it; robust's 0 is invariant), the
-aberration model is crude (uniform additive — realistic for p99, not near-zero loss). **240 tests, gate PASS.** 3 calibration-orthogonal tests pinned to `robustCalibration:false`
+aberration model is crude (uniform additive — realistic for p99, not near-zero loss). **240 tests, gate PASS.**
+Common-mode default RE-OPEN under the robust null (branch `commonmode-default-under-robust`, **ADR-0041
+ACCEPTED, no behavioral change**): ADR-0039's robust-default null changed ADR-0038's specific
+room-0→room-1 mislocalization, so the default-cutover question was re-opened. The single-fault probe
+looked promising (room-0 Δ=3 rank-1 stayed correct under common-mode ON), but the FULL coverage sweep
+(common-mode default ON + robust, diffed across ALL structures incl mode_floors) showed the broad-fault
+regression PERSISTS — room attr 3→None, power_zone det/attr 1→2, shuffle_panel det/attr 2→3, room Δ=4
+attr 4/4→0/4. **Common-mode stays OPT-IN; ADR-0038 reaffirmed under the robust null.** The benefit is
+intact (still lifts cross-optic δ=8: 2→4, δ=16: 0→4 — the right opt-in tool, not a default). Pinned by
+a RE-OPEN test. Methodological lesson recorded: the single-fault probe + the changed pinned-test misled;
+the full sweep (the ADR-0039 cold-eye's mode_floors lesson) gave the right answer. **240 tests, gate PASS.** 3 calibration-orthogonal tests pinned to `robustCalibration:false`
 (common-mode demo, ANYTIME profile, C1 saturation); demo + coverage regenerated; coverage prose
 de-hard-coded. The "FDR=0" claim is no longer a matched-short-window artifact (the deep null covers the
 full week). Follow-ups: AR-model robustness, 4-week null for real incident exclusion. **240 tests, gate PASS.**
