@@ -146,6 +146,20 @@ MEASURED and REJECTED** — defaulting common-mode ON regresses broad-fault floo
 fault** (room-0→room-1), because a BROAD fault's own signal IS the cross-leaf common mode it strips.
 So common-mode is a TRADEOFF (helps concentrated-fault-amid-leak, hurts broad faults) — stays
 **opt-in**, not a blanket default. No artifact churn (default OFF). **232 tests, gate PASS.**
+Telemetry-realism test network (branch `telemetry-realism-test-network`): a validation question —
+"is our null long/deep enough?" — surfaced that the standard 60-tick (2.5-day) null is one
+time-sample deep, leans on cross-leaf pooling, and a week-spanning clean run yields **18 false
+positives** (FDR=0 was a matched-short-window artifact). Grounded the realistic temporal structure
+in real fat-tree measurement (deep-research dive, 23/25 claims verified → `design/research/
+telemetry-temporal-characterization.md`): minute cadence, ~2× diurnal, near-zero heavy-tailed loss,
+**clustered (non-Poisson) aberrations**, ~4-week robust null (loss-binding). Built the "robust RNG
+test network" (`tools/realistic-telemetry.ts`: real weekly signal + clustered aberration injection,
+RNG incidence untouched) and validated our work against it. **Two findings, pinned:** (GOOD) the
+per-cell calibration HANDLES realistic weekly seasonality (0 FP once the null spans the week);
+(GAP) our **mean/sd calibration is NOT robust** to the clustered aberrations that always happen —
+contaminated history manufactures false positives (34 vs 0). **Next attention: a robust calibration
+estimator** (the engine ships one — the next consumption). ECMP excluded from extrapolation
+(topology-specific); retransmit/flow-completion are proxies (largest evidence gap). **237 tests, gate PASS.**
 
 ## Built so far
 
