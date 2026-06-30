@@ -83,7 +83,10 @@ test('WHY NOT DEFAULT (ADR-0038): common-mode strips a BROAD fault\'s own signal
   // ADR-only testimony). A broad room fault shifts every leaf in the room together — that shared shift
   // IS the cross-leaf common-mode, so stripping it deletes the fault's own signal. OFF localizes room-0
   // correctly; ON does NOT — exactly why common-mode is a tradeoff, kept opt-in, never defaulted.
-  const mk = (cm: boolean) => ({ snapshot: CROSS, q: 0.05, commonModeRobust: cm, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'room-0', delta: 3, start_tick: 0 } } });
+  // pinned to the pre-robust mean/sd null (robustCalibration:false) — demonstrates the COMMON-MODE
+  // tradeoff under the calibration it was measured on; robust calibration shifts the specific room
+  // outcome (a separate interaction, not what this test is about).
+  const mk = (cm: boolean) => ({ snapshot: CROSS, q: 0.05, commonModeRobust: cm, robustCalibration: false, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'room-0', delta: 3, start_tick: 0 } } });
   const off = await runPipeline(mk(false));
   const on = await runPipeline(mk(true));
   assert.equal(off.culprits[0]?.resource_id, 'room-0', 'OFF: the broad room fault localizes correctly');

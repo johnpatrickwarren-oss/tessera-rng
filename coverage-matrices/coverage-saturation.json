@@ -59,10 +59,10 @@
       "kind": "passive_shuffler",
       "delta": 1,
       "n": 4,
-      "detected": 4,
-      "attributed": 2,
-      "detection_rate": 1,
-      "attribution_rate": 0.5
+      "detected": 3,
+      "attributed": 1,
+      "detection_rate": 0.75,
+      "attribution_rate": 0.25
     },
     {
       "kind": "passive_shuffler",
@@ -96,9 +96,9 @@
       "delta": 1,
       "n": 4,
       "detected": 3,
-      "attributed": 3,
+      "attributed": 2,
       "detection_rate": 0.75,
-      "attribution_rate": 0.75
+      "attribution_rate": 0.5
     },
     {
       "kind": "fiber_bundle",
@@ -163,7 +163,7 @@
     },
     {
       "kind": "passive_shuffler",
-      "detection_floor": 1,
+      "detection_floor": 2,
       "attribution_floor": 2
     },
     {
@@ -231,7 +231,7 @@
     {
       "mode": "mean_shift",
       "unit": "Δ (p99 mean)",
-      "detection_floor": 1,
+      "detection_floor": 2,
       "attribution_floor": 2,
       "detecting_family": "A",
       "points": [
@@ -243,8 +243,8 @@
         },
         {
           "magnitude": 1,
-          "detection_rate": 1,
-          "attribution_rate": 0.5,
+          "detection_rate": 0.75,
+          "attribution_rate": 0.25,
           "family": "A"
         },
         {
@@ -264,7 +264,7 @@
     {
       "mode": "covariance_flip",
       "unit": "Δρ (corr change)",
-      "detection_floor": 0.2,
+      "detection_floor": 0.4,
       "attribution_floor": 0.4,
       "detecting_family": "C",
       "points": [
@@ -282,8 +282,8 @@
         },
         {
           "magnitude": 0.2,
-          "detection_rate": 1,
-          "attribution_rate": 0.75,
+          "detection_rate": 0.75,
+          "attribution_rate": 0.5,
           "family": "C"
         },
         {
@@ -333,8 +333,8 @@
         },
         {
           "magnitude": 0.7,
-          "detection_rate": 0.5,
-          "attribution_rate": 0.5,
+          "detection_rate": 0.75,
+          "attribution_rate": 0.75,
           "family": "D"
         },
         {
@@ -485,9 +485,9 @@
         "kind": "room",
         "delta": 1,
         "n": 4,
-        "detected": 4,
+        "detected": 3,
         "attributed": 0,
-        "detection_rate": 1,
+        "detection_rate": 0.75,
         "attribution_rate": 0
       },
       {
@@ -495,9 +495,9 @@
         "delta": 2,
         "n": 4,
         "detected": 4,
-        "attributed": 3,
+        "attributed": 0,
         "detection_rate": 1,
-        "attribution_rate": 0.75
+        "attribution_rate": 0
       },
       {
         "kind": "room",
@@ -531,7 +531,7 @@
       },
       {
         "kind": "room",
-        "detection_floor": 1,
+        "detection_floor": 2,
         "attribution_floor": 3
       }
     ]
@@ -563,9 +563,9 @@
         "kind": "cross_kind",
         "delta": 1,
         "n": 2,
-        "detected": 1,
+        "detected": 0,
         "attributed": 0,
-        "detection_rate": 0.5,
+        "detection_rate": 0,
         "attribution_rate": 0
       },
       {
@@ -609,9 +609,9 @@
         "delta": 1,
         "n": 2,
         "detected": 1,
-        "attributed": 1,
+        "attributed": 0,
         "detection_rate": 0.5,
-        "attribution_rate": 0.5
+        "attribution_rate": 0
       },
       {
         "kind": "same_kind",

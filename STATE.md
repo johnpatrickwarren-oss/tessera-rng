@@ -160,6 +160,20 @@ per-cell calibration HANDLES realistic weekly seasonality (0 FP once the null sp
 contaminated history manufactures false positives (34 vs 0). **Next attention: a robust calibration
 estimator** (the engine ships one — the next consumption). ECMP excluded from extrapolation
 (topology-specific); retransmit/flow-completion are proxies (largest evidence gap). **237 tests, gate PASS.**
+Robust calibration + deep-null rebaseline (branch `adr-0039-robust-calibration`, **ADR-0039 ACCEPTED**):
+closed the telemetry-realism gap. (1) Per-cell null now estimated **robustly** (engine `robustLocation`
++ MAD) by DEFAULT instead of mean/sd — clustered aberrations are tossed, not absorbed (gap closed:
+contaminated history 32 FP → **0**; unbiased on clean, median scale ratio 1.000; clean FDR 0 via robust
+min-cell-samples=50). (2) **Decoupled** the calibration window from the live window (`calibrationTicks`
+— calibrate long, detect short, as real systems do). (3) **Rebaselined the coverage matrix at a ~2-week
+robust null**: 20 of 24 floor entries unchanged, clean FDR 0, paper-scale clean 0 — **cost (corrected
+per cold-eye, first draft undercounted): FOUR detection floors +1 step** (passive_shuffler, room,
+mean_shift, and Family-C covariance_flip 0.2→0.4 — a DOUBLING), plus room Δ=2 attribution 0.75→0. The
+cost is ONE-SIDED on the aberration-FREE synthetic (robust pays its MAD-efficiency cost, earns none of
+its robustness benefit); on real aberration-laden telemetry robust is strictly better (mean/sd → 32 FP). 3 calibration-orthogonal tests pinned to `robustCalibration:false`
+(common-mode demo, ANYTIME profile, C1 saturation); demo + coverage regenerated; coverage prose
+de-hard-coded. The "FDR=0" claim is no longer a matched-short-window artifact (the deep null covers the
+full week). Follow-ups: AR-model robustness, 4-week null for real incident exclusion. **240 tests, gate PASS.**
 
 ## Built so far
 

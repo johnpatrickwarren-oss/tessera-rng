@@ -12,6 +12,7 @@
  * feed it unchanged.
  */
 import { fitArP, prewhitenAr } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/ar-p';
+import { robustLocation } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/common-mode';
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
@@ -46,6 +47,11 @@ export const DEFAULT_AR_PMAX = 6;
  * default ~400-path-class fabric (n ≈ 130/cell) keeps full per-cell resolution untouched.
  */
 export const DEFAULT_MIN_CELL_SAMPLES = 30;
+
+/** Robust-mode min-cell-samples (telemetry-realism): MAD is ~37% less efficient than the sample sd,
+ *  so a robust per-cell scale needs more samples for the same accuracy — below this a cell borrows the
+ *  (stable, large-n) robust pooled baseline. 50 keeps clean-fabric FDR at 0 even at thin windows. */
+export const ROBUST_MIN_CELL_SAMPLES = 50;
 
 /** Deterministic traffic-class assignment per path-class (stable hash of the id). */
 export function trafficClassOf(pathClassId: PathClassId): TrafficClass {
@@ -107,15 +113,80 @@ function statsOf(a: Acc): { mean: number[]; sd: number[] } {
   return { mean, sd };
 }
 
+/** Median of a column (0 for an empty sample). */
+function median(xs: readonly number[]): number {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const n = s.length;
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+}
+
+/**
+ * Robust per-signal (center, scale) from the cell's samples — the contamination-robust null
+ * estimator (telemetry-realism finding: real history is full of clustered aberrations a mean/sd
+ * estimator ABSORBS, corrupting the null). Center = the engine's `robustLocation` (Tukey biweight,
+ * 95%-efficient at the Gaussian, redescending — CONSUMED, not rebuilt); scale = MAD×1.4826 about the
+ * median. On clean Gaussian samples these ≈ (mean, sd), so a clean null is ~unchanged; on contaminated
+ * samples they reject the bursts instead of inflating to them.
+ */
+function robustStatsOf(samples: readonly number[][]): { mean: number[]; sd: number[] } {
+  const p = SIGNALS.length;
+  const mean = new Array<number>(p);
+  const sd = new Array<number>(p);
+  for (let i = 0; i < p; i++) {
+    const col = samples.map((s) => s[i]);
+    const med = median(col);
+    mean[i] = robustLocation(col);
+    // floor the SCALE at √1e-9 ≈ 3.16e-5 to match the mean/sd path (which floors the VARIANCE at 1e-9),
+    // so a degenerate cell (MAD=0) standardizes identically in both paths — no robust-only FP blowup.
+    sd[i] = Math.max(1.4826 * median(col.map((x) => Math.abs(x - med))), Math.sqrt(1e-9));
+  }
+  return { mean, sd };
+}
+
 /**
  * Build per-cell baselines AND the pooled per-signal baseline in one pass. Cells with fewer
  * than `minCellSamples` observations fall back to the pooled (mean, sd) — their own sd is too
  * noisy to trust (ADR-0006). The pooled stats are returned too, for cells unseen at calibration.
  */
-function buildCells(
+/** Robust per-cell baselines (telemetry-realism): collect each cell's samples and finalize with the
+ *  contamination-robust `robustStatsOf` (median/MAD/Tukey) instead of mean/sd, so clustered
+ *  aberrations in the calibration history are TOSSED, not absorbed into the null. Same fallback rule
+ *  (under-sampled cells borrow the robust pooled baseline). */
+function buildCellsRobust(
   raw: ReadonlyMap<PathClassId, SignalVector[]>,
   minCellSamples: number,
 ): { cells: Map<string, CellStats>; pooled: CellStats } {
+  const p = SIGNALS.length;
+  const acc = new Map<string, number[][]>();
+  const pool: number[][] = [];
+  for (const [pc, series] of raw) {
+    const tc = trafficClassOf(pc);
+    for (let t = 0; t < series.length; t++) {
+      const key = cellKey(t, tc);
+      let s = acc.get(key);
+      if (!s) { s = []; acc.set(key, s); }
+      const v = [...series[t]];
+      s.push(v);
+      pool.push(v);
+    }
+  }
+  const pooledStats = pool.length > 0 ? robustStatsOf(pool) : { mean: new Array<number>(p).fill(0), sd: new Array<number>(p).fill(1) };
+  const pooled: CellStats = { n: pool.length, ...pooledStats, pooled: true };
+  const cells = new Map<string, CellStats>();
+  for (const [key, s] of acc) {
+    if (s.length < minCellSamples) cells.set(key, { n: s.length, mean: pooled.mean, sd: pooled.sd, pooled: true });
+    else cells.set(key, { n: s.length, ...robustStatsOf(s) });
+  }
+  return { cells, pooled };
+}
+
+function buildCells(
+  raw: ReadonlyMap<PathClassId, SignalVector[]>,
+  minCellSamples: number,
+  robust = false,
+): { cells: Map<string, CellStats>; pooled: CellStats } {
+  if (robust) return buildCellsRobust(raw, minCellSamples);
   const p = SIGNALS.length;
   const acc = new Map<string, Acc>();
   const pool: Acc = { n: 0, sum: new Array<number>(p).fill(0), sumsq: new Array<number>(p).fill(0) };
@@ -203,12 +274,18 @@ export interface CalibrationOptions {
   minCellSamples?: number;
   /** AR(p) order cap for the temporal substrate (ADR-0008). */
   arPMax?: number;
+  /**
+   * Contamination-robust per-cell baselines (telemetry-realism): estimate each cell's (center, scale)
+   * with `robustLocation`/MAD instead of mean/sd, so the clustered aberrations that always occur in
+   * real history are TOSSED, not absorbed into the null. On clean Gaussian history ≈ mean/sd.
+   */
+  robust?: boolean;
 }
 
 export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>, opts: CalibrationOptions = {}): CalibrationSubstrate {
-  const minCellSamples = opts.minCellSamples ?? DEFAULT_MIN_CELL_SAMPLES;
+  const minCellSamples = opts.minCellSamples ?? (opts.robust ? ROBUST_MIN_CELL_SAMPLES : DEFAULT_MIN_CELL_SAMPLES);
   const pMax = opts.arPMax ?? DEFAULT_AR_PMAX;
-  const { cells, pooled } = buildCells(raw, minCellSamples);
+  const { cells, pooled } = buildCells(raw, minCellSamples, opts.robust ?? false);
   return { cells, pooled, ar: estimateAr(raw, cells, pooled, pMax) };
 }
 

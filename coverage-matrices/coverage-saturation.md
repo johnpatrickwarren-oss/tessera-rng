@@ -30,11 +30,11 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | optic | 2 | 100% (4/4) | 100% (4/4) |
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 0.5 | 0% (0/4) | 0% (0/4) |
-| passive_shuffler | 1 | 100% (4/4) | 50% (2/4) |
+| passive_shuffler | 1 | 75% (3/4) | 25% (1/4) |
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
-| fiber_bundle | 1 | 75% (3/4) | 75% (3/4) |
+| fiber_bundle | 1 | 75% (3/4) | 50% (2/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
 | power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
@@ -47,7 +47,7 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | resource kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
 | optic | 2 | 2 |
-| passive_shuffler | 1 | 2 |
+| passive_shuffler | 2 | 2 |
 | fiber_bundle | 2 | 2 |
 | power_zone | 1 | 1 |
 
@@ -72,9 +72,9 @@ The **firing family** column is the firing-mode attribution: which detector actu
 
 | mode | unit | detection floor | attribution floor | detecting family | per-magnitude (mag → det / family) |
 |---|---|---|---|---|---|
-| mean_shift | Δ (p99 mean) | 1 | 2 | A | 0.5→0%/none, 1→100%/A, 2→100%/A+C, 3→100%/A+C |
-| covariance_flip | Δρ (corr change) | 0.2 | 0.4 | C | 0→0%/none, 0.1→0%/none, 0.2→100%/C, 0.4→100%/C, 0.9→100%/C, 1.4→100%/C, 1.8→100%/C |
-| oscillation | amplitude (period 7) | 0.9 | 0.9 | D | 0.3→0%/none, 0.5→0%/none, 0.7→50%/D, 0.9→100%/D |
+| mean_shift | Δ (p99 mean) | 2 | 2 | A | 0.5→0%/none, 1→75%/A, 2→100%/A+C, 3→100%/A+C |
+| covariance_flip | Δρ (corr change) | 0.4 | 0.4 | C | 0→0%/none, 0.1→0%/none, 0.2→75%/C, 0.4→100%/C, 0.9→100%/C, 1.4→100%/C, 1.8→100%/C |
+| oscillation | amplitude (period 7) | 0.9 | 0.9 | D | 0.3→0%/none, 0.5→0%/none, 0.7→75%/D, 0.9→100%/D |
 
 ## Spraypoint per-view detection (ADR-0015) — which view concentrates each fault kind
 
@@ -93,24 +93,25 @@ the views have COMPLEMENTARY blind spots — published here, not implied. An opt
 
 Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence, unified
 flow model — ADR-0028) under a `p99_latency` mean shift — the regime ADR-0014 deferred.
-Same floor semantics as the binary table above. Read against the binary fabric's
-nearest-analogue kinds (optic↔optic, shuffle_panel↔passive_shuffler, room↔power_zone — a
-DIFFERENT fabric, so the comparison is indicative, not a controlled dilution-only
-experiment): optic and room **detection** floors match the binary analogues (their
-strongest view exposure is w=1), but the **shuffle_panel detection floor RISES 1 → 2** vs
-passive_shuffler — under one-panel-per-flow a panel's strongest exposure is w=1/2, so the
-per-leaf shift halves (boundary between 1.5 and 2: Δ=1.5 detects 1/4). **Attribution**
-floors sit above their binary analogues — shuffle_panel ONE grid step (3 vs
-passive_shuffler 2; Δ=2 attributes 3/4), room TWO grid steps (3 vs power_zone 1) — a
-room fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band;
-boundary between 2 and 2.5 — Δ=2.5 attributes 4/4): a reliable alarm whose culprit is
-unreliable until Δ≳2.5, published, not implied away.
+Same floor semantics as the binary table above; the exact values are in the table that
+follows (this prose describes the phenomenon, not hard-coded numbers — the floors are now
+measured under the telemetry-realism rebaseline: contamination-ROBUST per-cell calibration on
+a ~2-week DECOUPLED null, ADR-0039). Dilution RAISES floors above the binary analogues
+(optic↔optic, shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the
+comparison is indicative, not a controlled experiment): a faulted resource's strongest view
+exposure is fractional (a panel is w=1/2 under one-panel-per-flow; a diluted optic 2/nTors in
+pair leaves), so the per-leaf mean shift shrinks and the floor rises a grid step or two.
+Attribution floors sit at or above detection — a room fault is detected before its culprit is
+reliable (the ADR-0019 wrong-kind band: a reliable alarm whose attribution lags by a step),
+published, not implied away. The robust null costs ~1 detection grid-step on the weakest
+(Δ=1) faults vs the old mean/sd null — the price of tossing the aberrations real history
+always carries (ADR-0039).
 
 | fault kind | detection floor (Δ) | attribution floor (Δ) |
 |---|---|---|
 | optic | 2 | 2 |
 | shuffle_panel | 2 | 2 |
-| room | 1 | 3 |
+| room | 2 | 3 |
 
 | fault kind | Δ | detection | attribution |
 |---|---|---|---|
@@ -125,8 +126,8 @@ unreliable until Δ≳2.5, published, not implied away.
 | shuffle_panel | 3 | 100% (4/4) | 100% (4/4) |
 | shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
 | room | 0.5 | 0% (0/4) | 0% (0/4) |
-| room | 1 | 100% (4/4) | 0% (0/4) |
-| room | 2 | 100% (4/4) | 75% (3/4) |
+| room | 1 | 75% (3/4) | 0% (0/4) |
+| room | 2 | 100% (4/4) | 0% (0/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
 
@@ -146,12 +147,12 @@ optic-3 + optic-40. k ≥ 3 simultaneous faults are example-tested, not floor-me
 | pair | Δ | detection | attribution (both-in-top-2) |
 |---|---|---|---|
 | cross_kind | 0.5 | 0% (0/2) | 0% (0/2) |
-| cross_kind | 1 | 50% (1/2) | 0% (0/2) |
+| cross_kind | 1 | 0% (0/2) | 0% (0/2) |
 | cross_kind | 2 | 100% (2/2) | 100% (2/2) |
 | cross_kind | 3 | 100% (2/2) | 100% (2/2) |
 | cross_kind | 4 | 100% (2/2) | 100% (2/2) |
 | same_kind | 0.5 | 0% (0/2) | 0% (0/2) |
-| same_kind | 1 | 50% (1/2) | 50% (1/2) |
+| same_kind | 1 | 50% (1/2) | 0% (0/2) |
 | same_kind | 2 | 100% (2/2) | 100% (2/2) |
 | same_kind | 3 | 100% (2/2) | 100% (2/2) |
 | same_kind | 4 | 100% (2/2) | 100% (2/2) |

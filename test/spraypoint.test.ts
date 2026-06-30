@@ -88,10 +88,10 @@ test('C1 CLOSED (ADR-0019): the saturating noisy-OR holds the true optic across 
   // whose extreme-δ limit is separately characterized (ADR-0034). crossOptic:false isolates it.
   const SP2 = generateSpraypointFabric({ ...DEFAULT_SPRAYPOINT, crossOptic: false });
   for (const delta of [64, 128]) {
-    const a = await runPipeline({ snapshot: SP2, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
+    const a = await runPipeline({ snapshot: SP2, q: 0.05, robustCalibration: false, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta, start_tick: 0 } } });
     assert.equal(a.culprits[0]?.resource_id, 'optic-3', `the saturating LLR holds the true optic at δ=${delta}`);
   }
-  const a = await runPipeline({ snapshot: SP2, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 128, start_tick: 0 } } });
+  const a = await runPipeline({ snapshot: SP2, q: 0.05, robustCalibration: false, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 128, start_tick: 0 } } });
   const sel = a.selected_path_class_ids;
   assert.ok(sel.length > 30, 'the leakage premise still holds — the pair view saturates at δ=128');
   const q0 = q0Of(sel.length, SP2.path_classes.length);
