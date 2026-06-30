@@ -170,7 +170,13 @@ robust null**: 20 of 24 floor entries unchanged, clean FDR 0, paper-scale clean 
 per cold-eye, first draft undercounted): FOUR detection floors +1 step** (passive_shuffler, room,
 mean_shift, and Family-C covariance_flip 0.2→0.4 — a DOUBLING), plus room Δ=2 attribution 0.75→0. The
 cost is ONE-SIDED on the aberration-FREE synthetic (robust pays its MAD-efficiency cost, earns none of
-its robustness benefit); on real aberration-laden telemetry robust is strictly better (mean/sd → 32 FP). 3 calibration-orthogonal tests pinned to `robustCalibration:false`
+its robustness benefit); on real aberration-laden telemetry robust is strictly better (mean/sd → 32 FP).
+Realistic-regime coverage (branch `realistic-coverage-regime`, **ADR-0040 ACCEPTED**): converted that
+one-sided cost into the published WIN — added a realistic-regime FDR section to the coverage matrix
+that builds the null from aberration-laden history: **mean/sd false-positives 434 / 4 trials, robust 0**.
+The coverage now shows the tradeoff whole (clean-data cost AND realistic-data win). Honest caveats:
+aberration intensity is a modeled parameter (the 434 scales with it; robust's 0 is invariant), the
+aberration model is crude (uniform additive — realistic for p99, not near-zero loss). **240 tests, gate PASS.** 3 calibration-orthogonal tests pinned to `robustCalibration:false`
 (common-mode demo, ANYTIME profile, C1 saturation); demo + coverage regenerated; coverage prose
 de-hard-coded. The "FDR=0" claim is no longer a matched-short-window artifact (the deep null covers the
 full week). Follow-ups: AR-model robustness, 4-week null for real incident exclusion. **240 tests, gate PASS.**

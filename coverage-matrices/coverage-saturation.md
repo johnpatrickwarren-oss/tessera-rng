@@ -172,3 +172,19 @@ Fabric: **1456 leaves** (960 per-ToR + 496 panel-pair views), 1434192 weighted e
 Across 4 clean trials over 300 path-classes: mean selected = **0**, false-positive rate = **0%** — e-BH holds the surface quiet under heavy correlation.
 
 Spraypoint fabric (the one the dilution floors characterize): 4 clean trials, mean selected = **0**, false-positive rate = **0%** — the dilution detection column does not borrow its false-alarm baseline from another fabric.
+
+## Realistic regime: FDR under aberration-laden calibration history (ADR-0039 follow-up)
+
+The floors above are measured on CLEAN, aberration-free synthetic telemetry, where robust
+calibration only pays its efficiency cost (the recorded detection-floor steps). This row
+measures the regime that actually matters — a calibration history carrying the clustered
+aberrations real telemetry always has (the test-network enrichment) — then a CLEAN
+week-spanning live window. Over 4 trials (336-tick null, 168-tick live):
+
+| calibration | false selections on clean live |
+|---|---|
+| mean/sd (pre-ADR-0039) | **434** — the bursts are absorbed into the null, corrupting it |
+| robust (ADR-0039 default) | **0** — the bursts are tossed, FDR controlled |
+
+This is the win robust calibration earns: on realistic (aberration-laden) history the mean/sd
+null FALSE-POSITIVES where robust stays clean — the inverse of the clean-synthetic floor cost.
