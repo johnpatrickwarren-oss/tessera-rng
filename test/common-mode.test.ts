@@ -78,6 +78,18 @@ test('no in-band regression: δ=4 still recovers with common-mode on; clean fabr
   assert.equal(clean.selected_path_class_ids.length, 0, 'clean fleet: no false positives under common-mode removal');
 });
 
+test('WHY NOT DEFAULT (ADR-0038): common-mode strips a BROAD fault\'s own signal — a room fault mislocalizes', async () => {
+  // Pins the cutover-rejection evidence in the committed tree (the cold-eye noted the floor table was
+  // ADR-only testimony). A broad room fault shifts every leaf in the room together — that shared shift
+  // IS the cross-leaf common-mode, so stripping it deletes the fault's own signal. OFF localizes room-0
+  // correctly; ON does NOT — exactly why common-mode is a tradeoff, kept opt-in, never defaulted.
+  const mk = (cm: boolean) => ({ snapshot: CROSS, q: 0.05, commonModeRobust: cm, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'room-0', delta: 3, start_tick: 0 } } });
+  const off = await runPipeline(mk(false));
+  const on = await runPipeline(mk(true));
+  assert.equal(off.culprits[0]?.resource_id, 'room-0', 'OFF: the broad room fault localizes correctly');
+  assert.notEqual(on.culprits[0]?.resource_id, 'room-0', 'ON: common-mode strips the broad fault ⇒ it does NOT localize to room-0 (the rejection)');
+});
+
 test('OFF by default: a default run is byte-identical with/without the (false) flag — incremental≡batch unaffected', async () => {
   const params = { snapshot: CROSS, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 4, start_tick: 0 } } };
   const implicit = await runPipeline(params);

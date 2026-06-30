@@ -24,6 +24,7 @@ import {
 } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/hotelling';
 import type { FamilyCPerCell } from '@johnpatrickwarren-oss/deploysignal-engine/types/families/c';
 import { freshStreamStandardizer, standardizeTick } from './calibration';
+import { stripCommonModeTick } from './common-mode';
 import type { CalibrationSubstrate, StreamStandardizer } from './calibration';
 import { DEFAULT_DETECT, combineSegmentRuns } from './detect';
 import type { DetectParams, DetectorContext, SegmentSpec } from './detect';
@@ -48,6 +49,14 @@ export interface SessionParams {
   ctx?: DetectorContext;
   reroutes?: readonly RerouteEvent[];
   drain_top_k?: number;
+  /**
+   * Contamination-robust common-mode removal (ADR-0036), OPT-IN (default OFF — see ADR-0038, which
+   * rejected the default cutover). When set, strips the engine's robust per-tick cross-leaf common-mode
+   * from each ingested tick — IDENTICAL to the batch path (sorted leaf order, same `robustLocation`),
+   * so incremental≡batch byte-equality holds. The caller's `ctx` MUST be calibrated under the same
+   * setting (`calibrateForSession` with the matching flag) or the detectors are mis-calibrated.
+   */
+  commonModeRobust?: boolean;
 }
 
 interface DetectorStates {
@@ -86,6 +95,7 @@ export class IncrementalSession {
   private readonly detect: DetectParams;
   private readonly ctx: DetectorContext;
   private readonly cCell: FamilyCPerCell;
+  private readonly commonModeRobust: boolean;
   private readonly epochs: SnapshotEpoch[] | null;
   private readonly hash: string;
   private readonly leaves: Map<PathClassId, LeafState> = new Map();
@@ -97,6 +107,7 @@ export class IncrementalSession {
     this.detect = params.detect ?? DEFAULT_DETECT;
     this.ctx = params.ctx ?? {};
     this.cCell = this.ctx.familyCCell ?? makeFamilyCCell(SIGNALS.length, this.detect.alphaC);
+    this.commonModeRobust = params.commonModeRobust ?? false;
     // ADR-0018 L2 applies to THIS entry point too (round-8 cold-eye C3): a fractional at_tick
     // would never match the integer-tick reset lookup and the wealth reset would silently never
     // fire. The `at_tick < ticks` half of the batch validation cannot be checked streaming —
@@ -142,13 +153,19 @@ export class IncrementalSession {
     for (const pc of this.leaves.keys()) {
       if (!tickByLeaf.get(pc)) throw new RangeError(`ingest needs a full tick: missing leaf '${pc}'`);
     }
+    // Pass 1: resets + per-cell standardization, collecting this tick's residuals for every leaf.
+    const residByLeaf = new Map<PathClassId, number[]>();
     for (const [pc, ls] of this.leaves) {
       const epoch = ls.resets.get(this.t);
       // (a tick-0 reset is unreachable: makeEpochs rejects at_tick ≤ 0, validated above too)
       if (epoch !== undefined) this.resetLeaf(pc, ls, epoch);
-      const resid = standardizeTick(tickByLeaf.get(pc)!, this.t, pc, this.p.calibration, ls.std);
-      this.updateDetectors(ls.det, resid);
+      residByLeaf.set(pc, standardizeTick(tickByLeaf.get(pc)!, this.t, pc, this.p.calibration, ls.std));
     }
+    // Pass 2 (ADR-0036/0038): strip the robust cross-leaf common-mode for this tick — IDENTICAL to
+    // the batch path (sorted leaves, same robustLocation), preserving incremental≡batch byte-equality.
+    if (this.commonModeRobust) stripCommonModeTick(residByLeaf);
+    // Pass 3: feed each leaf's (stripped) residual to its detectors.
+    for (const [pc, ls] of this.leaves) this.updateDetectors(ls.det, residByLeaf.get(pc)!);
     this.t += 1;
   }
 

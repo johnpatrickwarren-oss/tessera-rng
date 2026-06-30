@@ -138,6 +138,14 @@ sub-worst-case null tail) has nothing to exploit; the valid Markov fallback is p
 ranking ≈ Tessera's detection+surface; Tessera tomography = the downstream resource-attribution
 inverse the engine doesn't do, ADR-0001). Net consumption review: **1 adopted, 1 rejected, 1
 reconciled** — consume where the engine adds capability, decline where it adds nothing or subtracts.
+ADR-0038 (common-mode session support + default-cutover decision): **session support ADDED** — the
+incremental session now strips the per-tick common-mode identically to batch (sorted leaves, same
+`robustLocation`), bound by a new incremental≡batch keystone WITH the flag on; **default cutover
+MEASURED and REJECTED** — defaulting common-mode ON regresses broad-fault floors (room attribution
+3→None, passive_shuffler/power_zone/shuffle_panel detection up a step) and **mislocalizes a room
+fault** (room-0→room-1), because a BROAD fault's own signal IS the cross-leaf common mode it strips.
+So common-mode is a TRADEOFF (helps concentrated-fault-amid-leak, hurts broad faults) — stays
+**opt-in**, not a blanket default. No artifact churn (default OFF). **232 tests, gate PASS.**
 Telemetry-realism test network (branch `telemetry-realism-test-network`): a validation question —
 "is our null long/deep enough?" — surfaced that the standard 60-tick (2.5-day) null is one
 time-sample deep, leans on cross-leaf pooling, and a week-spanning clean run yields **18 false
