@@ -88,7 +88,10 @@ test('ANYTIME on clean: per-query FDR shows as a brief deterministic transient, 
   // decays. Pinning the OBSERVED profile (not seed-shopping it away): exactly that transient,
   // at most one leaf per look, and a clean final audit (matching the batch run on this seed).
   const telemetry = { seed: 3, ticks: 60 };
-  const { calibration, ctx } = prelude(telemetry);
+  // pinned to the pre-robust mean/sd null: this characterizes the ANYTIME per-query FDR transient,
+  // a property orthogonal to calibration robustness; the exact tor-30 / ticks-9-11 profile was
+  // observed under mean/sd. (Robust calibration is the default elsewhere; the keystones above run it.)
+  const { calibration, ctx } = calibrateForSession(SNAP, telemetry, undefined, false, false);
   const session = openSession({ snapshot: SNAP, calibration, q: 0.05, ctx });
   const live = generateTelemetry(SNAP, telemetry);
   const transientTicks: number[] = [];

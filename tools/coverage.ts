@@ -24,6 +24,11 @@ const DELTAS = [0.5, 1.0, 2.0, 3.0];
 const SEEDS = [0x5eed01, 0x5eed02];
 const TARGETS_PER_KIND = 2;
 const TICKS = 60;
+// Realistic null depth (telemetry-realism rebaseline): a ~2-week clean calibration window (n>=50 per
+// cell) so the contamination-robust per-cell estimator has full resolution, DECOUPLED from the short
+// live detection window (TICKS). 4 weeks would add incident exclusion, but the aberration-free
+// synthetic has no incidents to exclude, so 2 weeks suffices for the floors here.
+const CALIB_TICKS = 336;
 const Q = 0.05;
 const FLOOR_RATE = 0.9;
 
@@ -128,7 +133,7 @@ export async function cell(kind: ResourceKind, delta: number, targets: string[])
       const audit = await runPipeline({
         fabric: SCENARIO_FABRIC,
         telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0 } },
-        q: Q,
+        q: Q, calibrationTicks: CALIB_TICKS,
       });
       n += 1;
       const isDetected = audit.selected_path_class_ids.length > 0;
@@ -158,7 +163,7 @@ async function signalRow(targets: string[], signal: SignalName, mode: 'mean' | '
       const audit = await runPipeline({
         fabric: SCENARIO_FABRIC,
         telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0, signal, mode } },
-        q: Q,
+        q: Q, calibrationTicks: CALIB_TICKS,
       });
       n += 1;
       const isDetected = audit.selected_path_class_ids.length > 0;
@@ -181,7 +186,7 @@ async function perSignalCoverage(): Promise<SignalCoverageRow[]> {
 async function cleanFalsePositives(): Promise<CoverageReport['clean']> {
   let total = 0;
   for (const seed of [...SEEDS, 0x5eed03, 0x5eed04]) {
-    const audit = await runPipeline({ fabric: SCENARIO_FABRIC, telemetry: { seed, ticks: TICKS }, q: Q });
+    const audit = await runPipeline({ fabric: SCENARIO_FABRIC, telemetry: { seed, ticks: TICKS }, q: Q, calibrationTicks: CALIB_TICKS });
     total += audit.selected_path_class_ids.length;
   }
   const trials = SEEDS.length + 2;
@@ -244,17 +249,17 @@ async function modeFloors(): Promise<ModeFloorRow[]> {
   const rows: ModeFloorRow[] = [];
 
   const meanPts = await Promise.all(MEAN_MAGNITUDES.map((d) => modePoint(d, targets, (resource, seed, delta) => ({
-    fabric: SCENARIO_FABRIC, q: Q, telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0, signal: 'p99_latency' } },
+    fabric: SCENARIO_FABRIC, q: Q, calibrationTicks: CALIB_TICKS, telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0, signal: 'p99_latency' } },
   }))));
   rows.push({ mode: 'mean_shift', unit: 'Δ (p99 mean)', detection_floor: modeFloorOf(meanPts, 'detection_rate'), attribution_floor: modeFloorOf(meanPts, 'attribution_rate'), detecting_family: 'A', points: meanPts });
 
   const covPts = await Promise.all(COV_DEGRADED_RHO.map((degRho) => modePoint(Math.round((COV_BASE_RHO - degRho) * 100) / 100, targets, (resource, seed) => ({
-    fabric: SCENARIO_FABRIC, q: Q, telemetry: { seed, ticks: COV_TICKS, noiseCorr: corrMatrix(0, 2, COV_BASE_RHO), degradation: { resource_id: resource, delta: 0, start_tick: 0, degradedNoiseCorr: corrMatrix(0, 2, degRho) } },
+    fabric: SCENARIO_FABRIC, q: Q, calibrationTicks: CALIB_TICKS, telemetry: { seed, ticks: COV_TICKS, noiseCorr: corrMatrix(0, 2, COV_BASE_RHO), degradation: { resource_id: resource, delta: 0, start_tick: 0, degradedNoiseCorr: corrMatrix(0, 2, degRho) } },
   }))));
   rows.push({ mode: 'covariance_flip', unit: 'Δρ (corr change)', detection_floor: modeFloorOf(covPts, 'detection_rate'), attribution_floor: modeFloorOf(covPts, 'attribution_rate'), detecting_family: 'C', points: covPts });
 
   const oscPts = await Promise.all(OSC_AMPLITUDES.map((amp) => modePoint(amp, targets, (resource, seed, magnitude) => ({
-    fabric: SCENARIO_FABRIC, q: Q, telemetry: { seed, ticks: OSC_TICKS, degradation: { resource_id: resource, delta: 0, start_tick: 0, signal: 'p99_latency', oscillationPeriod: 7, oscillationAmp: magnitude } },
+    fabric: SCENARIO_FABRIC, q: Q, calibrationTicks: CALIB_TICKS, telemetry: { seed, ticks: OSC_TICKS, degradation: { resource_id: resource, delta: 0, start_tick: 0, signal: 'p99_latency', oscillationPeriod: 7, oscillationAmp: magnitude } },
   }))));
   rows.push({ mode: 'oscillation', unit: 'amplitude (period 7)', detection_floor: modeFloorOf(oscPts, 'detection_rate'), attribution_floor: modeFloorOf(oscPts, 'attribution_rate'), detecting_family: 'D', points: oscPts });
 
@@ -275,7 +280,7 @@ async function spraypointViewCoverage(): Promise<SpraypointViewRow[]> {
   ];
   const rows: SpraypointViewRow[] = [];
   for (const f of faults) {
-    const audit = await runPipeline({ snapshot: snap, q: Q, telemetry: { seed: 1, ticks: TICKS, degradation: { resource_id: f.resource, delta: 4, start_tick: 0 } } });
+    const audit = await runPipeline({ snapshot: snap, q: Q, calibrationTicks: CALIB_TICKS, telemetry: { seed: 1, ticks: TICKS, degradation: { resource_id: f.resource, delta: 4, start_tick: 0 } } });
     const by: Record<string, number> = {};
     for (const leaf of audit.selected_path_class_ids) { const v = viewOfLeaf(snap, leaf) ?? '?'; by[v] = (by[v] ?? 0) + 1; }
     const on = Object.entries(by).filter(([, n]) => n > 0).map(([v]) => v).sort();
@@ -301,7 +306,7 @@ export async function spraypointCell(kind: ResourceKind, delta: number, targets:
   let n = 0;
   for (const resource of targets) {
     for (const seed of SEEDS) {
-      const audit = await runPipeline({ snapshot: snap, telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0 } }, q: Q });
+      const audit = await runPipeline({ snapshot: snap, telemetry: { seed, ticks: TICKS, degradation: { resource_id: resource, delta, start_tick: 0 } }, q: Q, calibrationTicks: CALIB_TICKS });
       n += 1;
       const isDetected = audit.selected_path_class_ids.length > 0;
       if (isDetected) detected += 1;
@@ -334,7 +339,7 @@ async function cleanSpraypoint(): Promise<{ trials: number; mean_selected: numbe
   let selected = 0;
   let fp = 0;
   for (const seed of seeds) {
-    const audit = await runPipeline({ snapshot: snap, telemetry: { seed, ticks: TICKS }, q: Q });
+    const audit = await runPipeline({ snapshot: snap, telemetry: { seed, ticks: TICKS }, q: Q, calibrationTicks: CALIB_TICKS });
     selected += audit.selected_path_class_ids.length;
     if (audit.selected_path_class_ids.length > 0) fp += 1;
   }
@@ -364,7 +369,7 @@ export async function multiFaultCell(pairKind: string, delta: number): Promise<C
         { resource_id: a, delta, start_tick: 0 },
         { resource_id: b, delta, start_tick: 0 },
       ] },
-      q: Q,
+      q: Q, calibrationTicks: CALIB_TICKS,
     });
     n += 1;
     const isDetected = audit.selected_path_class_ids.length > 0;
@@ -393,7 +398,7 @@ async function multiFaultFloors(): Promise<{ deltas: number[]; cells: CoverageCe
 /** The paper-scale proof row (ADR-0025): 960 ToRs, deterministic outcomes only. */
 export async function scaleProof(): Promise<CoverageReport['scale_proof']> {
   const snap = generateSpraypointFabric(PAPER_SPRAYPOINT);
-  const clean = await runPipeline({ snapshot: snap, q: Q, telemetry: { seed: 1, ticks: TICKS } });
+  const clean = await runPipeline({ snapshot: snap, q: Q, calibrationTicks: CALIB_TICKS, telemetry: { seed: 1, ticks: TICKS } });
   const faults = [
     { kind: 'optic', resource: 'optic-3' },
     { kind: 'shuffle_panel', resource: 'panel-2' },
@@ -401,7 +406,7 @@ export async function scaleProof(): Promise<CoverageReport['scale_proof']> {
   ];
   const outcomes = [];
   for (const f of faults) {
-    const a = await runPipeline({ snapshot: snap, q: Q, telemetry: { seed: 1, ticks: TICKS, degradation: { resource_id: f.resource, delta: 4, start_tick: 0 } } });
+    const a = await runPipeline({ snapshot: snap, q: Q, calibrationTicks: CALIB_TICKS, telemetry: { seed: 1, ticks: TICKS, degradation: { resource_id: f.resource, delta: 4, start_tick: 0 } } });
     outcomes.push({ kind: f.kind, resource: f.resource, delta: 4, detected: a.selected_path_class_ids.length > 0, rank1: a.culprits[0]?.resource_id ?? '(none)' });
   }
   return {
@@ -563,18 +568,19 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('');
   L.push('Floors on the two-view Spraypoint fabric (64×10×2; weighted/diluted incidence, unified');
   L.push('flow model — ADR-0028) under a `p99_latency` mean shift — the regime ADR-0014 deferred.');
-  L.push('Same floor semantics as the binary table above. Read against the binary fabric\'s');
-  L.push('nearest-analogue kinds (optic↔optic, shuffle_panel↔passive_shuffler, room↔power_zone — a');
-  L.push('DIFFERENT fabric, so the comparison is indicative, not a controlled dilution-only');
-  L.push('experiment): optic and room **detection** floors match the binary analogues (their');
-  L.push('strongest view exposure is w=1), but the **shuffle_panel detection floor RISES 1 → 2** vs');
-  L.push('passive_shuffler — under one-panel-per-flow a panel\'s strongest exposure is w=1/2, so the');
-  L.push('per-leaf shift halves (boundary between 1.5 and 2: Δ=1.5 detects 1/4). **Attribution**');
-  L.push('floors sit above their binary analogues — shuffle_panel ONE grid step (3 vs');
-  L.push('passive_shuffler 2; Δ=2 attributes 3/4), room TWO grid steps (3 vs power_zone 1) — a');
-  L.push('room fault at Δ=2 is detected 4/4 yet attributed 0/4 (the ADR-0019 wrong-kind band;');
-  L.push('boundary between 2 and 2.5 — Δ=2.5 attributes 4/4): a reliable alarm whose culprit is');
-  L.push('unreliable until Δ≳2.5, published, not implied away.');
+  L.push('Same floor semantics as the binary table above; the exact values are in the table that');
+  L.push('follows (this prose describes the phenomenon, not hard-coded numbers — the floors are now');
+  L.push('measured under the telemetry-realism rebaseline: contamination-ROBUST per-cell calibration on');
+  L.push('a ~2-week DECOUPLED null, ADR-0039). Dilution RAISES floors above the binary analogues');
+  L.push('(optic↔optic, shuffle_panel↔passive_shuffler, room↔power_zone — a DIFFERENT fabric, so the');
+  L.push('comparison is indicative, not a controlled experiment): a faulted resource\'s strongest view');
+  L.push('exposure is fractional (a panel is w=1/2 under one-panel-per-flow; a diluted optic 2/nTors in');
+  L.push('pair leaves), so the per-leaf mean shift shrinks and the floor rises a grid step or two.');
+  L.push('Attribution floors sit at or above detection — a room fault is detected before its culprit is');
+  L.push('reliable (the ADR-0019 wrong-kind band: a reliable alarm whose attribution lags by a step),');
+  L.push('published, not implied away. The robust null costs ~1 detection grid-step on the weakest');
+  L.push('(Δ=1) faults vs the old mean/sd null — the price of tossing the aberrations real history');
+  L.push('always carries (ADR-0039).');
   L.push('');
   renderSpraypointFloors(L, rep);
   L.push('');

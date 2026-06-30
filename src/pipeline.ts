@@ -59,6 +59,22 @@ export interface PipelineParams {
    * session (`SessionParams.commonModeRobust`) strips identically, so opting in keeps incremental≡batch.
    */
   commonModeRobust?: boolean;
+  /**
+   * Contamination-robust per-cell calibration (telemetry-realism), DEFAULT ON. Estimates each cell's
+   * baseline with median/MAD/`robustLocation` instead of mean/sd, so clustered aberrations in real
+   * history are tossed, not absorbed. Validated as a clean improvement (closes the aberration FDR gap,
+   * ≈ mean/sd on clean history, clean FDR stays 0). Set `false` for the pre-robust mean/sd null.
+   */
+  robustCalibration?: boolean;
+  /**
+   * Calibration (null) window length, DECOUPLED from the live detection window (`telemetry.ticks`).
+   * Real systems build the healthy null from a LONG history (weeks) but detect on a SHORT live window;
+   * and robust per-cell calibration needs a deep enough null for per-cell resolution (telemetry-realism).
+   * Default = `telemetry.ticks` (coupled — the pre-decoupling behaviour). When set, the calibration
+   * substrate is built from a clean window of THIS length (same seed derivation); live detection is
+   * unchanged.
+   */
+  calibrationTicks?: number;
 }
 
 /**
@@ -163,6 +179,12 @@ export function calibrateForSession(
   // identically (sorted leaves, same robustLocation), so when a caller DOES opt in, a `ctx` calibrated
   // here composes with a session opened under the same flag and incremental≡batch holds.
   commonModeRobust = false,
+  // Contamination-robust per-cell calibration (telemetry-realism): median/MAD/`robustLocation`
+  // instead of mean/sd, so the clustered aberrations that always occur in real history are TOSSED
+  // rather than absorbed into the null. DEFAULT ON — validated a clean improvement (closes the
+  // aberration gap; ≈ mean/sd on clean history; clean-fabric FDR stays 0 via the higher robust
+  // min-cell-samples). Set false to opt out (the pre-robust mean/sd null).
+  robustCalibration = true,
 ): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
   const calibRaw = generateTelemetry(snapshot, {
     seed: telemetry.seed ^ 0xca11b,
@@ -170,7 +192,7 @@ export function calibrateForSession(
     noiseCorr: telemetry.noiseCorr,
     arCoeffs: telemetry.arCoeffs,
   });
-  const calibration = buildCalibration(calibRaw.series);
+  const calibration = buildCalibration(calibRaw.series, { robust: robustCalibration });
   // Common-mode removal (ADR-0036) must be applied to the calibration residuals TOO, so Family C's Σ
   // and Family D's nulls are estimated under the same regime the live detector sees (else mismatch).
   const calibResiduals = commonModeRobust ? stripCommonMode(standardizeAll(calibRaw.series, calibration)) : standardizeAll(calibRaw.series, calibration);
@@ -187,7 +209,10 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Per-cell calibration substrate (AC-7): clean window, distinct seed (the shared prelude).
   const detect = params.detect ?? DEFAULT_DETECT;
   const cmRobust = params.commonModeRobust ?? false;
-  const { calibration, ctx } = calibrateForSession(snapshot, params.telemetry, detect, cmRobust);
+  // Decoupled null depth (telemetry-realism): calibrate on a clean window of `calibrationTicks`
+  // (default = the live length), so a deep robust null can back a short live detection window.
+  const calibTel = params.calibrationTicks ? { ...params.telemetry, ticks: params.calibrationTicks } : params.telemetry;
+  const { calibration, ctx } = calibrateForSession(snapshot, calibTel, detect, cmRobust, params.robustCalibration ?? true);
   const { familyCCell, familyDCells } = ctx;
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
