@@ -93,6 +93,23 @@ test('WHY NOT DEFAULT (ADR-0038): common-mode strips a BROAD fault\'s own signal
   assert.notEqual(on.culprits[0]?.resource_id, 'room-0', 'ON: common-mode strips the broad fault ⇒ it does NOT localize to room-0 (the rejection)');
 });
 
+test('RE-OPEN (ADR-0041): under ROBUST calibration too, common-mode default-ON breaks broad-fault attribution — opt-in reaffirmed', async () => {
+  // ADR-0038 kept common-mode opt-in because it broke broad faults (room-0→room-1) under the mean/sd
+  // null. The robust-default null (ADR-0039) changed that SPECIFIC mislocalization, so the re-open
+  // asked: is common-mode now safe to default? The full coverage sweep said NO — across floor δ it
+  // still loses broad-fault attribution. Pinned: a room fault at its floor δ, robust calibration (the
+  // DEFAULT here — no robustCalibration:false), attributes every seed with common-mode OFF and NONE ON.
+  const mk = (cm: boolean, seed: number) => ({ snapshot: CROSS, q: 0.05, commonModeRobust: cm, telemetry: { seed, ticks: 60, degradation: { resource_id: 'room-0', delta: 4, start_tick: 0 } } });
+  let off = 0;
+  let on = 0;
+  for (const seed of [1, 2, 3]) {
+    if ((await runPipeline(mk(false, seed))).culprits[0]?.resource_id === 'room-0') off += 1;
+    if ((await runPipeline(mk(true, seed))).culprits[0]?.resource_id === 'room-0') on += 1;
+  }
+  assert.equal(off, 3, 'robust calibration, common-mode OFF: the room fault attributes every seed');
+  assert.equal(on, 0, 'robust calibration, common-mode ON: room attribution lost — common-mode stays opt-in even under a robust null');
+});
+
 test('OFF by default: a default run is byte-identical with/without the (false) flag — incremental≡batch unaffected', async () => {
   const params = { snapshot: CROSS, q: 0.05, telemetry: { seed: 1, ticks: 60, degradation: { resource_id: 'optic-3', delta: 4, start_tick: 0 } } };
   const implicit = await runPipeline(params);
