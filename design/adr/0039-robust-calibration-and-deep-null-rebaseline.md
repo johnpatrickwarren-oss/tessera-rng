@@ -44,11 +44,27 @@ flagged that null-building must be robust. Both fixes were named: a robust estim
   false positives, **robust 0**. (`test/robust-calibration.test.ts`.)
 - **Unbiased on clean:** median per-cell scale ratio robust/(mean·sd) = **1.000**; clean-fabric FDR
   stays **0** under robust calibration even at the thin window (the robust min-samples absorbs MAD scatter).
-- **Rebaselined floors (robust + 2-week null vs the old mean/sd + 60-tick):** **16 floor entries
-  unchanged, clean FDR 0**, paper-scale clean run still selects 0. **Cost: 2 detection floors +1 grid
-  step** (passive_shuffler, room, both Δ=1→2) — the MAD-efficiency sensitivity cost on the WEAKEST
-  faults. On real telemetry (which carries aberrations) robust is strictly better; on clean synthetic
-  it costs a hair of sensitivity on the weakest faults. A fair price, recorded.
+- **Rebaselined floors (robust + 2-week null vs the old mean/sd + 60-tick):** **20 of 24 floor
+  entries unchanged, clean FDR 0**, paper-scale clean run still selects 0. **Cost — corrected in full
+  per the cold-eye (the first draft undercounted): FOUR detection floors regress +1 grid step:**
+  | floor | det Δ |
+  |---|---|
+  | `passive_shuffler` | 1 → 2 |
+  | `room` (spraypoint) | 1 → 2 |
+  | `mean_shift` (Family A p99) | 1 → 2 |
+  | **`covariance_flip` (Family C)** | **0.2 → 0.4 — a DOUBLING** |
+
+  Plus in-band cell-rate drops the floor count hides: **`room` Δ=2 attribution 0.75 → 0** (detected
+  4/4, attributes 0/4 — a reliable alarm whose culprit is now lost at Δ=2), `cross_kind` Δ=1 detection
+  0.5 → 0, `same_kind` Δ=1 attribution 0.5 → 0, `fiber_bundle`/`passive_shuffler` Δ=1 attribution drops.
+- **This is a real, non-trivial cost — NOT "a hair."** Its root: robust estimation (MAD/Tukey) is less
+  efficient than mean/sd on CLEAN Gaussian data, and Family C's covariance estimate is most exposed to
+  the noisier scale. **Crucially the cost is one-sided here because the synthetic coverage telemetry is
+  aberration-FREE** — so robust pays its efficiency cost and earns NONE of its robustness benefit. On
+  real (aberration-laden) telemetry the mean/sd null is *corrupted* (32 false positives) where robust
+  is clean, so robust is strictly better there. The honest reading: the synthetic coverage is too clean
+  to show robust's benefit, so it shows only the cost; the proper resolution is to measure coverage on
+  the enriched (aberration-laden) telemetry (recorded follow-up), where robust wins on both axes.
 
 ## Anti-scope (must-never)
 
@@ -68,9 +84,12 @@ flagged that null-building must be robust. Both fixes were named: a robust estim
   calibration robustness, measured under the mean/sd null.
 - `demos/demo.html` and the coverage matrix regenerated under the new default. The coverage dilution
   prose was de-hard-coded (it now describes the phenomenon + points to the table, not stale values).
-- Note (recorded interaction): under robust calibration the ADR-0038 common-mode no longer mislocalizes
-  the specific room fault — a hint the common-mode tradeoff may soften with a robust null, but that is
-  a separate investigation, not re-opened here.
+- **Recorded interaction (cold-eye, LIKELY):** under the new robust-default null the ADR-0038
+  common-mode no longer mislocalizes the room fault — so ADR-0038's rejection *demonstration* does not
+  reproduce under the default. The `WHY NOT DEFAULT` test is therefore pinned to `robustCalibration:false`
+  to preserve the as-measured fixture; this means **the common-mode-rejection evidence is softer under
+  a robust null than ADR-0038's test implies.** Whether common-mode is safe to default *given* robust
+  calibration is a genuine re-open, recorded as a follow-up — not silently resolved by the pin.
 
 ## Prescription → AC coverage (DISCIPLINES §4)
 

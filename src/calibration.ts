@@ -137,7 +137,9 @@ function robustStatsOf(samples: readonly number[][]): { mean: number[]; sd: numb
     const col = samples.map((s) => s[i]);
     const med = median(col);
     mean[i] = robustLocation(col);
-    sd[i] = Math.max(1.4826 * median(col.map((x) => Math.abs(x - med))), 1e-9);
+    // floor the SCALE at √1e-9 ≈ 3.16e-5 to match the mean/sd path (which floors the VARIANCE at 1e-9),
+    // so a degenerate cell (MAD=0) standardizes identically in both paths — no robust-only FP blowup.
+    sd[i] = Math.max(1.4826 * median(col.map((x) => Math.abs(x - med))), Math.sqrt(1e-9));
   }
   return { mean, sd };
 }
