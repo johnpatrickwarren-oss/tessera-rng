@@ -80,13 +80,17 @@ Requires Node ≥ 20 and pnpm ≥ 11.
 ## What's built
 
 Synthetic fixtures only (no live fabric — deliberately, see the anti-scope). The v1 walking
-skeleton plus eight post-v1 rounds, one ADR per real decision:
+skeleton plus many post-v1 rounds, one ADR per real decision (41 and counting):
 
 - **Detection** — three anytime-valid families per path-class with per-detector α-budget:
   Family A (multi-signal mean-shift betting e-process), Family C (Safe-Hotelling over a
   **learned** cross-signal covariance), Family D (spectral — catches periodicity A and C are
   blind to). Per-cell calibration (HoD × DoW × traffic-class) with AR(p) pre-whitening and a
-  min-sample pooled fallback.
+  min-sample pooled fallback — built **contamination-robustly by default** (each cell's centre and
+  scale from the engine's `robustLocation` Tukey estimator + MAD, not mean/sd), over a **deep null
+  decoupled from the live window** (calibrate on weeks, detect on a short window). The clustered
+  aberrations real telemetry always carries are *tossed*, not absorbed into the baseline — the most
+  fundamental telemetry-realism fix (ADR-0039).
 - **Selection** — hierarchical e-value combine + e-BH FDR, valid under the arbitrary
   dependence the shared hardware creates — a theorem *conditional on valid per-path-class
   e-values*. Empirically we show only that clean synthetic fabrics select nothing (4 trials per
@@ -119,7 +123,12 @@ skeleton plus eight post-v1 rounds, one ADR per real decision:
   `pnpm degradation`) sweeps telemetry noise, missingness, delay, and incidence-weight error and
   publishes the breakdown frontier — the headline being that degradation causes *silent
   mis-attribution, not silence* (detection holds while the culprit rank flips), with signal noise
-  the sharpest axis. Synthetic Tier-2 only — see [`VALIDATION.md`](VALIDATION.md).
+  the sharpest axis. A **realistic-regime FDR** row publishes the robust-null tradeoff *whole*
+  (ADR-0040): on aberration-*free* synthetic data robust calibration costs a little detection
+  sensitivity (four detection floors a grid-step, incl. a Family-C doubling — recorded, not buried),
+  while on aberration-*laden* history the pre-robust mean/sd null false-positives catastrophically
+  (434 vs robust's 0) — the regime real telemetry lives in. Synthetic Tier-2 only — see
+  [`VALIDATION.md`](VALIDATION.md).
 
 The statistical layer localizes to a shared-resource **fault domain**, never to a specific
 marginal optic — hardware root-cause is out of scope, and every culprit carries a
