@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-06-29._
+`design/adr/`. Last updated: 2026-06-30._
 
 ## What this is
 
@@ -190,6 +190,18 @@ the full sweep (the ADR-0039 cold-eye's mode_floors lesson) gave the right answe
 (common-mode demo, ANYTIME profile, C1 saturation); demo + coverage regenerated; coverage prose
 de-hard-coded. The "FDR=0" claim is no longer a matched-short-window artifact (the deep null covers the
 full week). Follow-ups: AR-model robustness, 4-week null for real incident exclusion. **240 tests, gate PASS.**
+Telemetry-realism follow-ups investigated — NONE shipped (branch `realistic-coverage-followups`,
+**ADR-0042 ACCEPTED, zero code change**), anti-gold-plating + halt-on-contradiction throughout:
+(1) PER-METRIC aberrations PROTOTYPED then REVERTED on a FALSE PREMISE the cold-eye caught — the
+synthetic signals are ABSTRACT (sd≈1, base [10,0.5,0.1,0.2,0.99], measured ranges ~[-4,6], routinely
+negative), NOT physical [0,1] rates, so the "+12 on loss" I called absurd is +12σ (sensible) and the
+[0,1] clamp would crush ~53% of the clean baseline. The uniform σ-scale model was already defensible;
+realistic-regime stays 434/0 (ADR-0040 unchanged). (2) AR-model robustness PROTOTYPED & REVERTED — the
+order-inflation artifact is real (clean p=1 → laden p=5) but winsorizing changed NO detection metric
+(the robust baseline already neutralizes the bursts' leverage). (3) 4-week null RECORDED as a
+real-deployment parameter (faking synthetic recurring incidents to "demonstrate" it would be theater).
+(4) Tier-3 real telemetry REAFFIRMED permanently external. The heavy-tailed-marginal gap remains a
+recorded limitation, not gold-plated. **241 tests, gate PASS (unchanged from main).**
 
 ## Built so far
 
