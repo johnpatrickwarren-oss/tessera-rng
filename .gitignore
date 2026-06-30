@@ -15,3 +15,6 @@ coverage/
 .auto-memory/
 # pnpm v11 build-approval file (auto-created by pnpm; project-local; not tracked)
 pnpm-workspace.yaml
+
+# personal writing drafts — not project content (kept local, never committed)
+Writings/
