@@ -98,7 +98,7 @@ flagged that null-building must be robust. Both fixes were named: a robust estim
 | Robust calibration closes the aberration gap | `robust-calibration.test.ts` GAP CLOSED (32 → 0) |
 | Unbiased on clean (no floor inflation in expectation) | CLEAN EQUIVALENCE (median scale ratio ≈ 1) |
 | Clean-fabric FDR stays 0 | the clean-FDR test (robust min-samples absorbs MAD scatter) |
-| Decoupled deep null + robust ⇒ floors ~hold | coverage regenerated: 16 unchanged, 2 det +1 step, FDR 0 |
+| Decoupled deep null + robust ⇒ floors ~hold | coverage regenerated: 20 of 24 unchanged, 4 det +1 step (incl Family-C 0.2→0.4), FDR 0 — see corrected Evidence above |
 
 ## Consequences
 
