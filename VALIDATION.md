@@ -63,6 +63,14 @@ Nothing in this tier is validated. These are the claims a reader might *assume* 
 **Status: out of scope for v1, by design.** The honest posture is to name this tier, not to
 fill it with synthetic stand-ins.
 
+**Citation provenance note (2026-07-02):** the fabric model's source paper was previously
+verified only by this repo's own records (a circular attestation). It has now been re-verified
+externally: arXiv:2604.15261 exists and is *"RNG: Flat Datacenter Networks at Scale"* (G.
+Bernardi, R. Mahajan, C. Seshadhri, et al. — Amazon's production flat-network deployment on
+quasi-random graphs; abstract confirms the edge-disjoint-paths framing). Parameter-level figures
+(degree, ToR/server counts, path lengths) come from the paper body and remain repo-transcribed
+rather than independently re-extracted.
+
 ---
 
 ## The highest-leverage next step (still in synthetic scope)

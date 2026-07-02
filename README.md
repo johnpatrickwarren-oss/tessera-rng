@@ -4,11 +4,12 @@
 anytime-valid per-path-class verdicts, e-BH FDR over correlated entities, and tomographic
 localization of shared physical fault domains.
 
-A fork of [Tessera](https://github.com/johnpatrickwarren-oss/tessera) (GPU-cluster shard
-observability) that **reuses the same statistical engine**
-([`deploysignal-engine`](https://github.com/johnpatrickwarren-oss/deploysignal-engine)) as a
-git-dependency — never forked — repointed from cluster shards to network **path-classes** and
-physical **fault domains**.
+A **sibling product** of [Tessera](https://github.com/johnpatrickwarren-oss/tessera) (GPU-cluster
+shard observability) — not a code fork: `src/` is network-domain throughout and inherits nothing
+from Tessera's shard adapters. What the two share is the statistical engine
+([`deploysignal-engine`](https://github.com/johnpatrickwarren-oss/deploysignal-engine)), consumed
+as a git-dependency — never forked — repointed here from cluster shards to network
+**path-classes** and physical **fault domains**.
 
 ## The problem
 
@@ -109,7 +110,10 @@ skeleton plus many post-v1 rounds, one ADR per real decision (see [`design/adr/`
   aggregation views over the underlying ToR-pair traffic — the production fabric's ~460 K
   pairs deliberately exceed any per-pair leaf budget, which is exactly why the leaf is a view;
   the default model is 64 ToRs ⇒ ~2 K pairs at 1/64 dilution), reconciled against the RNG
-  fabric paper (arXiv:2604.15261); **reconvergence epochs**
+  fabric paper — G. Bernardi, R. Mahajan, C. Seshadhri, et al., *"RNG: Flat Datacenter
+  Networks at Scale"*, [arXiv:2604.15261](https://arxiv.org/abs/2604.15261) (existence +
+  topic externally re-verified 2026-07-02; parameter-level figures are from the paper body);
+  **reconvergence epochs**
   (synthetic reroute events; e-process wealth resets recorded in the audit as deliberate,
   visible power loss); **simultaneous multi-fault injection** with exact composition.
 - **Honest measurement** — detection *and* attribution floors for every anomaly mode, both

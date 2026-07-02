@@ -1,10 +1,10 @@
 # CLAUDE.md — Tessera-RNG
 
 Operational observability for flat random-graph (RNG-family) datacenter networks.
-Forked from **Tessera** (GPU-cluster shard observability); reuses the same statistical
-engine, repointed from cluster shards to network **path-classes** and physical **fault
-domains**. The engine is consumed as a git-dependency and **never forked** — extend only
-at its declared extension points.
+A **sibling product** of Tessera (GPU-cluster shard observability) — not a code fork;
+what's shared is the statistical engine, repointed from cluster shards to network
+**path-classes** and physical **fault domains**. The engine is consumed as a
+git-dependency and **never forked** — extend only at its declared extension points.
 
 ## How this project is run: archgate
 
