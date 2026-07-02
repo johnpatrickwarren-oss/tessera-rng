@@ -46,6 +46,14 @@ export interface DrillDownOpts {
   /** examined-set cap; the truncation is reported, never silent. */
   maxPairs?: number;
   detect?: DetectParams;
+  /**
+   * Fleet-level per-leaf evidence magnitudes (ADR-0049; e.g. the audit's t-statistics for the
+   * per-ToR view leaves, keyed 'tor-i'). When present, the TRUNCATION SAMPLE is evidence-ordered:
+   * pairs whose endpoint leaves carry the most fleet evidence are examined first — the
+   * progressive-tomography move (examine where the posterior mass is), closing the ADR-0026
+   * id-order narrowing. Absent ⇒ the historic deterministic id-order head (byte-identical).
+   */
+  leafEvidence?: ReadonlyMap<string, number>;
 }
 
 export interface DrillDownReport {
@@ -55,6 +63,8 @@ export interface DrillDownReport {
   /** pairs actually examined (≤ maxPairs, deterministic id-order sample). */
   examined: number;
   truncated: boolean;
+  /** how the truncation sample was ordered: fleet-evidence-first (ADR-0049) or id-order (ADR-0026). */
+  truncation_order: 'evidence' | 'id';
   q: number;
   /** e-BH-selected impacted pairs, strongest evidence first. */
   selected: { pair: string; e_value: number }[];
@@ -115,10 +125,22 @@ function pairShift(pair: string, params: SpraypointParams, faults: readonly Dril
  * deterministic id-order head of the exposed set (no per-pair prior exists before examining —
  * recorded); detection reuses the fleet detectors + e-BH at the drill's own q.
  */
+/** Evidence score of a pair for truncation ordering: the sum of its endpoints' fleet-level
+ *  leaf magnitudes (0 for leaves without evidence). Deterministic: ties fall back to id order. */
+function pairEvidence(pair: string, ev: ReadonlyMap<string, number>): number {
+  const m = /^pair-(\d+)-(\d+)$/.exec(pair);
+  if (!m) return 0;
+  return (ev.get(`tor-${m[1]}`) ?? 0) + (ev.get(`tor-${m[2]}`) ?? 0);
+}
+
 export function drillDown(opts: DrillDownOpts): DrillDownReport {
   const maxPairs = opts.maxPairs ?? 256;
   const exposed = exposedPairs(opts.params, opts.resource);
-  const examined = exposed.slice(0, maxPairs);
+  const ev = opts.leafEvidence;
+  const ordered = ev
+    ? [...exposed].sort((a, b) => pairEvidence(b.pair, ev) - pairEvidence(a.pair, ev) || (a.pair < b.pair ? -1 : 1))
+    : exposed;
+  const examined = ordered.slice(0, maxPairs);
   const rng = makeRng(opts.telemetry.seed);
   const p99 = signalIndex('p99_latency');
   const cache = new Map<ResourceId, Map<string, number>>();
@@ -146,6 +168,7 @@ export function drillDown(opts: DrillDownOpts): DrillDownReport {
     exposed: exposed.length,
     examined: examined.length,
     truncated: examined.length < exposed.length,
+    truncation_order: ev ? 'evidence' : 'id',
     q: opts.q,
     selected,
     correlational_not_causal: true,

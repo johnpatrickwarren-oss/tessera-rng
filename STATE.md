@@ -274,6 +274,21 @@ moved the whole frontier** (noise attribution 0.25σ 53%→100%, 0.5σ 0%→81%;
 1σ+missing joint still 0%). **Round-H evidence columns NOT built on that measurement**
 (anti-gold-plating): their target regime is measured-moot; the ≥1σ fix stays live-calibration
 tracking. VALIDATION.md degradation row updated. **264 tests, gate PASS.**
+Drill evidence-ordering + resource-e-process probe (same branch, **ADR-0049 ACCEPTED**): (1) the
+ADR-0026 id-order truncation narrowing is CLOSED — `drillDown` accepts fleet-level `leafEvidence`
+and orders the truncation sample by endpoint-evidence (progressive tomography); bound by a test
+where the id-order cap misses `pair-40-63` and evidence-order selects it; absent evidence ⇒
+byte-identical id-order; report carries `truncation_order`. (2) Resource-directed matched-filter
+e-processes PROBED and NOT shipped: real sub-floor gains (room Δ=0.5 detection 0/4→4/4) but a
+measured sibling-aggregate confound (room-0 fault fires room-1's aggregate at E≈882 — overlapping
+domains share leaves) and an invalid informal null under cross-leaf dependence; recorded build
+conditions (calibrated aggregate nulls, escalation-tier semantics with the ADR-0047 ambiguity
+union). README brought current (linear scorer, fleet candidate, certificate, retired saturation).
+Recorded future work from the literature review, deliberately NOT built this pass: generator
+fault-model realism (CorrOpt step-dominant/loss-bucket/one-sided parameters — a validation-realism
+question in the ADR-0042 class), engine-side items (log-domain e-values = ADR-0034 fix B,
+aGRAPA/clipped betting, randomized e-BH, heavy-tail-robust increments, e-SR wealth recursion —
+each an engine extension-point conversation), EOP adoption (ADR-0043). **265 tests, gate PASS.**
 
 ## Built so far
 
