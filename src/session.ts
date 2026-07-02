@@ -1,8 +1,10 @@
 /**
  * Incremental session (ADR-0027): the streaming face of the batch pipeline — feed raw ticks as
- * they arrive, query a full AuditRecord at ANY tick. Every statistical component was already
- * anytime-valid (betting e-processes, Safe-Hotelling, the spectral e-detector, e-BH at arbitrary
- * stopping rules); this makes the SYSTEM anytime, not just the math.
+ * they arrive, query a full AuditRecord at ANY tick. Each component is anytime-valid in its own
+ * filtration (betting e-processes, Safe-Hotelling, the spectral e-detector), and any single
+ * query at any tick is a valid fixed-time read; the COMBINED leaf e-value is not itself an
+ * anytime e-process in tick time (Family D lives in the window filtration — ADR-0044 pins the
+ * boundary and the K/c union bound that survives it).
  *
  * The binding contract is byte-equality with the batch path: ingesting the batch pipeline's
  * exact live telemetry tick-by-tick must reproduce `runPipeline`'s audit byte-for-byte at the

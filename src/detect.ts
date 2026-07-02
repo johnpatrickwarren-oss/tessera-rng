@@ -7,7 +7,13 @@
  *
  * Each family's α-budget (allocated + spent) is carried into the verdict, and thence the
  * audit record. The combined per-path e-value is the AVERAGE of the family e-values —
- * averaging e-values is valid under arbitrary dependence (the two families share data).
+ * averaging e-values is valid under arbitrary dependence (the two families share data) AT A
+ * FIXED QUERY TIME. Filtration boundary (ADR-0044): Family D lives in the WINDOW filtration
+ * (its wealth is provably not a tick-filtration supermartingale — evidence-tested), so the
+ * combined value is NOT itself an anytime e-process across ticks: its sup-crossing guarantee
+ * degrades to the K/c union bound over the K families. Each family's own fire rule keeps its
+ * exact Ville bound (D is constant between window boundaries), and every published figure is a
+ * fixed-time/single-query read — see ADR-0044 for the analysis and the adjuster upgrade path.
  */
 import {
   freshBettingState,
@@ -17,7 +23,7 @@ import { runFamilyC } from './family-c';
 import { runFamilyD, DEFAULT_SPECTRAL } from './family-d';
 import type { SpectralParams } from './family-d';
 import type { FamilyCPerCell } from '@johnpatrickwarren-oss/deploysignal-engine/types/families/c';
-import type { FamilyDPerSignal } from '@johnpatrickwarren-oss/deploysignal-engine/types/families/d';
+import type { FamilyDCell } from './family-d';
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { PathClassId } from './domain';
@@ -37,7 +43,7 @@ export interface DetectorContext {
   /** learned Family C baseline covariance cell (ADR-0007); omitted ⇒ identity Σ. */
   familyCCell?: FamilyCPerCell;
   /** per-signal Family D spectral nulls (ADR-0009); omitted ⇒ Family D not run. */
-  familyDCells?: readonly (FamilyDPerSignal | null)[];
+  familyDCells?: readonly (FamilyDCell | null)[];
   /** Family D windowing params (defaults to DEFAULT_SPECTRAL). */
   spectral?: SpectralParams;
 }

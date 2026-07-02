@@ -333,8 +333,8 @@
         },
         {
           "magnitude": 0.7,
-          "detection_rate": 0.75,
-          "attribution_rate": 0.75,
+          "detection_rate": 0.25,
+          "attribution_rate": 0.25,
           "family": "D"
         },
         {
