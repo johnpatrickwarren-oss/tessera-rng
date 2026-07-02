@@ -26,10 +26,12 @@ pipeline.
 
 ## Toolchain
 
-- `pnpm install` — resolves the engine git-dep (`@johnpatrickwarren-oss/deploysignal-engine#v0.3.1-pre`).
+- `pnpm install` — resolves the engine git-dep (`@johnpatrickwarren-oss/deploysignal-engine`;
+  the current tag is pinned in `package.json` — read it there, don't trust hand-copied docs).
 - `pnpm test` — `tsc -p tsconfig.test.json` then `node --test test/*.test.js`.
 - `pnpm typecheck` — type-check only.
-- `pnpm gate` — run the sprag architectural gate over `src/`.
+- `pnpm gate` — run the sprag architectural gate over the whole repo (the script is
+  `check .`, see `package.json`).
 
 Product code lives in `src/`; tests in `test/` (`*.test.ts` → compiled `*.test.js`);
 the demo dashboard in `demos/`; honest-measurement matrices in `coverage-matrices/`.
