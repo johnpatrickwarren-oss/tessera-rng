@@ -205,6 +205,17 @@ order-inflation artifact is real (clean p=1 → laden p=5) but winsorizing chang
 real-deployment parameter (faking synthetic recurring incidents to "demonstrate" it would be theater).
 (4) Tier-3 real telemetry REAFFIRMED permanently external. The heavy-tailed-marginal gap remains a
 recorded limitation, not gold-plated. **241 tests, gate PASS (unchanged from main).**
+Claims-honesty pass (branch `round-a-claims-honesty`, **ADR-0043 ACCEPTED, docs only**): a
+literature deep-dive (tomography theory, production DC systems, anytime-valid SOTA) prompted three
+claim fixes: (1) the Writings piece's "10³ to 10⁶ leaves" e-BH claim re-pinned to the AC-1 bound
+(10³–10⁴ path-class leaves; 10⁶ is the microflow count aggregation avoids); (2) GROW/growth-
+optimality claims grepped — none exist; recorded that any future Family-C optimality language must
+carry the GL(d) non-amenability qualification (Pérez-Ortiz et al. AoS 2024); (3) the ADR-0027
+every-tick-query narrowing pinned to its exact boundary: stopped e-BH (arXiv:2502.08539) licenses
+anytime FDR only for independent streams or under a no-unobserved-confounding condition our
+correlated leaves haven't been shown to satisfy, and finite-ARL + nontrivial worst-case streaming
+FDR is impossible (arXiv:2501.04130) — the controllable streaming metric is error-over-patience,
+a recorded future adoption alongside e-detector form. **241 tests, gate PASS.**
 
 ## Built so far
 

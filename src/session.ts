@@ -12,7 +12,12 @@
  * Recorded narrowings (ADR-0027): calibration is batch (a session opens WITH a substrate built
  * from a clean window — calibrate offline, stream live); `ingest` expects a full tick for all
  * leaves; querying every tick and acting on the first positive is a stopping rule — each query
- * is valid, but the published FDR figure describes a single query.
+ * is valid, but the published FDR figure describes a single query. ADR-0043 pins the exact
+ * boundary of that narrowing: FDR at an arbitrary data-dependent stopping time (stopped e-BH,
+ * arXiv:2502.08539) needs stream independence or a no-unobserved-confounding condition our
+ * correlated leaves have not been shown to satisfy, and finite mean time-to-alarm with nontrivial worst-case
+ * streaming FDR is impossible outright (arXiv:2501.04130) — the controllable streaming metric is
+ * error-over-patience (EOP), adoptable if detection moves to e-detector form (recorded future).
  */
 import {
   freshBettingState,
