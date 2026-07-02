@@ -263,6 +263,17 @@ indistinguishable siblings — present only when non-empty, so published-fabric 
 byte-identical). k≥2 set identifiability + ambiguity-driven view design recorded as future work.
 Gate `no-god-module` loosened 21→22 on the record (domain.ts type contract, the admitted case a
 third time). **261 tests, gate PASS.**
+Sparse cross-check + envelope re-baseline (same branch, **ADR-0048 ACCEPTED**): (1) the suite
+gains an INDEPENDENT reference for the linear localizer — non-negative LASSO (projected
+coordinate descent, λ = √(2 ln R) universal threshold, no knob) on the same y ≈ √T·Wθ model;
+greedy and sparse agree on every fixture (cross-kind δ=16 support, room Δ=3 rank-1, clean empty)
+— test-side deliberately (a cross-check, not a second product ranking). (2) The ADR-0032
+degradation envelope was STALE (measured under the z scorer) — re-baselined: **the linear scorer
+moved the whole frontier** (noise attribution 0.25σ 53%→100%, 0.5σ 0%→81%; missingness 0.8
+0%→94%; observation-delay breakdown 8-ticks→never; joint lossy_aggregation 94%→100%; the extreme
+1σ+missing joint still 0%). **Round-H evidence columns NOT built on that measurement**
+(anti-gold-plating): their target regime is measured-moot; the ≥1σ fix stays live-calibration
+tracking. VALIDATION.md degradation row updated. **264 tests, gate PASS.**
 
 ## Built so far
 

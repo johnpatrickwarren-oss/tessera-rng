@@ -42,13 +42,13 @@
           "intensity": 0.25,
           "n": 32,
           "detection_rate": 1,
-          "attribution_rate": 0.53125
+          "attribution_rate": 1
         },
         {
           "intensity": 0.5,
           "n": 32,
           "detection_rate": 1,
-          "attribution_rate": 0
+          "attribution_rate": 0.8125
         },
         {
           "intensity": 1,
@@ -63,7 +63,7 @@
           "attribution_rate": 0
         }
       ],
-      "attribution_breakdown": 0.25,
+      "attribution_breakdown": 0.5,
       "detection_breakdown": null
     },
     {
@@ -99,7 +99,7 @@
           "intensity": 0.8,
           "n": 32,
           "detection_rate": 1,
-          "attribution_rate": 0
+          "attribution_rate": 0.9375
         }
       ],
       "attribution_breakdown": 0.8,
@@ -132,16 +132,16 @@
           "intensity": 8,
           "n": 32,
           "detection_rate": 1,
-          "attribution_rate": 0.75
+          "attribution_rate": 1
         },
         {
           "intensity": 20,
           "n": 32,
           "detection_rate": 1,
-          "attribution_rate": 0.5
+          "attribution_rate": 1
         }
       ],
-      "attribution_breakdown": 8,
+      "attribution_breakdown": null,
       "detection_breakdown": null
     },
     {
@@ -194,7 +194,7 @@
     {
       "regime": "lossy_aggregation (50% missing + ±25% weight)",
       "detection_rate": 1,
-      "attribution_rate": 0.9375,
+      "attribution_rate": 1,
       "n": 32
     }
   ],
