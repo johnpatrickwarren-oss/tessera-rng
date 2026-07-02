@@ -188,3 +188,18 @@ week-spanning live window. Over 4 trials (336-tick null, 168-tick live):
 
 This is the win robust calibration earns: on realistic (aberration-laden) history the mean/sd
 null FALSE-POSITIVES where robust stays clean — the inverse of the clean-synthetic floor cost.
+
+## Identifiability certificate (ADR-0047) — the N1 claim, computed
+
+Two resources with PROPORTIONAL weighted incidence columns are indistinguishable by ANY
+scorer on this measurement design (the linear model absorbs scale into θ); a UNIFORM
+full-support column is indistinguishable from a fleet-wide event. This section computes the
+k=1 (single-fault) certificate per published fabric — set-vs-set (k ≥ 2) identifiability is
+combinatorial and deliberately not claimed. Culprits inside an ambiguity group carry it in
+the audit (`ambiguity_group`) — the claim is weakened where the design cannot support it.
+
+| fabric | resources | 1-identifiable | ambiguity groups | fleet-ambiguous |
+|---|---|---|---|---|
+| generated:132472394 | 98 | 98 | none | none |
+| spraypoint-default | 76 | 76 | none | none |
+| spraypoint-paper | 996 | 996 | none | none |

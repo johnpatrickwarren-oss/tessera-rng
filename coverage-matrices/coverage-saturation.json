@@ -696,5 +696,28 @@
     "live_ticks": 168,
     "mean_sd_false_positives": 434,
     "robust_false_positives": 0
-  }
+  },
+  "identifiability": [
+    {
+      "fabric": "generated:132472394",
+      "resources": 98,
+      "identifiable": 98,
+      "ambiguity_groups": [],
+      "fleet_ambiguous": []
+    },
+    {
+      "fabric": "spraypoint-default",
+      "resources": 76,
+      "identifiable": 76,
+      "ambiguity_groups": [],
+      "fleet_ambiguous": []
+    },
+    {
+      "fabric": "spraypoint-paper",
+      "resources": 996,
+      "identifiable": 996,
+      "ambiguity_groups": [],
+      "fleet_ambiguous": []
+    }
+  ]
 }

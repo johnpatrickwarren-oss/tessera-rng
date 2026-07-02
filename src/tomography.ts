@@ -34,6 +34,7 @@
  */
 import type { FaultDomainSnapshot, PathClassId, ResourceId, ResourceKind } from './domain';
 import type { Culprit } from './verdict';
+import { ambiguityGroupsByResource } from './identifiability';
 
 export interface LocalizeOpts {
   /** fault-strength grid the leaky-LLR mixes over (ADR-0016). The grid implicitly assumes δ > q₀:
@@ -545,6 +546,31 @@ function supportingViews(snapshot: FaultDomainSnapshot, firing: readonly PathCla
   return snapshot.views.filter((v) => v.leaf_ids.some((id) => fset.has(id))).map((v) => v.view);
 }
 
+/** Build one culprit record: provenance + views + identifiability metadata (ADR-0047 — the
+ *  ambiguity group appears only when non-empty, a strictly weaker claim). */
+function culpritOf(
+  snapshot: FaultDomainSnapshot,
+  acc: Map<ResourceId, Acc>,
+  kindOf: ReadonlyMap<ResourceId, ResourceKind>,
+  ambiguity: ReadonlyMap<ResourceId, ResourceId[]>,
+  resource: ResourceId,
+  score: number,
+): Culprit {
+  const a = acc.get(resource)!;
+  const group = ambiguity.get(resource);
+  return {
+    resource_id: resource,
+    resource_kind: kindOf.get(resource) ?? 'switch',
+    score,
+    member_path_class_ids: [...a.firing].sort(),
+    firing_member_count: a.firing.length,
+    traversing_count: a.members.length,
+    supporting_views: supportingViews(snapshot, a.firing),
+    ...(group && group.length > 0 ? { ambiguity_group: group } : {}),
+    correlational_not_causal: true,
+  };
+}
+
 export function localize(
   snapshot: FaultDomainSnapshot,
   firingPathClassIds: readonly PathClassId[],
@@ -558,19 +584,11 @@ export function localize(
   const kindOf = new Map<ResourceId, ResourceKind>();
   for (const r of snapshot.resources) kindOf.set(r.id, r.kind);
   kindOf.set(FLEET_RESOURCE_ID, 'fleet_common_mode'); // the virtual candidate's kind (ADR-0046)
-  const mkCulprit = (resource: ResourceId, score: number): Culprit => {
-    const a = acc.get(resource)!;
-    return {
-      resource_id: resource,
-      resource_kind: kindOf.get(resource) ?? 'switch',
-      score,
-      member_path_class_ids: [...a.firing].sort(),
-      firing_member_count: a.firing.length,
-      traversing_count: a.members.length,
-      supporting_views: supportingViews(snapshot, a.firing),
-      correlational_not_causal: true,
-    };
-  };
+  // Identifiability metadata (ADR-0047): a culprit indistinguishable from proportional-column
+  // siblings SAYS SO — the certificate's per-resource groups, computed once per localization.
+  const ambiguity = ambiguityGroupsByResource(snapshot);
+  const mkCulprit = (resource: ResourceId, score: number): Culprit =>
+    culpritOf(snapshot, acc, kindOf, ambiguity, resource, score);
   if (opts.legacy) return localizeLegacy(fired, acc, mkCulprit, opts);
   if (opts.magnitudeT) return localizeLinear(snapshot, fired, acc, mkCulprit, opts);
 
