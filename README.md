@@ -80,7 +80,7 @@ Requires Node ≥ 20 and pnpm ≥ 11.
 ## What's built
 
 Synthetic fixtures only (no live fabric — deliberately, see the anti-scope). The v1 walking
-skeleton plus many post-v1 rounds, one ADR per real decision (41 and counting):
+skeleton plus many post-v1 rounds, one ADR per real decision (see [`design/adr/`](design/adr/)):
 
 - **Detection** — three anytime-valid families per path-class with per-detector α-budget:
   Family A (multi-signal mean-shift betting e-process), Family C (Safe-Hotelling over a

@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-06-30._
+`design/adr/`. Last updated: 2026-07-02._
 
 ## What this is
 
@@ -9,15 +9,18 @@ Operational observability for flat random-graph (RNG-family) datacenter networks
 **Tessera** (GPU-cluster shard observability) that reuses the same statistical engine
 (`@johnpatrickwarren-oss/deploysignal-engine`, git-dep, **never forked**), repointed from
 cluster shards to network **path-classes** and physical **fault domains**. It exists to
-solve two problems a redundant random-graph fabric creates: monitoring 10^3–10^6 correlated
-entities without false-positive blowup (→ reuse hierarchical e-values + e-BH FDR), and
+solve two problems a redundant random-graph fabric creates: monitoring 10^3–10^4 correlated
+path-classes without false-positive blowup (→ reuse hierarchical e-values + e-BH FDR — the
+aggregation to path-classes is what keeps the e-process count at 10^3–10^4 rather than 10^6
+per-microflow, ADR-0001; measured at paper scale, 1,456 leaves, ADR-0025), and
 turning "something shifted" into "this shared physical resource is the culprit" on a
 topology where hop distance does **not** encode fault domain (→ a new tomographic
 localization module). See ADR-0001.
 
 ## Phase
 
-**v1 + post-v1 rounds 1–8 merged to `main` (PRs #1–#7); no round in flight.** v1: all ten
+**v1 + all post-v1 work through ADR-0042 merged to `main` (PRs #1–#29); no round in flight;
+241 tests, gate PASS.** v1: all ten
 acceptance-criteria clusters, Q1–Q3 ratified. Round 1 (ADR-0006..0009, merged via PR #1):
 min-sample pooled calibration fallback, Family C learned cross-signal covariance, higher-order
 AR(p) calibration, Family D spectral detector — each with an ADR, anti-self-confirming tests, a

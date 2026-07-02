@@ -22,7 +22,7 @@ Properties of the code as written, independent of whether the synthetic model is
 
 | Property | Evidence |
 |---|---|
-| Pipeline runs end-to-end | fabric → signal gen → calibration → per-path-class detection → e-BH surface → tomography → simulated drain → audit; 198 tests green |
+| Pipeline runs end-to-end | fabric → signal gen → calibration → per-path-class detection → e-BH surface → tomography → simulated drain → audit; 241 tests green |
 | Deterministic & replay-clean | same incidence model + telemetry stream ⇒ byte-identical `AuditRecord`, across reroute epochs and multi-fault runs |
 | Incremental ≡ batch (anytime) | `openSession`/`ingest`/`audit` bound byte-for-byte to the batch pipeline at the final tick (ADR-0027 keystone) |
 | Traffic model coherence | view weights and drill exposures enumerate one elementary flow space, bound by keystone tests independent of the closed forms (ADR-0028) |
