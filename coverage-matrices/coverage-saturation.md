@@ -26,7 +26,7 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | resource kind | Δ (mean shift) | detection | attribution |
 |---|---|---|---|
 | optic | 0.5 | 0% (0/4) | 0% (0/4) |
-| optic | 1 | 75% (3/4) | 75% (3/4) |
+| optic | 1 | 75% (3/4) | 50% (2/4) |
 | optic | 2 | 100% (4/4) | 100% (4/4) |
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 0.5 | 0% (0/4) | 0% (0/4) |
@@ -34,7 +34,7 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
-| fiber_bundle | 1 | 75% (3/4) | 50% (2/4) |
+| fiber_bundle | 1 | 75% (3/4) | 25% (1/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
 | power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
@@ -111,7 +111,7 @@ always carries (ADR-0039).
 |---|---|---|
 | optic | 2 | 2 |
 | shuffle_panel | 2 | 2 |
-| room | 2 | 3 |
+| room | 2 | 2 |
 
 | fault kind | Δ | detection | attribution |
 |---|---|---|---|
@@ -127,7 +127,7 @@ always carries (ADR-0039).
 | shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
 | room | 0.5 | 0% (0/4) | 0% (0/4) |
 | room | 1 | 75% (3/4) | 0% (0/4) |
-| room | 2 | 100% (4/4) | 0% (0/4) |
+| room | 2 | 100% (4/4) | 100% (4/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
 

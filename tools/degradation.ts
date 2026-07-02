@@ -25,7 +25,7 @@ import { StaticFaultDomainSource } from '../src/fault-domain-source';
 import { generateTelemetry } from '../src/telemetry';
 import { standardizeAll } from '../src/calibration';
 import { detectAll, DEFAULT_DETECT } from '../src/detect';
-import { calibrateForSession, assembleAudit } from '../src/pipeline';
+import { calibrateForSession, assembleAudit, leafTStats } from '../src/pipeline';
 import type { PipelineParams } from '../src/pipeline';
 import type { AuditRecord } from '../src/verdict';
 import type { FaultDomainSnapshot, PathClassId } from '../src/domain';
@@ -127,7 +127,18 @@ export async function runPerturbed(params: PipelineParams, spec: PerturbationSpe
   const series = isInert(spec) ? (liveRaw.series as Map<PathClassId, number[][]>) : perturbTelemetry(liveRaw.series, spec, rng);
   const residuals = standardizeAll(series, calibration);
   const verdicts = detectAll(residuals, detect, ctx);
-  return assembleAudit({ snapshot: locSnap, snapshot_hash, q: params.q, verdicts, epochs: null, resets: null, drain_top_k: params.drain_top_k ?? 1 });
+  return assembleAudit({
+    snapshot: locSnap,
+    snapshot_hash,
+    q: params.q,
+    verdicts,
+    epochs: null,
+    resets: null,
+    drain_top_k: params.drain_top_k ?? 1,
+    // ADR-0046: the linear t currency, exactly as runPipeline's non-epoch path computes it.
+    magnitudeT: leafTStats(residuals),
+    ticks: params.telemetry.ticks,
+  });
 }
 
 // ───────────────────────── the degradation envelope (the published artifact) ─────────────────────────

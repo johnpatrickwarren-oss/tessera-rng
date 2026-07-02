@@ -49,26 +49,28 @@ async function recovers(delta: number, seed: number, commonModeRobust: boolean):
   return both(top2(a.culprits));
 }
 
-test('ADR-0036 payoff: the engine common-mode EXTENDS cross-optic recovery into the high-δ band (δ=16)', async () => {
-  // δ=16 is the decisive case: the base pipeline NEVER recovers (the ADR-0034 saturation), and the
-  // engine common-mode recovers it every seed. (δ=8 is the borderline — base already recovers some;
-  // δ=32 still fails both, the remaining extreme limit common-mode does not reach — see below.)
+test('SUPERSEDED PAYOFF (ADR-0046): the linear scorer recovers δ=16 with common-mode OFF — the ADR-0036 payoff role is retired', async () => {
+  // History: the base (z-currency) pipeline NEVER recovered δ=16 (the ADR-0034 saturation), and
+  // ADR-0036's common-mode strip was the tool that recovered it (4/4). The ADR-0046 linear
+  // t-statistic scorer recovers it WITHOUT the strip (q₀-free null + unsaturated magnitude), so
+  // common-mode's localization-payoff role in this regime is superseded. The mechanism stays
+  // (opt-in) — and it must NOT regress the recovery when enabled.
   let off = 0;
   let on = 0;
   for (const seed of [1, 2, 3, 4]) {
     if (await recovers(16, seed, false)) off += 1;
     if (await recovers(16, seed, true)) on += 1;
   }
-  assert.equal(off, 0, 'δ=16: WITHOUT common-mode, the ADR-0034 saturation holds (0/4)');
-  assert.equal(on, 4, 'δ=16: WITH the engine common-mode, the cross-kind optic recovers (4/4)');
+  assert.equal(off, 4, 'δ=16: the linear scorer recovers WITHOUT common-mode (ADR-0046 — was 0/4 under z)');
+  assert.equal(on, 4, 'δ=16: common-mode ON does not regress the linear recovery');
 });
 
-test('RECORDED: common-mode pushes the boundary to ≈δ16 but does NOT reach the δ32 extreme (still bounded)', async () => {
-  // Honest boundary: the engine common-mode extends recovery from ≈δ6 to ≈δ16, not to infinity. At
-  // δ=32 a fault this catastrophic overwhelms even the robust common-mode (and e-values overflow,
-  // ADR-0034) — both ON and OFF fail. The bounded limit moved up; it did not vanish.
-  assert.equal(await recovers(32, 1, false), false, 'δ=32 OFF fails (control)');
-  assert.equal(await recovers(32, 1, true), false, 'δ=32 ON also fails — boundary moved to ≈δ16, not removed');
+test('RETIRED LIMIT (ADR-0046): the δ=32 extreme — beyond even common-mode reach under z — now recovers with common-mode OFF', async () => {
+  // Honest history: under the z currency, δ=32 failed both with and without common-mode (the
+  // ADR-0034/0036 bounded limit). The linear scorer's t-statistic does not overflow and its null
+  // is q₀-free, so the recovery holds at the extreme too. The ADR-0034 arc's bounded limit is
+  // retired, not merely moved.
+  assert.equal(await recovers(32, 1, false), true, 'δ=32 OFF recovers (ADR-0046; was the recorded bounded limit)');
 });
 
 test('no in-band regression: δ=4 still recovers with common-mode on; clean fabric still selects nothing', async () => {

@@ -71,7 +71,34 @@ export interface LocalizeOpts {
    *  so z = √(2·max(ln E,0)/ticks) ≈ the per-tick shift θ (on μ's O(1) scale). Absent/1 ⇒ the raw
    *  single-observation z. The pipeline passes its window tick count when it wires magnitude. */
   magnitudeTicks?: number;
+  /**
+   * LINEAR t-statistic currency (ADR-0046): per-FIRING-leaf magnitude y on the θ√T (accrued)
+   * scale — the caller composes y = max(t-statistic, z(E)) so mean-shift evidence rides the
+   * unsaturated t and C/D-mode evidence rides z. When present, the member model becomes the
+   * exact Gaussian mean model y ~ N(θ·w·√T, 1) mixed over the fixed `thetas` grid with a 1/θ
+   * prior; the null is y ~ N(0, 1) — PARAMETER-FREE: q₀ exits the magnitude path (the ADR-0034
+   * root-cause-1 corruption dissolves), κ and S disappear (dilution is w, severity is θ, and the
+   * observation scale itself no longer saturates). Takes precedence over `magnitude`. Every
+   * firing leaf MUST appear in the map (fail-closed). A virtual fleet-event candidate
+   * (`FLEET_RESOURCE_ID`, w = 1 on every leaf) competes in the cover: a genuinely uniform
+   * elevation is reported as a non-drainable fleet_common_mode culprit instead of a fabricated
+   * physical one, while a broad-but-structured fault (room) still beats it — each quiet leaf
+   * costs the fleet candidate μ²/2 the room does not pay.
+   */
+  magnitudeT?: ReadonlyMap<PathClassId, number>;
+  /** fault-strength grid θ (per-tick standardized shift) for the linear model; fixed form, not a
+   *  knob — spans the sub-floor band to the C1 extreme (δ=128). */
+  thetas?: number[];
 }
+
+/** Reserved id of the virtual fleet-event candidate (ADR-0046); never a physical resource. */
+export const FLEET_RESOURCE_ID = '__fleet__';
+
+/** Fixed θ grid + 1/θ prior (ADR-0046): admit the per-tick fault strength is unknown and mix.
+ *  The low end (¼, ½) covers weak-magnitude evidence — C/D-mode leaves whose y rides z(E) with no
+ *  mean shift, and sub-floor mean shifts — where θ ≥ 1 would over-predict (μ = θ·w·√T ≥ √T) and
+ *  falsify every candidate into abstention; the high end spans the C1 extreme (δ = 128). */
+export const DEFAULT_THETAS: number[] = Object.freeze([0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128]) as number[];
 
 /** Fixed S grid + 1/S prior (ADR-0029 D2): admit the fault amplitude is unknown and mix, never fit it. */
 export const DEFAULT_SCALES: number[] = Object.freeze([1, 2, 4]) as number[];
@@ -298,6 +325,97 @@ function foldPosterior(a: Acc, factors: ReadonlyMap<PathClassId, number>, logG: 
   for (const [pc, g] of factors) logG.set(pc, (logG.get(pc) ?? 0) + Math.log(g));
 }
 
+/** One θ mixture cell (ADR-0046) — carries θ for the posterior-mean fold. */
+interface ThetaCell {
+  ll: number;
+  logPrior: number;
+  theta: number;
+}
+
+/**
+ * Linear marginal LLR (ADR-0046): under candidate strength θ, member i adds μᵢ = θ·wᵢ·√T to the
+ * picked set's predicted mean mᵢ, so its marginal log-LR is exactly
+ *   log N(yᵢ; mᵢ+μᵢ, 1) − log N(yᵢ; mᵢ, 1) = μᵢ·(yᵢ − mᵢ) − μᵢ²/2
+ * — the picked-set base cancels per cell (θ-independent), so the mixture IS the marginal score.
+ * With nothing picked (m ≡ 0) this is the plain Gaussian mixture LR against the N(0,1) null.
+ * A QUIET high-weight member (y = 0) pays −μ·mᵢ − μᵢ²/2: weight-aware falsification, correctly
+ * scaled — the ADR-0014 follow-the-traffic discrimination without κ or saturation devices.
+ */
+function resourceThetaLLR(
+  a: Acc,
+  m: ReadonlyMap<PathClassId, number>,
+  yOf: (pc: PathClassId) => number,
+  thetas: number[],
+  sqrtT: number,
+): { score: number; cells: ThetaCell[] } | null {
+  if (a.firing.length === 0) return null;
+  const logZ = Math.log(thetas.reduce((s, t) => s + 1 / t, 0));
+  const cells: ThetaCell[] = thetas.map((theta) => {
+    let ll = 0;
+    for (const mem of a.members) {
+      const mu = theta * mem.weight * sqrtT;
+      ll += mu * (yOf(mem.pc) - (m.get(mem.pc) ?? 0)) - (mu * mu) / 2;
+    }
+    return { ll, logPrior: -Math.log(theta) - logZ, theta };
+  });
+  return { score: logMixExp(cells), cells };
+}
+
+/**
+ * Fold a linear pick's ML-refit prediction into each member (ADR-0046): mᵢ += θ̂·wᵢ·√T with the
+ * exact weighted-least-squares refit θ̂ = Σ wᵢ(yᵢ−mᵢ) / (√T·Σ wᵢ²) over the pick's members —
+ * the Deepview post-selection-refit composition: SCORE with the θ-grid mixture (Bayes, for the
+ * admission decision), FOLD with the continuous ML fit (so the leftover residual is orthogonal
+ * to the picked profile). A grid-quantized fold leaves a systematic ±½-cell residual on every
+ * member, which across ~10² members hands a mop-up candidate (the fleet, a sibling panel) a
+ * spuriously large marginal — measured, which is why the fold is ML, not posterior-mean.
+ * θ̂ is clamped ≥ 0: a net-negative refit folds nothing rather than subtracting predictions.
+ */
+function foldThetaML(a: Acc, m: Map<PathClassId, number>, yOf: (pc: PathClassId) => number, sqrtT: number): void {
+  let num = 0;
+  let den = 0;
+  for (const mem of a.members) {
+    num += mem.weight * (yOf(mem.pc) - (m.get(mem.pc) ?? 0));
+    den += mem.weight * mem.weight;
+  }
+  const thetaHat = Math.max(num / (sqrtT * den), 0);
+  for (const mem of a.members) m.set(mem.pc, (m.get(mem.pc) ?? 0) + thetaHat * mem.weight * sqrtT);
+}
+
+/** Linear-mode explained (display + admission gate): the picked set predicts at least HALF the
+ *  observed magnitude (m ≥ y/2, m > 0) — the ½ mirrors the binary path's more-likely-than-not. */
+function isExplainedLinear(y: number, m: number): boolean {
+  return m > 0 && m >= y / 2;
+}
+
+/** Linear-mode admission gate (the ADR-0022 rule, linear form): a candidate must have at least
+ *  one firing member whose magnitude the picked set has NOT already half-explained. */
+function hasUnexplainedFiringLinear(a: Acc, m: ReadonlyMap<PathClassId, number>, yOf: (pc: PathClassId) => number): boolean {
+  for (const mem of a.members) {
+    if (mem.fired && !isExplainedLinear(yOf(mem.pc), m.get(mem.pc) ?? 0)) return true;
+  }
+  return false;
+}
+
+/** Best unpicked candidate by linear marginal LLR (ADR-0046). `!(score > 0)` so NaN never ranks. */
+function bestThetaMarginal(
+  acc: Map<ResourceId, Acc>,
+  picked: ReadonlySet<ResourceId>,
+  m: ReadonlyMap<PathClassId, number>,
+  yOf: (pc: PathClassId) => number,
+  thetas: number[],
+  sqrtT: number,
+): { resource: ResourceId; score: number; cells: ThetaCell[] } | null {
+  let best: { resource: ResourceId; score: number; cells: ThetaCell[] } | null = null;
+  for (const [resource, a] of acc) {
+    if (picked.has(resource) || !hasUnexplainedFiringLinear(a, m, yOf)) continue;
+    const p = resourceThetaLLR(a, m, yOf, thetas, sqrtT);
+    if (!p || !(p.score > 0)) continue;
+    if (!best || p.score > best.score || (p.score === best.score && resource < best.resource)) best = { resource, ...p };
+  }
+  return best;
+}
+
 const LOG_HALF = Math.log(0.5);
 /** explained ⇔ the picked set touches the leaf (logG < 0) AND makes its firing more likely than
  *  not (P(fire | set) > ½, strict) — the audit binarization AND the pick admission gate. */
@@ -368,6 +486,58 @@ function bestMarginal(
   return best;
 }
 
+/**
+ * The linear t-statistic cover (ADR-0046). Look-elsewhere admission charge: a rank ≥ 2 pick is
+ * the MAX marginal LLR over R candidates scored on residual leftovers, so under the
+ * no-more-faults null its score is inflated by up to ln R (Bonferroni) — it must clear that
+ * charge or the cover stops. Fixed form (R is the candidate count, not a knob) — without it the
+ * low-θ grid cells let arbitrarily weak leftovers admit trailing culprits (measured: sibling
+ * panels and the fleet candidate as rank-2/3 mop-ups). The FIRST pick is exempt: e-BH already
+ * certified the selected leaves as non-null at FDR q, and rank-1 is the argmax explanation of
+ * that certified evidence (a ranking, N1) — charging it ln R only converts weak-but-correct
+ * attributions into abstentions (measured: optic Δ=1 attribution 75% → 25%).
+ */
+function localizeLinear(
+  snapshot: FaultDomainSnapshot,
+  fired: ReadonlySet<PathClassId>,
+  acc: Map<ResourceId, Acc>,
+  mkCulprit: (resource: ResourceId, score: number) => Culprit,
+  opts: LocalizeOpts,
+): LocalizationResult {
+  const yMap = opts.magnitudeT!;
+  const yOf = (pc: PathClassId): number => {
+    if (!fired.has(pc)) return 0;
+    const y = yMap.get(pc);
+    if (y === undefined) throw new RangeError(`magnitudeT mode: firing leaf ${pc} has no magnitude`);
+    return y;
+  };
+  const sqrtT = Math.sqrt(Math.max(opts.magnitudeTicks ?? 1, 1));
+  const thetas = opts.thetas ?? DEFAULT_THETAS;
+  // The virtual fleet-event candidate: w = 1 on every leaf (ADR-0046).
+  acc.set(FLEET_RESOURCE_ID, {
+    members: snapshot.path_classes.map((pc) => ({ pc, weight: 1, fired: fired.has(pc) })),
+    firing: [...fired].sort(),
+  });
+  const m = new Map<PathClassId, number>();
+  const picked = new Set<ResourceId>();
+  const culprits: Culprit[] = [];
+  const logR = Math.log(acc.size);
+  while (culprits.length < opts.maxResources) {
+    const best = bestThetaMarginal(acc, picked, m, yOf, thetas, sqrtT);
+    if (!best || !(best.score > (culprits.length === 0 ? 0 : logR))) break;
+    picked.add(best.resource);
+    foldThetaML(acc.get(best.resource)!, m, yOf, sqrtT);
+    culprits.push(mkCulprit(best.resource, best.score));
+  }
+  const explained = [...fired].filter((pc) => isExplainedLinear(yOf(pc), m.get(pc) ?? 0)).sort();
+  const explainedSet = new Set(explained);
+  return {
+    culprits,
+    explained_path_class_ids: explained,
+    unexplained_path_class_ids: [...fired].filter((pc) => !explainedSet.has(pc)).sort(),
+  };
+}
+
 /** The aggregation views (ADR-0015) that have a firing member of this resource — per-view concurrence. */
 function supportingViews(snapshot: FaultDomainSnapshot, firing: readonly PathClassId[]): string[] {
   if (!snapshot.views) return [];
@@ -387,6 +557,7 @@ export function localize(
   const acc = accumulate(snapshot, fired);
   const kindOf = new Map<ResourceId, ResourceKind>();
   for (const r of snapshot.resources) kindOf.set(r.id, r.kind);
+  kindOf.set(FLEET_RESOURCE_ID, 'fleet_common_mode'); // the virtual candidate's kind (ADR-0046)
   const mkCulprit = (resource: ResourceId, score: number): Culprit => {
     const a = acc.get(resource)!;
     return {
@@ -401,6 +572,7 @@ export function localize(
     };
   };
   if (opts.legacy) return localizeLegacy(fired, acc, mkCulprit, opts);
+  if (opts.magnitudeT) return localizeLinear(snapshot, fired, acc, mkCulprit, opts);
 
   // Magnitude currency (ADR-0029): firing leaves carry z = magnitudeZ(e_value), quiet leaves z = 0.
   // Fail-closed — a firing leaf with no supplied e-value in magnitude mode is a contract violation,

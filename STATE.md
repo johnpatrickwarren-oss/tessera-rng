@@ -232,6 +232,26 @@ distributional assumption; measured E[L] = 1.018 ± 0.010, anytime false-alarm 0
 floor-amplitude power unchanged (99%). Cost published: oscillation floor stays 0.9; the sub-floor
 amp-0.7 knee drops 75%→25% (the invalid over-payment taken back). Raw path kept as the pinned-
 defect control; demo + coverage regenerated. **246 tests, gate PASS.**
+Linear magnitude member model (branch `round-cd-linear-magnitude`, **ADR-0046 ACCEPTED, production
+cutover**): the tomography member model becomes the exact Gaussian mean model on the t-statistic
+scale — per selected leaf y = max(t, z(E)) with t = max_j |Σ residual_j|/√T (unsaturated; the
+session keeps byte-identical running sums), member LR μ(y−m)−μ²/2 with μ = θ·w·√T over the fixed
+θ grid {¼..128} (1/θ prior), null y ~ N(0,1) — **q₀-FREE: both ADR-0034 root causes dissolve**
+(no scalar null to corrupt; nothing overflows). Marginal cover: score by mixture, fold by ML
+refit (Deepview post-selection-refit composition; a grid-quantized fold measurably admitted
+mop-up picks), rank-≥2 picks pay a ln R look-elsewhere charge (rank-1 exempt — e-BH already
+certified the evidence; charging it converted weak-but-correct attributions to abstentions,
+measured). A virtual `__fleet__` candidate (w=1 everywhere, kind `fleet_common_mode`, never
+drained) absorbs uniform fleet events structurally — safe for broad faults (quiet leaves cost
+the fleet μ²/2 the room doesn't pay; the ADR-0038 strip-regression cannot recur — nothing is
+stripped, models compete). **Measured: cross-kind recovery 4/4 at EVERY δ∈{3..32}** (z scorer:
+0/4 at δ≥16; common-mode's old ceiling was δ16) — **the ADR-0034 bounded limit and the ADR-0036
+payoff role are retired on the record**; C1 δ=128 exact minimal set (z gave wrong-kind rooms);
+room dilution attribution floor **3→2** (Δ=2: 0%→100%, and z's 2/4 included a wrong-room rank-1);
+zero floor regressions; sub-floor knee flips recorded honestly (optic Δ=1 attr 75→50, fiber Δ=1
+50→25, cov 0.2 50→0, osc 0.7 25→0). Epoch'd runs keep the z currency (recorded narrowing).
+Two design iterations forced by measurement recorded in the ADR (θ-grid low end; ML fold + charge).
+demo + coverage regenerated; keystones hold. **255 tests, gate PASS.**
 
 ## Built so far
 

@@ -77,6 +77,9 @@ interface DetectorStates {
 interface LeafState {
   std: StreamStandardizer;
   det: DetectorStates;
+  /** per-signal running residual sums (ADR-0046) — the t-statistic numerator, accumulated in the
+   *  same per-tick order as the batch path's column sums (byte-equality). */
+  residSums: number[];
   /** completed epoch segments: the segment's verdict + its spec (ADR-0018 bookkeeping). */
   doneRuns: PathClassVerdict[];
   doneSegs: SegmentSpec[];
@@ -139,6 +142,7 @@ export class IncrementalSession {
       this.leaves.set(pc, {
         std: freshStreamStandardizer(params.calibration),
         det: freshDetectors(this.ctx),
+        residSums: SIGNALS.map(() => 0),
         doneRuns: [],
         doneSegs: [],
         segStart: 0,
@@ -171,8 +175,12 @@ export class IncrementalSession {
     // Pass 2 (ADR-0036/0038): strip the robust cross-leaf common-mode for this tick — IDENTICAL to
     // the batch path (sorted leaves, same robustLocation), preserving incremental≡batch byte-equality.
     if (this.commonModeRobust) stripCommonModeTick(residByLeaf);
-    // Pass 3: feed each leaf's (stripped) residual to its detectors.
-    for (const [pc, ls] of this.leaves) this.updateDetectors(ls.det, residByLeaf.get(pc)!);
+    // Pass 3: feed each leaf's (stripped) residual to its detectors + the t-statistic sums (ADR-0046).
+    for (const [pc, ls] of this.leaves) {
+      const resid = residByLeaf.get(pc)!;
+      this.updateDetectors(ls.det, resid);
+      for (let i = 0; i < SIGNALS.length; i++) ls.residSums[i] += resid[i];
+    }
     this.t += 1;
   }
 
@@ -186,6 +194,11 @@ export class IncrementalSession {
     const resets = activeEpochs
       ? [...this.firedResets].sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : a.at_tick - b.at_tick))
       : null;
+    // Linear t currency (ADR-0046): non-epoch'd sessions only — max_j |Σ resid_j| / √t, the exact
+    // batch `leafTStats` value at this tick (same summation order; keystone-bound).
+    const magnitudeT = this.epochs || this.t === 0
+      ? null
+      : new Map([...this.leaves].map(([pc, ls]) => [pc, Math.max(...ls.residSums.map((s) => Math.abs(s))) / Math.sqrt(this.t)]));
     return assembleAudit({
       snapshot: this.p.snapshot,
       snapshot_hash: this.hash,
@@ -194,6 +207,8 @@ export class IncrementalSession {
       epochs: activeEpochs,
       resets,
       drain_top_k: this.p.drain_top_k ?? 1,
+      magnitudeT,
+      ticks: this.t,
     });
   }
 

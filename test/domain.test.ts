@@ -12,5 +12,7 @@ test('resource taxonomy is the RNG-native (non-engine) set', () => {
   // engine-only kinds must NOT be valid RNG resource kinds (ADR-0002 separation)
   assert.ok(!isResourceKind('gpu_shard'));
   assert.ok(!isResourceKind('nvlink_peer'));
-  assert.equal(RESOURCE_KINDS.length, 9);
+  // the solver's virtual fleet-event candidate kind (ADR-0046) — reserved, not a physical resource.
+  assert.ok(isResourceKind('fleet_common_mode'));
+  assert.equal(RESOURCE_KINDS.length, 10);
 });
