@@ -5,6 +5,7 @@ import {
   nonOverlappingPeaks,
   estimateFamilyDNull,
   makeFamilyDCell,
+  pitGaussianize,
   runFamilyD,
   DEFAULT_SPECTRAL,
   MIN_NULL_PEAKS,
@@ -65,6 +66,34 @@ test('estimateFamilyDNull calibrates a per-signal null and disables under-sample
   const tooShort = estimateFamilyDNull(residuals(40, P.window - 1, 0, 7), P);
   assert.ok(tooShort.every((c) => c === null), 'signals with < MIN_NULL_PEAKS windows are disabled');
   assert.ok(MIN_NULL_PEAKS >= 1);
+});
+
+test('estimateFamilyDNull ships the PIT null: sorted calibration peaks on every enabled cell (ADR-0045)', () => {
+  const cells = estimateFamilyDNull(residuals(40, 600, 0, 7), P);
+  for (const c of cells) {
+    assert.ok(c, 'enabled cell expected');
+    const peaks = c!.pit_sorted_peaks;
+    assert.ok(peaks && peaks.length >= MIN_NULL_PEAKS, 'PIT cell carries the calibration peaks');
+    for (let i = 1; i < peaks!.length; i++) assert.ok(peaks![i] >= peaks![i - 1], 'peaks are sorted ascending');
+  }
+  // DEMONSTRATE defect vs fix with the calibrator's own cell (signal 0): per-window betting
+  // multiple L = exp(r·u − r²/2) on held-out clean windows. Raw u = (pk−μ₀)/σ₀ over-pays
+  // (E[L] ≈ 1.12, the ADR-0045 defect); PIT u = Φ⁻¹(rank/(n+1)) restores E[L] ≤ ≈1. The mean-gap
+  // is the marginal-validity fact itself; n is sized so the gap is far outside Monte-Carlo error.
+  const cell = cells[0]!;
+  const r = P.deltaSigma;
+  const held = stream(12000 * P.window, 0, 7, 424242);
+  const heldPeaks = nonOverlappingPeaks(held, P);
+  let sumRaw = 0;
+  let sumPit = 0;
+  for (const pk of heldPeaks) {
+    sumRaw += Math.exp(r * ((pk - cell.null_mean!) / cell.null_std!) - 0.5 * r * r);
+    sumPit += Math.exp(r * pitGaussianize(pk, cell.pit_sorted_peaks!) - 0.5 * r * r);
+  }
+  const meanRaw = sumRaw / heldPeaks.length;
+  const meanPit = sumPit / heldPeaks.length;
+  assert.ok(meanRaw > 1.05, `raw per-window E[L] = ${meanRaw} — the pinned over-payment (ADR-0045)`);
+  assert.ok(meanPit < 1.05, `PIT per-window E[L] = ${meanPit} — restored validity (ADR-0045)`);
 });
 
 test('runFamilyD: silent under the null, fires on a periodic oscillation (ADR-0009)', () => {

@@ -216,6 +216,22 @@ anytime FDR only for independent streams or under a no-unobserved-confounding co
 correlated leaves haven't been shown to satisfy, and finite-ARL + nontrivial worst-case streaming
 FDR is impossible (arXiv:2501.04130) — the controllable streaming metric is error-over-patience,
 a recorded future adoption alongside e-detector form. **241 tests, gate PASS.**
+Combiner filtration boundary + Family D null fix (branch `round-b-filtration-familyd`, **ADR-0044 +
+ADR-0045 ACCEPTED**): the Choe–Ramdas cross-filtration question was investigated with an evidence
+experiment. ADR-0044 (no behavior change): Family D's wealth is provably NOT a tick-filtration
+supermartingale (pinned by test — conditioning on 39 of a window's 40 ticks inflates the expected
+multiple), but its own fire rule keeps its exact Ville bound (wealth constant between boundaries),
+every published figure is a fixed-time read (exactly valid), and the combined leaf value at an
+arbitrary stopping time degrades to the K/c union bound — stated in detect.ts/session.ts; the
+adjuster upgrade is recorded, not built. The experiment surfaced a BIGGER defect (halt honored):
+the raw Gaussian null over-pays on the right-skewed peak-|ACF| statistic — **E[L] = 1.121 ± 0.017
+per clean window (held-out), anytime false-alarm 1.3% vs the claimed ≤1%**. ADR-0045 (behavioral,
+default ON): `estimateFamilyDNull` ships sorted calibration peaks and the shared update path bets
+on the PIT-Gaussianized rank statistic u = Φ⁻¹(rank/(n+1)) — an e-value by EXCHANGEABILITY, no
+distributional assumption; measured E[L] = 1.018 ± 0.010, anytime false-alarm 0.55–0.63% ≤ 1%,
+floor-amplitude power unchanged (99%). Cost published: oscillation floor stays 0.9; the sub-floor
+amp-0.7 knee drops 75%→25% (the invalid over-payment taken back). Raw path kept as the pinned-
+defect control; demo + coverage regenerated. **246 tests, gate PASS.**
 
 ## Built so far
 

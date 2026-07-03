@@ -74,7 +74,7 @@ The **firing family** column is the firing-mode attribution: which detector actu
 |---|---|---|---|---|---|
 | mean_shift | Δ (p99 mean) | 2 | 2 | A | 0.5→0%/none, 1→75%/A, 2→100%/A+C, 3→100%/A+C |
 | covariance_flip | Δρ (corr change) | 0.4 | 0.4 | C | 0→0%/none, 0.1→0%/none, 0.2→75%/C, 0.4→100%/C, 0.9→100%/C, 1.4→100%/C, 1.8→100%/C |
-| oscillation | amplitude (period 7) | 0.9 | 0.9 | D | 0.3→0%/none, 0.5→0%/none, 0.7→75%/D, 0.9→100%/D |
+| oscillation | amplitude (period 7) | 0.9 | 0.9 | D | 0.3→0%/none, 0.5→0%/none, 0.7→25%/D, 0.9→100%/D |
 
 ## Spraypoint per-view detection (ADR-0015) — which view concentrates each fault kind
 

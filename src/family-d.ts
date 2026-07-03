@@ -63,6 +63,23 @@ export function nonOverlappingPeaks(col: readonly number[], p: SpectralParams): 
   return out;
 }
 
+/**
+ * A Tessera Family D cell: the engine's per-signal params, optionally carrying the SORTED
+ * calibration peaks for the PIT-Gaussianized null (ADR-0045). The engine's e-detector bet
+ * `L = exp(r·u − r²/2)` has E[L] = 1 ONLY if u = (peak−μ₀)/σ₀ is exactly N(0,1) under the null —
+ * but peak|ACF| (a max of 8 |correlations|) is right-skewed (measured skew ≈ 0.46), so the raw
+ * Gaussian null over-pays: E[L] ≈ 1.12 per clean window, and the anytime false-alarm rate runs
+ * ≈1.3% against the claimed ≤1% (measured, ADR-0045). When `pit_sorted_peaks` is present the
+ * update path rank-transforms the live peak against the calibration empirical CDF —
+ * u = Φ⁻¹(rank/(n+1)) — which is an e-value by EXCHANGEABILITY, no distributional assumption:
+ * E[L] ≤ 1 exactly for a live window exchangeable with the calibration windows.
+ */
+export type FamilyDCell = FamilyDPerSignal & {
+  /** ascending calibration peaks for the PIT null (ADR-0045); absent ⇒ raw Gaussian null (the
+   *  recorded-defect CONTROL path, kept for unit fixtures and as the failure-mode reference). */
+  pit_sorted_peaks?: readonly number[];
+};
+
 /** A Family D cell for a signal whose clean peak |ACF| has the given null (μ₀, σ₀). */
 export function makeFamilyDCell(nullMean: number, nullStd: number, p: SpectralParams): FamilyDPerSignal {
   return {
@@ -76,6 +93,46 @@ export function makeFamilyDCell(nullMean: number, nullStd: number, p: SpectralPa
   };
 }
 
+/** Acklam's inverse-normal-CDF approximation (|rel err| < 1.2e-9) — pure math helper for the PIT. */
+function invNorm(p: number): number {
+  const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+  const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+  const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  const pl = 0.02425;
+  if (p < pl) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p > 1 - pl) {
+    const q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  const q = p - 0.5;
+  const rr = q * q;
+  return ((((((a[0] * rr + a[1]) * rr + a[2]) * rr + a[3]) * rr + a[4]) * rr + a[5]) * q) / (((((b[0] * rr + b[1]) * rr + b[2]) * rr + b[3]) * rr + b[4]) * rr + 1);
+}
+
+/**
+ * PIT-Gaussianize a live peak against the sorted calibration peaks (ADR-0045):
+ * u = Φ⁻¹(count(cal ≤ peak) / (n+1)), clamped to [1/(n+1), n/(n+1)]. Under exchangeability the
+ * rank is uniform on its n+1 values and E[exp(r·u − r²/2)] ≤ 1 (the missing right-tail cell makes
+ * it strictly conservative) — validity from ranks, not from a Gaussian fit the statistic violates.
+ * The clamp also caps single-window evidence at Φ⁻¹(n/(n+1)): a thin calibration sample honestly
+ * limits how much one window can prove (recorded power narrowing, ADR-0045).
+ */
+export function pitGaussianize(peak: number, sorted: readonly number[]): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] <= peak) lo = mid + 1;
+    else hi = mid;
+  }
+  const q = Math.max(lo, 1) / (sorted.length + 1);
+  return invNorm(q);
+}
+
 /**
  * Calibrate the per-signal Family D null from clean residuals: the (mean, std) of the peak |ACF|
  * over non-overlapping windows, pooled across all path-classes. Signals with too few windows (short
@@ -85,7 +142,7 @@ export function makeFamilyDCell(nullMean: number, nullStd: number, p: SpectralPa
 export function estimateFamilyDNull(
   residuals: ReadonlyMap<PathClassId, number[][]>,
   p: SpectralParams = DEFAULT_SPECTRAL,
-): (FamilyDPerSignal | null)[] {
+): (FamilyDCell | null)[] {
   const peaksBySignal: number[][] = SIGNALS.map(() => []);
   for (const series of residuals.values()) {
     for (let j = 0; j < SIGNALS.length; j++) {
@@ -98,15 +155,34 @@ export function estimateFamilyDNull(
     const mean = peaks.reduce((s, x) => s + x, 0) / peaks.length;
     const std = Math.sqrt(peaks.reduce((s, x) => s + (x - mean) ** 2, 0) / peaks.length);
     if (std < MIN_NULL_STD) return null; // degenerate null → would explode on live peaks; disable
-    return makeFamilyDCell(mean, std, p);
+    // PIT null (ADR-0045): the production calibrator ships the sorted calibration peaks so the
+    // update path bets on the rank-Gaussianized statistic (valid by exchangeability) instead of
+    // trusting a Gaussian fit the right-skewed peak|ACF| measurably violates. (μ₀, σ₀) are kept
+    // for the degenerate-null gate above and as the raw-path fixture surface.
+    return { ...makeFamilyDCell(mean, std, p), pit_sorted_peaks: [...peaks].sort((a, b) => a - b) };
   });
 }
 
+/**
+ * One e-detector update for one window peak (ADR-0045): with a PIT cell, bet on the
+ * rank-Gaussianized u against an exact (0, 1) null with betting_delta = deltaSigma (r unchanged);
+ * without one, the raw Gaussian-null path — byte-identical to the pre-ADR-0045 behavior, kept as
+ * the recorded-defect control. ONE code path for batch and streaming (ADR-0027 byte-equality).
+ */
+function updateWithPeak(state: { M: number }, pk: number, cell: FamilyDCell, p: SpectralParams): void {
+  if (cell.pit_sorted_peaks) {
+    const params = { ...cell, null_mean: 0, null_std: 1, betting_delta: p.deltaSigma };
+    evaluateSpectralEDetector({ params, alpha: p.alphaD, signal: 'd' }, pitGaussianize(pk, cell.pit_sorted_peaks), state as ReturnType<typeof freshSpectralEDetectorState>);
+  } else {
+    evaluateSpectralEDetector({ params: cell, alpha: p.alphaD, signal: 'd' }, pk, state as ReturnType<typeof freshSpectralEDetectorState>);
+  }
+}
+
 /** Sequential spectral wealth for one signal column against its null cell, capped finite. */
-function signalSpectralWealth(col: readonly number[], cell: FamilyDPerSignal, p: SpectralParams): number {
+function signalSpectralWealth(col: readonly number[], cell: FamilyDCell, p: SpectralParams): number {
   const state = freshSpectralEDetectorState();
   for (const pk of nonOverlappingPeaks(col, p)) {
-    evaluateSpectralEDetector({ params: cell, alpha: p.alphaD, signal: 'd' }, pk, state);
+    updateWithPeak(state, pk, cell, p);
   }
   // a true oscillation can overflow M to Infinity over many windows → NaN on the next decay step;
   // the cap convention is one code path with the streaming reader (ADR-0027).
@@ -119,9 +195,9 @@ export function freshSpectralStream(): ReturnType<typeof freshSpectralEDetectorS
   return freshSpectralEDetectorState();
 }
 
-export function feedSpectralWindow(state: ReturnType<typeof freshSpectralEDetectorState>, window: readonly number[], cell: FamilyDPerSignal, p: SpectralParams): void {
+export function feedSpectralWindow(state: ReturnType<typeof freshSpectralEDetectorState>, window: readonly number[], cell: FamilyDCell, p: SpectralParams): void {
   for (const pk of nonOverlappingPeaks(window, p)) {
-    evaluateSpectralEDetector({ params: cell, alpha: p.alphaD, signal: 'd' }, pk, state);
+    updateWithPeak(state, pk, cell, p);
   }
 }
 
@@ -142,7 +218,7 @@ export interface FamilyDResult {
  */
 export function runFamilyD(
   series: readonly (readonly number[])[],
-  cells: readonly (FamilyDPerSignal | null)[],
+  cells: readonly (FamilyDCell | null)[],
   p: SpectralParams = DEFAULT_SPECTRAL,
 ): FamilyDResult {
   const wealths: number[] = [];
