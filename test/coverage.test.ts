@@ -79,6 +79,7 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
     ],
     clean: { trials: 4, mean_selected: 0, false_positive_rate: 0 },
     realistic_regime: { trials: 4, calib_ticks: 336, live_ticks: 168, mean_sd_false_positives: 108, robust_false_positives: 0 },
+    identifiability: [{ fabric: 'generated:1', resources: 20, identifiable: 18, ambiguity_groups: [['r-a', 'r-b']], fleet_ambiguous: ['r-u'] }],
   };
   const md = renderMarkdown(rep);
   assert.match(md, /detection \| attribution/);
@@ -110,6 +111,9 @@ test('markdown exposes detection AND attribution columns plus the FDR-control li
   assert.match(md, /\| optic \| optic-3 \| 4 \| yes \| optic-3 \|/, 'the scale outcomes render from the report');
   assert.match(md, /concentrated by/);
   assert.match(md, /per_tor/);
+  // the ADR-0047 identifiability certificate must be EMITTED, not just typed (the ADR-0020 C2 lesson).
+  assert.match(md, /Identifiability certificate/);
+  assert.match(md, /\| generated:1 \| 20 \| 18 \| \{r-a, r-b\} \| r-u \|/, 'the certificate row renders from the report');
 });
 
 test('SPOT-CHECK: one committed coverage cell matches a fresh recomputation (freshness floor, ADR-0019 cold-eye)', async () => {

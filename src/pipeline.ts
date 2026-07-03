@@ -18,7 +18,7 @@ import type { DetectParams } from './detect';
 import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from './family-c';
 import { estimateFamilyDNull } from './family-d';
 import { buildSurface } from './surface';
-import { localize, DEFAULT_LOCALIZE } from './tomography';
+import { localize, magnitudeZ, DEFAULT_LOCALIZE, FLEET_RESOURCE_ID } from './tomography';
 import type { LocalizeOpts } from './tomography';
 import { simulateDrain } from './drain';
 import { makeEpochs, segmentPlan } from './epoch';
@@ -227,7 +227,39 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const residuals = cmRobust ? stripCommonMode(standardized) : standardized;
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
 
-  return assembleAudit({ snapshot, snapshot_hash, q: params.q, verdicts, epochs, resets: seg?.resets ?? null, drain_top_k: params.drain_top_k ?? 1 });
+  return assembleAudit({
+    snapshot,
+    snapshot_hash,
+    q: params.q,
+    verdicts,
+    epochs,
+    resets: seg?.resets ?? null,
+    drain_top_k: params.drain_top_k ?? 1,
+    // Linear t currency (ADR-0046): non-epoch'd runs only (epoch'd runs keep the z currency —
+    // t-over-which-segment interacts with ADR-0018 grouping; recorded narrowing).
+    magnitudeT: epochs ? null : leafTStats(residuals),
+    ticks: params.telemetry.ticks,
+  });
+}
+
+/**
+ * Per-leaf t-statistic (ADR-0046): max over signals of |Σ_t residual| / √T — the exact
+ * standardized-shift estimate on the accrued (θ√T) scale, shared verbatim by the incremental
+ * session's running sums (byte-equality: same per-tick summation order).
+ */
+export function leafTStats(residuals: ReadonlyMap<PathClassId, number[][]>): Map<PathClassId, number> {
+  const out = new Map<PathClassId, number>();
+  for (const [pc, series] of residuals) {
+    const p = series[0]?.length ?? 0;
+    let best = 0;
+    for (let j = 0; j < p; j++) {
+      let s = 0;
+      for (let t = 0; t < series.length; t++) s += series[t][j];
+      best = Math.max(best, Math.abs(s) / Math.sqrt(series.length));
+    }
+    out.set(pc, best);
+  }
+  return out;
 }
 
 /**
@@ -235,6 +267,27 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
  * drains → the AuditRecord — one code path for the batch pipeline and the incremental session,
  * so streaming and batch can never drift in assembly.
  */
+/** The localizer options for the audit tail: LINEAR (ADR-0046, y = max(t, z(E)) per selected
+ *  leaf) when t-statistics are supplied (non-epoch'd runs), else the z-currency path (ADR-0035,
+ *  epoch'd runs — recorded narrowing). */
+function buildLocalizeOpts(
+  surface: ReturnType<typeof buildSurface>,
+  verdicts: readonly PathClassVerdict[],
+  magnitudeT: ReadonlyMap<PathClassId, number> | null,
+  ticks: number,
+): LocalizeOpts {
+  const eByPc = new Map(verdicts.map((v) => [v.path_class_id, v.e_value]));
+  if (magnitudeT) {
+    return {
+      ...DEFAULT_LOCALIZE,
+      q0: surface.base_rate_q0,
+      magnitudeT: new Map(surface.selected_path_class_ids.map((pc) => [pc, Math.max(magnitudeT.get(pc) ?? 0, magnitudeZ(eByPc.get(pc)!))])),
+      magnitudeTicks: ticks,
+    };
+  }
+  return { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0, magnitude: new Map(surface.selected_path_class_ids.map((pc) => [pc, eByPc.get(pc)!])) };
+}
+
 export function assembleAudit(args: {
   snapshot: FaultDomainSnapshot;
   snapshot_hash: string;
@@ -243,27 +296,33 @@ export function assembleAudit(args: {
   epochs: SnapshotEpoch[] | null;
   resets: LeafReset[] | null;
   drain_top_k: number;
+  /** per-leaf t-statistics (ADR-0046); present on non-epoch'd runs — activates the LINEAR scorer. */
+  magnitudeT?: Map<PathClassId, number> | null;
+  /** live window length (√T for the linear predictor); required with magnitudeT. */
+  ticks?: number;
 }): AuditRecord {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
   const surface = buildSurface(verdicts, q);
 
-  // Production cutover (ADR-0035): the localizer uses the magnitude scorer — each selected leaf's
-  // combined e-value threads in as evidence magnitude (ADR-0029), q₀-aware (ADR-0031), on the RAW
-  // accrued scale (ADR-0033: the operationally favourable low-δ band). On non-cross-optic fabrics
-  // this is ranking-equivalent to the binary scorer (default-preservation); on the cross-optic
-  // fabric it recovers cross-kind faults in the operating band (ADR-0031; high-δ bounded, ADR-0034).
-  const eByPc = new Map(verdicts.map((v) => [v.path_class_id, v.e_value]));
-  const magnitude = new Map(surface.selected_path_class_ids.map((pc) => [pc, eByPc.get(pc)!]));
-  const locOpts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0, magnitude };
+  // Production scorer (ADR-0046 cutover, superseding the ADR-0035 z-currency flip): non-epoch'd
+  // runs localize with the LINEAR t-statistic model — y = max(t, z(E)) per selected leaf (t
+  // carries unsaturated mean-shift magnitude; z(E) carries C/D-mode evidence on the same accrued
+  // scale), member model y ~ N(θ·w·√T, 1) over the fixed θ grid, null N(0,1) — q₀-free, with the
+  // virtual fleet-event candidate competing. Measured (ADR-0046): cross-kind recovery 4/4 across
+  // δ∈{3..32} (z: 0/4 at δ≥16), room Δ=2 attribution 4/4, C1 exact minimal set at δ=128.
+  // Epoch'd runs keep the ADR-0035 z path (recorded narrowing).
+  const locOpts = buildLocalizeOpts(surface, verdicts, epochs ? null : args.magnitudeT ?? null, args.ticks ?? 1);
   const loc = epochs
     ? localizeByEvidenceEpoch(epochs, verdicts, surface.selected_path_class_ids, locOpts)
     : localize(snapshot, surface.selected_path_class_ids, locOpts);
 
   // Drains act on the LATEST epoch's snapshot — the fabric as routed NOW (ADR-0018) — picking
   // targets by TIER then score (ADR-0023), one drain per resource. The v1 path is untouched
-  // (a single greedy list is already tier-ordered and resource-unique).
+  // (a single greedy list is already tier-ordered and resource-unique). The virtual fleet-event
+  // culprit (ADR-0046) is NEVER a drain target — a fleet-wide elevation has no route to drain.
   const k = args.drain_top_k;
-  const targets = epochs ? drainTargets(loc.culprits, k) : loc.culprits.slice(0, k);
+  const drainable = loc.culprits.filter((c) => c.resource_id !== FLEET_RESOURCE_ID);
+  const targets = epochs ? drainTargets(drainable, k) : drainable.slice(0, k);
   const drainSnap = epochs ? epochs[epochs.length - 1].snapshot : snapshot;
   const drain_actions: DrainAction[] = targets.map((c) => simulateDrain(drainSnap, c));
 

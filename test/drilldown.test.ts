@@ -82,5 +82,21 @@ test('the drill is deterministic and carries N1', () => {
   assert.equal(JSON.stringify(a), JSON.stringify(b), 'same seed ⇒ byte-identical report');
   assert.equal(a.correlational_not_causal, true);
   // N1 shape bind: no per-pair root-cause (or any undeclared) field can exist on the report.
-  assert.deepEqual(Object.keys(a).sort(), ['correlational_not_causal', 'examined', 'exposed', 'q', 'resource', 'selected', 'truncated']);
+  assert.deepEqual(Object.keys(a).sort(), ['correlational_not_causal', 'examined', 'exposed', 'q', 'resource', 'selected', 'truncated', 'truncation_order']);
+});
+
+test('EVIDENCE-ORDERED truncation (ADR-0049): the impacted pair is examined first, not lost past the id-order cap', () => {
+  // A panel drill exposes ALL C(64,2)=2016 pairs uniformly; with maxPairs=100 the id-order head
+  // is pair-0-1..pair-0-… — a fault impacting high-numbered ToRs (40, 63) lies beyond the cap and
+  // is silently unexamined under id order. Supplying fleet-level leaf evidence for tor-40/tor-63
+  // pulls pair-40-63 to the FRONT of the truncation sample (the ADR-0026 narrowing, closed).
+  const both = [{ resource_id: 'optic-40', delta: 6 }, { resource_id: 'optic-63', delta: 6 }];
+  const ev = new Map([['tor-40', 40], ['tor-63', 38]]);
+  const evidence = drillDown({ params: P, resource: 'panel-2', faults: both, telemetry: { seed: 5, ticks: 60 }, q: 0.05, maxPairs: 100, leafEvidence: ev });
+  assert.equal(evidence.truncation_order, 'evidence');
+  assert.ok(evidence.selected.some((s) => s.pair === 'pair-40-63'), `evidence-ordered drill examines and selects pair-40-63: [${evidence.selected.slice(0, 3).map((s) => s.pair)}]`);
+  // control: the historic id-order head never even examines it (the recorded narrowing this closes)
+  const idOrder = drillDown({ params: P, resource: 'panel-2', faults: both, telemetry: { seed: 5, ticks: 60 }, q: 0.05, maxPairs: 100 });
+  assert.equal(idOrder.truncation_order, 'id');
+  assert.ok(!idOrder.selected.some((s) => s.pair === 'pair-40-63'), 'id-order cap misses the impacted pair (the ADR-0026 narrowing, kept as the no-evidence fallback)');
 });

@@ -84,6 +84,13 @@ export interface Culprit {
    * stronger). Absent on single-epoch (no-reroute) runs.
    */
   localized_against_epoch?: number;
+  /**
+   * The culprit's identifiability ambiguity group (ADR-0047): sibling resources whose weighted
+   * incidence columns are PROPORTIONAL to this one's — indistinguishable from it by ANY scorer
+   * on this measurement design, whatever the telemetry says. Present only when non-empty; a
+   * WEAKER claim surfaced honestly (N1-friendly), never a finer one.
+   */
+  ambiguity_group?: readonly ResourceId[];
   /** v1 spec AC-5b / N1: the layer claims correlation, never hardware root cause. */
   correlational_not_causal: true;
 }

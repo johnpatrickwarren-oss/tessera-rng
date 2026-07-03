@@ -11,15 +11,15 @@ Each axis swept alone. **Detection** = any leaf selected (can RISE — noise man
 
 ### signal_noise (extra σ (raw))
 
-Attribution breakdown at: **0.25** extra σ (raw). Detection breakdown at: **never** (detection rarely falls — the failure mode is mis-attribution, not silence).
+Attribution breakdown at: **0.5** extra σ (raw). Detection breakdown at: **never** (detection rarely falls — the failure mode is mis-attribution, not silence).
 
 | intensity | detection | attribution | n |
 |---|---|---|---|
 | 0 | 100% | 100% | 32 |
 | 0.05 | 100% | 100% | 32 |
 | 0.1 | 100% | 100% | 32 |
-| 0.25 | 100% | 53% | 32 |
-| 0.5 | 100% | 0% | 32 |
+| 0.25 | 100% | 100% | 32 |
+| 0.5 | 100% | 81% | 32 |
 | 1 | 100% | 0% | 32 |
 | 2 | 100% | 0% | 32 |
 
@@ -33,19 +33,19 @@ Attribution breakdown at: **0.8** drop probability. Detection breakdown at: **ne
 | 0.1 | 100% | 100% | 32 |
 | 0.25 | 100% | 100% | 32 |
 | 0.5 | 100% | 100% | 32 |
-| 0.8 | 100% | 0% | 32 |
+| 0.8 | 100% | 94% | 32 |
 
 ### observation_delay (lag (ticks))
 
-Attribution breakdown at: **8** lag (ticks). Detection breakdown at: **never** (detection rarely falls — the failure mode is mis-attribution, not silence).
+Attribution breakdown at: **never (held across grid)**. Detection breakdown at: **never** (detection rarely falls — the failure mode is mis-attribution, not silence).
 
 | intensity | detection | attribution | n |
 |---|---|---|---|
 | 0 | 100% | 100% | 32 |
 | 1 | 100% | 100% | 32 |
 | 3 | 100% | 100% | 32 |
-| 8 | 100% | 75% | 32 |
-| 20 | 100% | 50% | 32 |
+| 8 | 100% | 100% | 32 |
+| 20 | 100% | 100% | 32 |
 
 ### aggregation_error (± weight frac)
 
@@ -64,4 +64,4 @@ Attribution breakdown at: **never (held across grid)**. Detection breakdown at: 
 | regime | detection | attribution | n |
 |---|---|---|---|
 | degraded_telemetry (noise 1σ + 25% missing) | 100% | 0% | 32 |
-| lossy_aggregation (50% missing + ±25% weight) | 100% | 94% | 32 |
+| lossy_aggregation (50% missing + ±25% weight) | 100% | 100% | 32 |

@@ -12,7 +12,9 @@
 export type PathClassId = string;
 export type ResourceId = string;
 
-/** Open RNG fault-domain taxonomy (v1 spec §3.3; `shuffle_panel`/`room` added in ADR-0015). */
+/** Open RNG fault-domain taxonomy (v1 spec §3.3; `shuffle_panel`/`room` added in ADR-0015;
+ *  `fleet_common_mode` is RESERVED for the solver's virtual fleet-event candidate (ADR-0046) —
+ *  it is not a declarable physical resource and operator snapshots must not use it. */
 export const RESOURCE_KINDS = [
   'optic',
   'passive_shuffler',
@@ -23,6 +25,7 @@ export const RESOURCE_KINDS = [
   'cooling_zone',
   'shuffle_panel',
   'room',
+  'fleet_common_mode',
 ] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 

@@ -28,10 +28,13 @@ follow, and Tessera-RNG addresses both:
    ToRs) — not an empirical FDR curve over many null regimes. See [`VALIDATION.md`](VALIDATION.md).
 2. **Localization** — turn "something shifted" into "this shared physical resource is the
    culprit" on a topology where **hop distance does not encode fault domain**. *Solved by new
-   math:* network tomography — a saturating leaky noisy-OR likelihood over a fault-domain
-   incidence hypergraph, built into a minimal explaining set by marginal-LLR greedy
-   construction. RNG's many edge-disjoint paths make the measurement matrix well-conditioned,
-   so the same path diversity that masks failures makes the inversion identifiable.
+   math:* network tomography — a linear-magnitude likelihood over a fault-domain incidence
+   hypergraph (per-leaf t-statistic evidence, y ~ N(θ·w·√T, 1), parameter-free null — ADR-0046),
+   built into a minimal explaining set by marginal-LLR greedy construction with a virtual
+   fleet-event candidate, plus a per-snapshot **identifiability certificate** (ADR-0047). RNG's
+   many edge-disjoint paths make the measurement matrix well-conditioned — provably a good
+   sparse-recovery design — so the same path diversity that masks failures makes the inversion
+   identifiable, and the certificate says exactly where it doesn't.
 
 ![RNG network observability intuition](design/rng-observability-intuition.svg)
 
@@ -51,11 +54,11 @@ synthetic raw telemetry            per-cell calibration            per-path-clas
  reconvergence epochs reroute                                               │
  traffic mid-stream)                                                        ▼
    simulated route-drain   ◀──  tomographic localization   ◀──  hierarchical combine + e-BH
-   (tiered drain targets,       (saturating noisy-OR mixture     FDR surface (which path-
-    one drain per resource)      LLR over weighted incidence;     classes are degraded; on
-                                 marginal-LLR set construction;   incidence change, e-process
-                                 per evidence epoch;              wealth resets are RECORDED
-                                 correlational-not-causal)        in the audit, never silent)
+   (tiered drain targets,       (linear-magnitude LLR over       FDR surface (which path-
+    one drain per resource;      weighted incidence + fleet-      classes are degraded; on
+    fleet events never drain)    event candidate; marginal-LLR    incidence change, e-process
+                                 set construction; per evidence   wealth resets are RECORDED
+                                 epoch; correlational-not-causal) in the audit, never silent)
 ```
 
 Everything is deterministic and replay-clean: the same incidence model + telemetry stream
@@ -97,15 +100,22 @@ skeleton plus many post-v1 rounds, one ADR per real decision (see [`design/adr/`
   e-values*. Empirically we show only that clean synthetic fabrics select nothing (4 trials per
   fabric, FP rate 0); that corroborates input validity in the synthetic null, it does not
   measure FDR across regimes ([`VALIDATION.md`](VALIDATION.md)).
-- **Localization** — the tomographic solver over **weighted (fractional) incidence**: an
-  exposure-saturating leaky noisy-OR mixture LLR (an extreme fault fires even a 1/64-diluted
-  leaf, and the model can say so), built into a minimal culprit set by **marginal-LLR greedy
-  construction** (each pick's posterior folds into per-leaf residuals; later candidates score
-  only what remains surprising). Localizes simultaneous cross-kind faults; on epoch'd runs,
-  drain targets are tiered so every evidence group's strongest culprit drains first. An
-  on-demand **ToR-pair drill-down** completes the story — fleet → fault domain → impacted
-  underlying pairs, FDR-controlled over the examined set, with truncation always reported.
-  100 % mutation score on the new math (recorded per round in the ADR trail).
+- **Localization** — the tomographic solver over **weighted (fractional) incidence**: a
+  **linear-magnitude member model** (ADR-0046 — per-leaf t-statistic evidence, y ~ N(θ·w·√T, 1),
+  fixed θ-grid mixture, a null with **no fleet-corruptible parameter**), built into a minimal
+  culprit set by **marginal-LLR greedy construction** (score by mixture, fold by ML refit;
+  rank-≥2 picks pay a look-elsewhere charge) with a **virtual fleet-event candidate** (a
+  genuinely uniform elevation is reported as such, never fabricated into a physical culprit —
+  and never drained). Cross-kind recovery holds across the FULL severity band δ∈{3..32} (the
+  old high-δ saturation is retired, ADR-0034→0046); an independent NN-LASSO solver cross-checks
+  the cover on every fixture (ADR-0048). Culprits carry their **identifiability ambiguity
+  group** when the measurement design cannot rank between siblings (ADR-0047). On epoch'd runs
+  (which keep the z-currency scorer — recorded narrowing) drain targets are tiered so every
+  evidence group's strongest culprit drains first. An on-demand **ToR-pair drill-down**
+  completes the story — fleet → fault domain → impacted underlying pairs, FDR-controlled over
+  the examined set, truncation always reported and **evidence-ordered** when fleet magnitudes
+  are supplied (ADR-0049). Mutation-checked per round in the ADR trail (ADR-0046 math: 90%,
+  survivors recorded as one benign-redundant gate cluster).
 - **Production-shaped fabrics** — the Spraypoint two-view fabric (per-ToR ∪ per-panel-pair
   aggregation views over the underlying ToR-pair traffic — the production fabric's ~460 K
   pairs deliberately exceed any per-pair leaf budget, which is exactly why the leaf is a view;

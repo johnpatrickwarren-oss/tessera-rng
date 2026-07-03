@@ -232,6 +232,63 @@ distributional assumption; measured E[L] = 1.018 ± 0.010, anytime false-alarm 0
 floor-amplitude power unchanged (99%). Cost published: oscillation floor stays 0.9; the sub-floor
 amp-0.7 knee drops 75%→25% (the invalid over-payment taken back). Raw path kept as the pinned-
 defect control; demo + coverage regenerated. **246 tests, gate PASS.**
+Linear magnitude member model (branch `round-cd-linear-magnitude`, **ADR-0046 ACCEPTED, production
+cutover**): the tomography member model becomes the exact Gaussian mean model on the t-statistic
+scale — per selected leaf y = max(t, z(E)) with t = max_j |Σ residual_j|/√T (unsaturated; the
+session keeps byte-identical running sums), member LR μ(y−m)−μ²/2 with μ = θ·w·√T over the fixed
+θ grid {¼..128} (1/θ prior), null y ~ N(0,1) — **q₀-FREE: both ADR-0034 root causes dissolve**
+(no scalar null to corrupt; nothing overflows). Marginal cover: score by mixture, fold by ML
+refit (Deepview post-selection-refit composition; a grid-quantized fold measurably admitted
+mop-up picks), rank-≥2 picks pay a ln R look-elsewhere charge (rank-1 exempt — e-BH already
+certified the evidence; charging it converted weak-but-correct attributions to abstentions,
+measured). A virtual `__fleet__` candidate (w=1 everywhere, kind `fleet_common_mode`, never
+drained) absorbs uniform fleet events structurally — safe for broad faults (quiet leaves cost
+the fleet μ²/2 the room doesn't pay; the ADR-0038 strip-regression cannot recur — nothing is
+stripped, models compete). **Measured: cross-kind recovery 4/4 at EVERY δ∈{3..32}** (z scorer:
+0/4 at δ≥16; common-mode's old ceiling was δ16) — **the ADR-0034 bounded limit and the ADR-0036
+payoff role are retired on the record**; C1 δ=128 exact minimal set (z gave wrong-kind rooms);
+room dilution attribution floor **3→2** (Δ=2: 0%→100%, and z's 2/4 included a wrong-room rank-1);
+zero floor regressions; sub-floor knee flips recorded honestly (optic Δ=1 attr 75→50, fiber Δ=1
+50→25, cov 0.2 50→0, osc 0.7 25→0). Epoch'd runs keep the z currency (recorded narrowing).
+Two design iterations forced by measurement recorded in the ADR (θ-grid low end; ML fold + charge).
+demo + coverage regenerated; keystones hold. **255 tests, gate PASS.**
+Identifiability certificate (same branch, **ADR-0047 ACCEPTED**): the N1 claim computed per
+snapshot — `src/identifiability.ts` groups resources by PROPORTIONAL weighted-incidence columns
+(indistinguishable by any scorer under the linear model; canonical unit-max signatures, O(E log E),
+paper-scale cheap) and flags uniform full-support columns as fleet-ambiguous. Surfaced twice:
+a coverage-matrix certificate section (measured: all three published fabrics are FULLY
+1-identifiable — the claim now rides on an artifact; the nRooms=1 degenerate worst case is caught
+by test, the Jupiter-OCS uniformly-striped lesson) and `Culprit.ambiguity_group` (names
+indistinguishable siblings — present only when non-empty, so published-fabric audits are
+byte-identical). k≥2 set identifiability + ambiguity-driven view design recorded as future work.
+Gate `no-god-module` loosened 21→22 on the record (domain.ts type contract, the admitted case a
+third time). **261 tests, gate PASS.**
+Sparse cross-check + envelope re-baseline (same branch, **ADR-0048 ACCEPTED**): (1) the suite
+gains an INDEPENDENT reference for the linear localizer — non-negative LASSO (projected
+coordinate descent, λ = √(2 ln R) universal threshold, no knob) on the same y ≈ √T·Wθ model;
+greedy and sparse agree on every fixture (cross-kind δ=16 support, room Δ=3 rank-1, clean empty)
+— test-side deliberately (a cross-check, not a second product ranking). (2) The ADR-0032
+degradation envelope was STALE (measured under the z scorer) — re-baselined: **the linear scorer
+moved the whole frontier** (noise attribution 0.25σ 53%→100%, 0.5σ 0%→81%; missingness 0.8
+0%→94%; observation-delay breakdown 8-ticks→never; joint lossy_aggregation 94%→100%; the extreme
+1σ+missing joint still 0%). **Round-H evidence columns NOT built on that measurement**
+(anti-gold-plating): their target regime is measured-moot; the ≥1σ fix stays live-calibration
+tracking. VALIDATION.md degradation row updated. **264 tests, gate PASS.**
+Drill evidence-ordering + resource-e-process probe (same branch, **ADR-0049 ACCEPTED**): (1) the
+ADR-0026 id-order truncation narrowing is CLOSED — `drillDown` accepts fleet-level `leafEvidence`
+and orders the truncation sample by endpoint-evidence (progressive tomography); bound by a test
+where the id-order cap misses `pair-40-63` and evidence-order selects it; absent evidence ⇒
+byte-identical id-order; report carries `truncation_order`. (2) Resource-directed matched-filter
+e-processes PROBED and NOT shipped: real sub-floor gains (room Δ=0.5 detection 0/4→4/4) but a
+measured sibling-aggregate confound (room-0 fault fires room-1's aggregate at E≈882 — overlapping
+domains share leaves) and an invalid informal null under cross-leaf dependence; recorded build
+conditions (calibrated aggregate nulls, escalation-tier semantics with the ADR-0047 ambiguity
+union). README brought current (linear scorer, fleet candidate, certificate, retired saturation).
+Recorded future work from the literature review, deliberately NOT built this pass: generator
+fault-model realism (CorrOpt step-dominant/loss-bucket/one-sided parameters — a validation-realism
+question in the ADR-0042 class), engine-side items (log-domain e-values = ADR-0034 fix B,
+aGRAPA/clipped betting, randomized e-BH, heavy-tail-robust increments, e-SR wealth recursion —
+each an engine extension-point conversation), EOP adoption (ADR-0043). **265 tests, gate PASS.**
 
 ## Built so far
 

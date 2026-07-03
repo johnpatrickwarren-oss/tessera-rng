@@ -14,6 +14,7 @@ import { runPipeline } from '../src/pipeline';
 import type { PipelineParams } from '../src/pipeline';
 import { generateFabric } from '../src/fabric';
 import { generateSpraypointFabric, DEFAULT_SPRAYPOINT, PAPER_SPRAYPOINT, viewOfLeaf } from '../src/spraypoint';
+import { identifiabilityCertificate } from '../src/identifiability';
 import { generateTelemetry } from '../src/telemetry';
 import { buildCalibration, standardizeAll } from '../src/calibration';
 import { detectAll, DEFAULT_DETECT } from '../src/detect';
@@ -123,6 +124,8 @@ export interface CoverageReport {
   /** realistic-regime FDR (ADR-0039 follow-up): aberration-laden calibration history, clean live —
    *  mean/sd absorbs the bursts (false positives), robust tosses them (0). The win robust earns. */
   realistic_regime: { trials: number; calib_ticks: number; live_ticks: number; mean_sd_false_positives: number; robust_false_positives: number };
+  /** identifiability certificate per published fabric (ADR-0047): the N1 claim as a computed artifact. */
+  identifiability: { fabric: string; resources: number; identifiable: number; ambiguity_groups: string[][]; fleet_ambiguous: string[] }[];
 }
 
 export interface SpraypointViewRow {
@@ -492,7 +495,28 @@ export async function computeCoverage(): Promise<CoverageReport> {
     scale_proof: await scaleProof(),
     clean: await cleanFalsePositives(),
     realistic_regime: await realisticRegime(),
+    identifiability: identifiabilitySection(),
   };
+}
+
+/** The ADR-0047 identifiability certificates for every published fabric — the measurement-design
+ *  claim, computed, not asserted. */
+function identifiabilitySection(): CoverageReport['identifiability'] {
+  const fabrics: Array<{ fabric: string; snap: ReturnType<typeof generateFabric> }> = [
+    { fabric: `generated:${SCENARIO_FABRIC.seed}`, snap: generateFabric(SCENARIO_FABRIC) },
+    { fabric: 'spraypoint-default', snap: generateSpraypointFabric(DEFAULT_SPRAYPOINT) },
+    { fabric: 'spraypoint-paper', snap: generateSpraypointFabric(PAPER_SPRAYPOINT) },
+  ];
+  return fabrics.map(({ fabric, snap }) => {
+    const cert = identifiabilityCertificate(snap);
+    return {
+      fabric,
+      resources: cert.resource_count,
+      identifiable: cert.identifiable_count,
+      ambiguity_groups: cert.ambiguity_groups.map((g) => [...g]),
+      fleet_ambiguous: [...cert.fleet_ambiguous],
+    };
+  });
 }
 
 function pct(x: number): string {
@@ -666,7 +690,29 @@ export function renderMarkdown(rep: CoverageReport): string {
   L.push('This is the win robust calibration earns: on realistic (aberration-laden) history the mean/sd');
   L.push('null FALSE-POSITIVES where robust stays clean — the inverse of the clean-synthetic floor cost.');
   L.push('');
+  L.push('## Identifiability certificate (ADR-0047) — the N1 claim, computed');
+  L.push('');
+  L.push('Two resources with PROPORTIONAL weighted incidence columns are indistinguishable by ANY');
+  L.push('scorer on this measurement design (the linear model absorbs scale into θ); a UNIFORM');
+  L.push('full-support column is indistinguishable from a fleet-wide event. This section computes the');
+  L.push('k=1 (single-fault) certificate per published fabric — set-vs-set (k ≥ 2) identifiability is');
+  L.push('combinatorial and deliberately not claimed. Culprits inside an ambiguity group carry it in');
+  L.push('the audit (`ambiguity_group`) — the claim is weakened where the design cannot support it.');
+  L.push('');
+  renderIdentifiability(L, rep);
+  L.push('');
   return L.join('\n');
+}
+
+/** The ADR-0047 certificate table (extracted: complexity cap). */
+function renderIdentifiability(L: string[], rep: CoverageReport): void {
+  L.push('| fabric | resources | 1-identifiable | ambiguity groups | fleet-ambiguous |');
+  L.push('|---|---|---|---|---|');
+  for (const row of rep.identifiability) {
+    const groups = row.ambiguity_groups.length === 0 ? 'none' : row.ambiguity_groups.map((g) => `{${g.join(', ')}}`).join('; ');
+    const fleet = row.fleet_ambiguous.length === 0 ? 'none' : row.fleet_ambiguous.join(', ');
+    L.push(`| ${row.fabric} | ${row.resources} | ${row.identifiable} | ${groups} | ${fleet} |`);
+  }
 }
 
 async function main(): Promise<void> {

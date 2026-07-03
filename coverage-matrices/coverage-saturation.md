@@ -26,7 +26,7 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | resource kind | Δ (mean shift) | detection | attribution |
 |---|---|---|---|
 | optic | 0.5 | 0% (0/4) | 0% (0/4) |
-| optic | 1 | 75% (3/4) | 75% (3/4) |
+| optic | 1 | 75% (3/4) | 50% (2/4) |
 | optic | 2 | 100% (4/4) | 100% (4/4) |
 | optic | 3 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 0.5 | 0% (0/4) | 0% (0/4) |
@@ -34,7 +34,7 @@ coarse, honest estimator, grid-resolution-limited (reported at grid points, not 
 | passive_shuffler | 2 | 100% (4/4) | 100% (4/4) |
 | passive_shuffler | 3 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 0.5 | 0% (0/4) | 0% (0/4) |
-| fiber_bundle | 1 | 75% (3/4) | 50% (2/4) |
+| fiber_bundle | 1 | 75% (3/4) | 25% (1/4) |
 | fiber_bundle | 2 | 100% (4/4) | 100% (4/4) |
 | fiber_bundle | 3 | 100% (4/4) | 100% (4/4) |
 | power_zone | 0.5 | 0% (0/4) | 0% (0/4) |
@@ -111,7 +111,7 @@ always carries (ADR-0039).
 |---|---|---|
 | optic | 2 | 2 |
 | shuffle_panel | 2 | 2 |
-| room | 2 | 3 |
+| room | 2 | 2 |
 
 | fault kind | Δ | detection | attribution |
 |---|---|---|---|
@@ -127,7 +127,7 @@ always carries (ADR-0039).
 | shuffle_panel | 4 | 100% (4/4) | 100% (4/4) |
 | room | 0.5 | 0% (0/4) | 0% (0/4) |
 | room | 1 | 75% (3/4) | 0% (0/4) |
-| room | 2 | 100% (4/4) | 0% (0/4) |
+| room | 2 | 100% (4/4) | 100% (4/4) |
 | room | 3 | 100% (4/4) | 100% (4/4) |
 | room | 4 | 100% (4/4) | 100% (4/4) |
 
@@ -188,3 +188,18 @@ week-spanning live window. Over 4 trials (336-tick null, 168-tick live):
 
 This is the win robust calibration earns: on realistic (aberration-laden) history the mean/sd
 null FALSE-POSITIVES where robust stays clean — the inverse of the clean-synthetic floor cost.
+
+## Identifiability certificate (ADR-0047) — the N1 claim, computed
+
+Two resources with PROPORTIONAL weighted incidence columns are indistinguishable by ANY
+scorer on this measurement design (the linear model absorbs scale into θ); a UNIFORM
+full-support column is indistinguishable from a fleet-wide event. This section computes the
+k=1 (single-fault) certificate per published fabric — set-vs-set (k ≥ 2) identifiability is
+combinatorial and deliberately not claimed. Culprits inside an ambiguity group carry it in
+the audit (`ambiguity_group`) — the claim is weakened where the design cannot support it.
+
+| fabric | resources | 1-identifiable | ambiguity groups | fleet-ambiguous |
+|---|---|---|---|---|
+| generated:132472394 | 98 | 98 | none | none |
+| spraypoint-default | 76 | 76 | none | none |
+| spraypoint-paper | 996 | 996 | none | none |
