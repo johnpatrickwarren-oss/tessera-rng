@@ -61,6 +61,25 @@ power axis (ADR-0054) shows what dispersion costs on the faulted side (wrong-har
 attribution) and that the remedy restores it. The license rule across the set: FDR-bearing
 readings require gate-passing AND monitor-ok; everything else is Mode-A evidence/ranking.
 
+## Tier 2.5 — real-telemetry replay (real data, non-RNG domain — ADR-0057)
+
+The first real numbers in the repo: the ADR-0051/0053 estimator/gate/monitor run VERBATIM on
+a real concurrent population (a 1 Hz per-core telemetry fleet: 14 entities × 2 shared
+signals, incl. a real parked subpopulation and a 14-day-outage natural drift experiment).
+`coverage-matrices/real-replay.{json,md}`; committed downsampled fixtures recompute in CI.
+
+**Measured: real ς̂ = 1.127 (full) / 0.381 (parked cores excluded) — 9–19× / 3–6× past the
+synthetic boundary (a scale comparison; the boundary's own location at this n/p/cadence is
+unmeasured); the gate withholds on both. Every live window reads `drifted` (even the
+adjacent hour); the across-outage reboot is the largest drift in all four arms on the
+monitor's binding statistic; the +3-days same-hour window drifts less than the adjacent
+different-hour one in 3 of 4 arms (consistent with a diurnal fingerprint — single windows,
+the perLeafScale/active reversal disclosed).** Honest scope: real but NOT network
+telemetry; no RNG-domain or FDR claim; adapter-level standardization from the production
+engine primitives (recorded narrowing — no byte-anchor across the domain gap). The reading:
+the validity machinery did its job on first contact with reality, and per-entity + HoD
+calibration graduates from remedy to precondition for any real deployment.
+
 ## Tier 3 — external validation (NOT done — deliberately out of v1 scope)
 
 Nothing in this tier is validated. These are the claims a reader might *assume* and must not.
@@ -69,7 +88,7 @@ Nothing in this tier is validated. These are the claims a reader might *assume* 
 |---|---|---|
 | The five-signal telemetry contract is realistic | **NOT validated** | `p99_latency`, `retransmit_rate`, `loss_rate`, `ecmp_imbalance`, `path_completion` are *assumed* to be observable, stable, attributable at the path-class/view level, and timely. ADR-0013: the RNG paper validates topology/routing/path-diversity/scale but **not operations/telemetry** — the contract is *unfalsified, not validated*. Localization quality rides on this. |
 | Localization works on a real RNG fabric | **NOT validated** | No real fabric, routing/controller state, or incident labels have been replayed. |
-| FDR does not blow up in real null regimes | **NOT validated** | Only synthetic nulls measured (above). ADR-0050 bounds the *synthetic* tolerance — selection validity dies at realized per-leaf scale dispersion ς ≈ 0.1, well inside plausible real-fabric heterogeneity — but real-fabric ς itself is unmeasured. The ς̂ gate is now BUILT (ADR-0051): the real-fabric posture is *run it on the real calibration window first*; `passing: false` (or a floor-dominated estimate) means Mode-A evidence/ranking only. The gate's threshold and the per-leaf correction's drift cliff (ADR-0052) are synthetic results — neither is real-fabric-validated. |
+| FDR does not blow up in real null regimes | **NOT validated** | Only synthetic nulls measured for the FDR pipeline itself. ADR-0050 bounds the *synthetic* tolerance (validity dies at realized ς ≈ 0.1); ADR-0057's Tier-2.5 replay measured a REAL (non-network) population at ς̂ ≈ 0.38–1.13 — far past the boundary, gate correctly withholding — so the presumption for real fabrics is now measured-adverse, not merely suspected. The ς̂ gate is now BUILT (ADR-0051): the real-fabric posture is *run it on the real calibration window first*; `passing: false` (or a floor-dominated estimate) means Mode-A evidence/ranking only. The gate's threshold and the per-leaf correction's drift cliff (ADR-0052) are synthetic results — neither is real-fabric-validated. |
 | Drain recommendations are operationally sound RCA | **NOT validated** | Drain is *simulated*; no real data-plane wiring, no operator-in-the-loop evaluation. |
 
 **Status: out of scope for v1, by design.** The honest posture is to name this tier, not to

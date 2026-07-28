@@ -1,0 +1,163 @@
+{
+  "generated_for": "mac-mini 1 Hz powermetrics per-core population (14 cores × {mhz, res})",
+  "operating_point": "T=3600 (1 h @ 1 Hz; sampling floor ≈ 0.0083 at p=2 — an iid-residual approximation; 1 Hz autocorrelation surviving the AR(≤6) whitening may understate it, immaterial at ς̂ ≈ 0.4–1.1); cal 2026-07-08, lives: adjacent hour / +3 days / across the 14-day outage+reboot; thresholds ς*=0.05 (shared) and 0.07 (perLeafScale arm); shrinkage λ = ς̂²/raw² (ADR-0052 formula, adapter-applied)",
+  "dispersion": [
+    {
+      "population": "full (14 cores)",
+      "n_entities": 14,
+      "sigma_hat": 1.1272777331928985,
+      "sigma_hat_tail": 0.6874491652854426,
+      "raw_log_sd": 1.127308543164846,
+      "sampling_floor_sd": 0.008334490981923114,
+      "gate_passing": false
+    },
+    {
+      "population": "active (9 cores)",
+      "n_entities": 9,
+      "sigma_hat": 0.38135291995209725,
+      "sigma_hat_tail": 0.45402159400255493,
+      "raw_log_sd": 0.3814439844799213,
+      "sampling_floor_sd": 0.008334490981923114,
+      "gate_passing": false
+    }
+  ],
+  "monitors": [
+    {
+      "window": "adjacent hour (07-08 h≈12)",
+      "arm": "shared",
+      "population": "full",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 1.2524515526488538,
+      "sigma_hat_tail": 0.9980316862673925,
+      "threshold": 0.05
+    },
+    {
+      "window": "adjacent hour (07-08 h≈12)",
+      "arm": "shared",
+      "population": "active",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.6018905237324566,
+      "sigma_hat_tail": 0.4411248191013095,
+      "threshold": 0.05
+    },
+    {
+      "window": "adjacent hour (07-08 h≈12)",
+      "arm": "perLeafScale",
+      "population": "full",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.3268724641684578,
+      "sigma_hat_tail": 0.37124364284023453,
+      "threshold": 0.07
+    },
+    {
+      "window": "adjacent hour (07-08 h≈12)",
+      "arm": "perLeafScale",
+      "population": "active",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.09905022657667704,
+      "sigma_hat_tail": 0.1505282845870038,
+      "threshold": 0.07
+    },
+    {
+      "window": "+3 days (07-11, same hour)",
+      "arm": "shared",
+      "population": "full",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.9116524520539336,
+      "sigma_hat_tail": 0.7919536870075011,
+      "threshold": 0.05
+    },
+    {
+      "window": "+3 days (07-11, same hour)",
+      "arm": "shared",
+      "population": "active",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.43448488013118713,
+      "sigma_hat_tail": 0.339453089863015,
+      "threshold": 0.05
+    },
+    {
+      "window": "+3 days (07-11, same hour)",
+      "arm": "perLeafScale",
+      "population": "full",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.2288987776117639,
+      "sigma_hat_tail": 0.19576335711141968,
+      "threshold": 0.07
+    },
+    {
+      "window": "+3 days (07-11, same hour)",
+      "arm": "perLeafScale",
+      "population": "active",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.19641437991474306,
+      "sigma_hat_tail": 0.14178988066499462,
+      "threshold": 0.07
+    },
+    {
+      "window": "ACROSS OUTAGE (07-28, post-reboot)",
+      "arm": "shared",
+      "population": "full",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 1.4681272236547365,
+      "sigma_hat_tail": 1.0644002188117574,
+      "threshold": 0.05
+    },
+    {
+      "window": "ACROSS OUTAGE (07-28, post-reboot)",
+      "arm": "shared",
+      "population": "active",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 1.17457720758085,
+      "sigma_hat_tail": 0.7952104788901495,
+      "threshold": 0.05
+    },
+    {
+      "window": "ACROSS OUTAGE (07-28, post-reboot)",
+      "arm": "perLeafScale",
+      "population": "full",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.5134747665194462,
+      "sigma_hat_tail": 0.4432117973828399,
+      "threshold": 0.07
+    },
+    {
+      "window": "ACROSS OUTAGE (07-28, post-reboot)",
+      "arm": "perLeafScale",
+      "population": "active",
+      "status": "drifted",
+      "pattern": "fleet",
+      "sigma_hat": 0.19099764339632433,
+      "sigma_hat_tail": 0.4403702683913637,
+      "threshold": 0.07
+    }
+  ],
+  "fixture": [
+    {
+      "window": "cal 07-08 (downsampled)",
+      "n_entities": 14,
+      "ticks": 360,
+      "sigma_hat": 1.1442646715065758,
+      "sigma_hat_tail": 1.6085450532176349
+    },
+    {
+      "window": "across-outage 07-28 (downsampled) — under the cal substrate",
+      "n_entities": 14,
+      "ticks": 360,
+      "sigma_hat": 0.451239649639479,
+      "sigma_hat_tail": 0.844960751767414
+    }
+  ],
+  "caveat": "Tier 2.5: REAL telemetry, NOT network telemetry — no RNG-domain claim (no incidence model, nothing localization-related runs) and no FDR claim. The objects under test (estimateDispersion, dispersionGate, driftMonitor, the ADR-0052 shrinkage formula) run VERBATIM from src/; leaf standardization is adapter-level from the SAME engine primitives the production substrate consumes (robustLocation + MAD, pooled BIC fitArP / prewhitenAr) — no byte-anchor to runPipeline is possible across the domain gap (recorded narrowing). Full-rate rows are NOT CI-reproducible (day files live off-repo: the mini ~/concord/telemetry/data/); the fixture rows are (committed, downsampled 1-in-10)."
+}

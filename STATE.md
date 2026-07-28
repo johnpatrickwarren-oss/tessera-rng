@@ -396,6 +396,24 @@ module); clean tsc, 299/299, gate PASS. Hygiene motive: v0.6.2-pre carries the c
 nuisanceRobustBF envelope (the known-false by-construction claim retired — un-imported here,
 but the pinned tree should not assert it). No surface adoption (ADR-0037-class decisions
 untouched). **299 tests, gate PASS.**
+Real-telemetry replay (same branch, **ADR-0057 ACCEPTED**, operator-ratified — recommendation 1
+of the improvement ranking): the FIRST real numbers in the repo. Adapter over the GPU sibling's
+mac-mini 1Hz per-core population (14 cores × {mhz,res}; real parked subpopulation; the 14-day
+outage+reboot as a natural drift experiment); the ADR-0051/0053 objects run VERBATIM (Tier-2.5:
+real but non-network telemetry; no RNG-domain/FDR claim; adapter standardization from the
+production engine primitives — recorded narrowing, no byte-anchor across the domain gap).
+**Measured: real ς̂ = 1.127 full / 0.381 active — 9–19×/3–6× past the ADR-0050 boundary
+(scale comparison, not a transfer claim — the boundary's location at n=14/p=2/1Hz is
+unmeasured); the gate WITHHOLDS on both** (the program's premise validated on first contact
+with reality); every live window `drifted` incl. the adjacent hour; the across-outage reboot
+= the largest drift in all four arms on the binding max(ς̂, tail ς̂) statistic; +3d
+same-hour < adjacent different-hour in 3 of 4 arms (consistent with a diurnal fingerprint,
+n=1/cell, the pls/active reversal disclosed — an HoD-aware real adapter + repeated windows
+recorded as the next replay step). perLeafScale absorbs most static
+structure (0.602→0.099 active adjacent) but nothing reaches `ok` — per-entity + HoD
+calibration graduates from remedy to PRECONDITION for real deployments. Committed downsampled
+fixtures recompute in CI (ς̂ 1.144 vs full-rate 1.127); full-rate day files off-repo (the mini
+~/concord/telemetry/data/ + local scratch). **302 tests, gate PASS.**
 
 ## Built so far
 

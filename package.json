@@ -30,7 +30,9 @@
     "predrift-monitor": "tsc -p tsconfig.test.json",
     "drift-monitor": "node tools/drift-monitor.js",
     "preheterogeneity-power": "tsc -p tsconfig.test.json",
-    "heterogeneity-power": "node tools/heterogeneity-power.js"
+    "heterogeneity-power": "node tools/heterogeneity-power.js",
+    "prereal-replay": "tsc -p tsconfig.test.json",
+    "real-replay": "node tools/real-replay.js"
   },
   "dependencies": {
     "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.3-pre"
