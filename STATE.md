@@ -355,6 +355,34 @@ context): NOT-MERGE-READY verdict — 1 CRITICAL (robust-only gate launders tail
 not implementing its spec) — ALL folded in above (pair gate + kill-test; no-detector
 correction; two-mechanism record; out-of-sample AC-3), re-verified by the same reviewer.
 **291 tests, gate PASS.**
+Runtime drift monitor (same branch, **ADR-0053 ACCEPTED**): the ADR-0052 cliff's DETECTOR —
+`src/drift-monitor.ts`: the ADR-0051 estimator on the LIVE window; three-state verdict
+(ok / drifted / **indeterminate** when the window's sampling floor ≥ threshold — an early audit
+never reads ok) + pattern attribution (fleet = recalibrate-now vs tail = subpopulation;
+tail/genuine-variance-fault ambiguity recorded). Opt-in `driftMonitor` on pipeline+session
+(byte-identical absent; session via running Σx/Σx² — bit-for-bit ≡ batch; epochs throw).
+License rule: gate passing AND monitor ok. **Measured** (`pnpm drift-monitor`): cliff detection
+100% at driftMix ≥ 0.5 (where false sel ≥ 3.13), 13% at the mild 0.25 cell (0.25 false sel),
+100% ok fresh; shared-calibration regime consistent with the gate; subpopulation fault →
+drifted/tail, single-leaf fault → ok (correctly ignored); T=40@ς*=0.05 → 100% indeterminate.
+KEY amendment (measured): the monitor's clean baseline is REGIME-DEPENDENT — fresh perLeafScale
+corrections carry ≈0.03–0.06 out-of-sample correction noise (envelope-set max 0.0594 — the
+first "≤0.055" bracket was a 4-seed-subset artifact, cold-eye-caught and corrected), so the
+perLeafScale operating threshold is 0.07 (`PER_LEAF_SCALE_MONITOR_THRESHOLD`, ≈0.011 margin
+each side), not the shared-calibration 0.05.
+ADR-0052's "no detector" posture superseded.
+ς power axis (same branch, **ADR-0054 ACCEPTED**): closes ADR-0050's "not a power study"
+caveat — faulted runs (δ=3 optic, n=16/cell) across ς × {shared, perLeafScale}, composition
+anchor-bound BYTE-FOR-BYTE to runPipeline at the inert cell. **Measured: detection never fails
+(100% everywhere); attribution survives ς=0.1 (100% despite 5.4 false co-sel — real localizer
+margin) then collapses to 0% at ς=0.2 — toward WRONG PHYSICAL RESOURCES, never the fleet
+candidate (0%)** — the worst operational failure (confident wrong-hardware paging), dispersion
+now a measured cause of the ADR-0032 silent-mis-attribution shape. perLeafScale restores 100%
+attribution / 1 selection / 0 false co-sel at every tested ς. Metric correction on the record:
+material-incidence threshold w ≥ 0.5 (crossOptic ε-edges degenerated the false-co-sel metric —
+caught during build). Gate loosening on the record: no-god-module 25→27 (two new tools'
+type-only domain imports, 7th/8th instances — the operator structural-exemption flag stands
+with added force). **299 tests, gate PASS.**
 
 ## Built so far
 
