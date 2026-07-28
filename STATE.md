@@ -414,6 +414,25 @@ structure (0.602→0.099 active adjacent) but nothing reaches `ok` — per-entit
 calibration graduates from remedy to PRECONDITION for real deployments. Committed downsampled
 fixtures recompute in CI (ς̂ 1.144 vs full-rate 1.127); full-rate day files off-repo (the mini
 ~/concord/telemetry/data/ + local scratch). **302 tests, gate PASS.**
+Tail triage (same branch, **ADR-0058 ACCEPTED**, operator-ratified — recommendation 2): the
+monitor→tomography BRIDGE closing the ADR-0053 recorded tail ambiguity (subpopulation drift vs
+genuine localized fault — the fork where the operator action differs: recalibrate vs page).
+`src/tail-triage.ts`: one-sided z tail membership on the ADR-0051 ℓ statistic (inflation only —
+deflation, e.g. parked entities, is not the false-selection direction) → the ADR-0046 linear
+localizer on the scale-deviation currency (RECORDED REINTERPRETATION: z accrues as √T, fleet
+candidate competes; a triage heuristic, not a calibrated variance-fault model) → verdict
+fault-shaped (top physical culprit MATERIALLY incident, w ≥ 0.5, on ≥0.6 of the tail) /
+drift-shaped / no-tail / indeterminate (|tail|<2 — incidence cannot discriminate a singleton),
+carrying culprits + coverage fraction (evidence, not just a label). **Measured (test-bound):
+clean separation both directions at equal magnitude** — resource-aligned pair →
+fault-shaped/r-hot coverage 1.0; incidence-scattered trio → drift-shaped; the exact ADR-0053
+AC-4 ambiguous fixture resolves end-to-end to fault-shaped/r-hot; **and on DEFAULT_SPRAYPOINT
+full-support incidence (AC-1b)** — where the draft's weight-blind provenance coverage INVERTED
+the verdict (scattered → fault-shaped 1.0; cold-eye CRITICAL, demonstrated) — material-weight
+coverage reads drift-shaped. Also folded: inert q0 deleted (magnitudeT path is parameter-free);
+samplingFloorVar = the ONE floor definition shared by estimator/monitor/triage. Standalone (no
+pipeline threading — recorded follow-up once an operator flow consumes it). **307 tests, gate
+PASS.**
 
 ## Built so far
 

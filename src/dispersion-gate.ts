@@ -88,6 +88,13 @@ export function logScaleFromSums(sum: readonly number[], sumsq: readonly number[
   return sumLog / p;
 }
 
+/** The ς=0 estimation-noise variance of a per-leaf pooled log-scale: 1/(2(T−1)p). The ONE
+ *  definition — the estimator, the monitor and the tail triage all derive from here so a floor
+ *  correction can never desynchronize them (ADR-0058 cold-eye finding 5). */
+export function samplingFloorVar(ticks: number, signals: number): number {
+  return 1 / (2 * (ticks - 1) * signals);
+}
+
 /** The population statistics over per-leaf log-scales — shared by the matrix and sums paths.
  *  `logScales` must be in sorted-leaf order (mean/sd float summation is order-sensitive). */
 export function dispersionFromLogScales(logScales: readonly number[], ticks: number, signals: number): DispersionEstimate {
@@ -95,7 +102,7 @@ export function dispersionFromLogScales(logScales: readonly number[], ticks: num
   const rawLogSd = 1.4826 * median(logScales.map((x) => Math.abs(x - med)));
   const mean = logScales.reduce((a, b) => a + b, 0) / logScales.length;
   const rawSdTail = Math.sqrt(logScales.reduce((a, x) => a + (x - mean) ** 2, 0) / (logScales.length - 1));
-  const floorVar = 1 / (2 * (ticks - 1) * signals);
+  const floorVar = samplingFloorVar(ticks, signals);
   return {
     sigma_hat: Math.sqrt(Math.max(0, rawLogSd * rawLogSd - floorVar)),
     sigma_hat_tail: Math.sqrt(Math.max(0, rawSdTail * rawSdTail - floorVar)),
@@ -108,17 +115,20 @@ export function dispersionFromLogScales(logScales: readonly number[], ticks: num
   };
 }
 
-export function estimateDispersion(residuals: ReadonlyMap<PathClassId, ReadonlyArray<readonly number[]>>): DispersionEstimate {
-  if (residuals.size < 2) throw new RangeError(`estimateDispersion needs ≥ 2 leaves — got ${residuals.size}`);
-  const logScales: number[] = [];
+/** Per-leaf pooled log-scales over a residual map, in SORTED leaf order (the shared front half
+ *  of estimateDispersion and tail triage, ADR-0058). Validates dimensions; returns (ticks,
+ *  signals) so callers form the matching sampling floor. */
+export function pooledLogScales(residuals: ReadonlyMap<PathClassId, ReadonlyArray<readonly number[]>>): { ells: Map<PathClassId, number>; ticks: number; signals: number } {
+  if (residuals.size < 2) throw new RangeError(`pooledLogScales needs ≥ 2 leaves — got ${residuals.size}`);
+  const ells = new Map<PathClassId, number>();
   let ticks = 0;
   let signals = 0;
   for (const pc of [...residuals.keys()].sort()) {
     const m = residuals.get(pc)!;
     const T = m.length;
     const p = m[0]?.length ?? 0;
-    if (T < 3 || p < 1) throw new RangeError(`estimateDispersion: leaf ${pc} has a degenerate residual matrix (${T}×${p})`);
-    if (ticks !== 0 && (T !== ticks || p !== signals)) throw new RangeError(`estimateDispersion: ragged residual map (leaf ${pc} is ${T}×${p}, expected ${ticks}×${signals}) — the sampling floor would be wrong`);
+    if (T < 3 || p < 1) throw new RangeError(`pooledLogScales: leaf ${pc} has a degenerate residual matrix (${T}×${p})`);
+    if (ticks !== 0 && (T !== ticks || p !== signals)) throw new RangeError(`pooledLogScales: ragged residual map (leaf ${pc} is ${T}×${p}, expected ${ticks}×${signals}) — the sampling floor would be wrong`);
     ticks = T;
     signals = p;
     const sum = new Array<number>(p).fill(0);
@@ -129,9 +139,14 @@ export function estimateDispersion(residuals: ReadonlyMap<PathClassId, ReadonlyA
         sumsq[j] += m[t][j] * m[t][j];
       }
     }
-    logScales.push(logScaleFromSums(sum, sumsq, T));
+    ells.set(pc, logScaleFromSums(sum, sumsq, T));
   }
-  return dispersionFromLogScales(logScales, ticks, signals);
+  return { ells, ticks, signals };
+}
+
+export function estimateDispersion(residuals: ReadonlyMap<PathClassId, ReadonlyArray<readonly number[]>>): DispersionEstimate {
+  const { ells, ticks, signals } = pooledLogScales(residuals);
+  return dispersionFromLogScales([...ells.values()], ticks, signals);
 }
 
 /** Apply the threshold to the PAIR. Pure and total: the verdict is data, the caller decides
