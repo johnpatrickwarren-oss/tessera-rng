@@ -25,7 +25,9 @@ follow, and Tessera-RNG addresses both:
    path-class signals are correlated through shared fiber/optic/shuffle hardware). The guarantee
    is a *theorem, conditional on valid per-path-class e-values*; what we measure is narrower —
    that clean synthetic fabrics select nothing, including at paper scale (1,456 leaves / 960
-   ToRs) — not an empirical FDR curve over many null regimes. See [`VALIDATION.md`](VALIDATION.md).
+   ToRs) — not an empirical FDR curve over many null regimes, and the condition's measured
+   boundary is early: per-leaf scale dispersion beyond realized ς ≈ 0.1 breaks selection
+   validity (ADR-0050). See [`VALIDATION.md`](VALIDATION.md).
 2. **Localization** — turn "something shifted" into "this shared physical resource is the
    culprit" on a topology where **hop distance does not encode fault domain**. *Solved by new
    math:* network tomography — a linear-magnitude likelihood over a fault-domain incidence
@@ -99,7 +101,14 @@ skeleton plus many post-v1 rounds, one ADR per real decision (see [`design/adr/`
   dependence the shared hardware creates — a theorem *conditional on valid per-path-class
   e-values*. Empirically we show only that clean synthetic fabrics select nothing (4 trials per
   fabric, FP rate 0); that corroborates input validity in the synthetic null, it does not
-  measure FDR across regimes ([`VALIDATION.md`](VALIDATION.md)).
+  measure FDR across regimes ([`VALIDATION.md`](VALIDATION.md)). The condition's measured
+  boundary (ADR-0050): correlated null noise alone breaks nothing (the theorem covers it), but
+  **per-leaf noise-scale dispersion the shared calibration can't represent kills selection
+  validity early** — on the default fabric, false selections onset at realized ς ≈ 0.12 (≈5%
+  of the fleet, every run) and saturate ≈17% by ς ≈ 0.35; at ς = 0.2 the failing fraction
+  (≈12–14%) is scale-constant to 6112 leaves. A ς̂ dispersion gate is the recorded
+  prerequisite for any real-fabric FDR claim
+  ([`coverage-matrices/heterogeneity-boundary.md`](coverage-matrices/heterogeneity-boundary.md)).
 - **Localization** — the tomographic solver over **weighted (fractional) incidence**: a
   **linear-magnitude member model** (ADR-0046 — per-leaf t-statistic evidence, y ~ N(θ·w·√T, 1),
   fixed θ-grid mixture, a null with **no fleet-corruptible parameter**), built into a minimal

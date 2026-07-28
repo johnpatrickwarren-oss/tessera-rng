@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-07-02._
+`design/adr/`. Last updated: 2026-07-27._
 
 ## What this is
 
@@ -289,6 +289,35 @@ fault-model realism (CorrOpt step-dominant/loss-bucket/one-sided parameters — 
 question in the ADR-0042 class), engine-side items (log-domain e-values = ADR-0034 fix B,
 aGRAPA/clipped betting, randomized e-BH, heavy-tail-robust increments, e-SR wealth recursion —
 each an engine extension-point conversation), EOP adoption (ADR-0043). **265 tests, gate PASS.**
+Heterogeneity boundary study (branch `adr-0050-heterogeneity-boundary`, **ADR-0050 ACCEPTED**):
+measured where the SELECTION layer breaks under the two null mechanisms every prior run excluded
+by construction (cross-project provenance: GPU-Tessera A2-disp/N12 — mechanisms transfer, numbers
+don't). Two opt-in generator knobs (byte-identical when absent, main RNG stream untouched):
+per-leaf noise-scale dispersion `heterogeneity {sigmaLogSd(=ς), driftMix, driftSeed}` and
+correlated-null per-resource AR(1) factors `latentNull {load, phi}` riding the weighted incidence
+(throws with epochs). Null-run sweep tool (`tools/heterogeneity.ts` → `pnpm heterogeneity` →
+`coverage-matrices/heterogeneity-boundary.{json,md}`), inert-anchored bit-for-bit to
+`runPipeline`'s surface. **Findings: (1) the dispersion boundary is sharp and EARLY** — 0 false
+selections at realized ς≈0.06, 5.25/run (≈5% of fleet, 100% of runs) at ς≈0.12, saturating ≈17%
+by ς≈0.35 — far below the GPU sibling's 0.31; **(2) POSITIVE: correlated null alone breaks
+nothing** (load ≤ 0.5 ⇒ 0 false selections — e-BH's arbitrary-dependence theorem + shared-cell
+absorption doing their jobs); **(3) dispersion dominates the joint and `commonModeRobust` does
+NOT mitigate it** (per-leaf scale ≠ shared level — the fleet-level control is the wrong tool);
+**(4) scale: no N12 cascade but no protection either** — a constant ς-determined FRACTION
+(≈12–14.5%) false-selects, linear to 6112 leaves (~173/window at paper scale); clean stays 0 at
+every size (ADR-0025 re-confirmed 4× beyond paper scale); **(5) drift adds no effect** — counts
+track REALIZED draw dispersion (the apparent driftMix trend was a draw artifact, caught; realized-ς
+column now published per cell, DISCIPLINES §7). Recorded follow-ups (each its own ADR): per-leaf
+scale calibration (ADR-0006-style pooling), a ς̂ dispersion GATE (abstain above the measured
+floor) — **real-fabric work (N2) should not proceed ahead of the gate** — and an ADR-0032 ς
+power axis. Gate loosening on the record: no-god-module 22→23 (tools/heterogeneity.ts type-only
+domain import — the admitted zero-behavior-contract case, 4th instance). Cold-eye reviewed
+(fresh context): MERGE-READY, 0 critical/major, 5 minor + 5 observations — all folded in (number-
+language precision; the pooled-fallback calibration-regime disclosure at the 109-leaf operating
+point; a misattributed test retitled; AC-5 freshness extended to the D axis + .md≡.json bind; the
+drift no-mismatch CONTROL published: 9.38 vs 9.88 at identical realized ς — the reviewer also
+independently confirmed nothing calibrated is per-leaf and byte-identity vs compiled main).
+**276 tests, gate PASS.**
 
 ## Built so far
 

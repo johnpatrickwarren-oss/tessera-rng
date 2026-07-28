@@ -1,0 +1,369 @@
+{
+  "generated_for": "spraypoint:64x10x2 (H/L/D); crossOptic-off ramp 109→6112 (N — recorded design choice, see tool header)",
+  "operating_point": {
+    "ticks": 60,
+    "q": 0.05,
+    "calibration": "robust per-cell, coupled window, seed ⊕ 0xca11b (production defaults)",
+    "calibration_regime_note": "At 109 leaves / 60 ticks every calibration cell is under ROBUST_MIN_CELL_SAMPLES (≈36 < 50) and falls back to the pooled-global baseline — the H/L/D axes (and the 109-leaf N rows) were measured under a SINGLE global scale. At ≥ 360 leaves all cells have genuine per-cell resolution, so the N ramp crosses a calibration-regime boundary between 109 and 360 leaves; the fraction dip across the ramp (≈14.5% → ≈12%) may partly reflect that regime change. The mechanism claim is unaffected (pooled-global is a fortiori shared-not-per-leaf)."
+  },
+  "axes": {
+    "dispersion": {
+      "grid": [
+        0,
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.5
+      ],
+      "cells": [
+        {
+          "intensity": 0,
+          "n": 8,
+          "mean_false_selections": 0,
+          "max_false_selections": 0,
+          "frac_runs_selecting": 0
+        },
+        {
+          "intensity": 0.05,
+          "n": 8,
+          "mean_false_selections": 0,
+          "max_false_selections": 0,
+          "frac_runs_selecting": 0,
+          "realized_dispersion": 0.05875010279552009
+        },
+        {
+          "intensity": 0.1,
+          "n": 8,
+          "mean_false_selections": 5.25,
+          "max_false_selections": 8,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.11750020559104016
+        },
+        {
+          "intensity": 0.2,
+          "n": 8,
+          "mean_false_selections": 15.5,
+          "max_false_selections": 17,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.23500041118208026
+        },
+        {
+          "intensity": 0.3,
+          "n": 8,
+          "mean_false_selections": 18.875,
+          "max_false_selections": 20,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.3525006167731204
+        },
+        {
+          "intensity": 0.5,
+          "n": 8,
+          "mean_false_selections": 19,
+          "max_false_selections": 20,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.5875010279552005
+        }
+      ],
+      "onset": 0.1
+    },
+    "latent": {
+      "grid": [
+        0,
+        0.1,
+        0.25,
+        0.5
+      ],
+      "arms": [
+        {
+          "commonModeRobust": false,
+          "cells": [
+            {
+              "intensity": 0,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            },
+            {
+              "intensity": 0.1,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            },
+            {
+              "intensity": 0.25,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            },
+            {
+              "intensity": 0.5,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            }
+          ]
+        },
+        {
+          "commonModeRobust": true,
+          "cells": [
+            {
+              "intensity": 0,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            },
+            {
+              "intensity": 0.1,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            },
+            {
+              "intensity": 0.25,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            },
+            {
+              "intensity": 0.5,
+              "n": 8,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0
+            }
+          ]
+        }
+      ],
+      "joint": [
+        {
+          "commonModeRobust": false,
+          "cell": {
+            "intensity": 0.2,
+            "n": 8,
+            "mean_false_selections": 15.5,
+            "max_false_selections": 17,
+            "frac_runs_selecting": 1
+          }
+        },
+        {
+          "commonModeRobust": true,
+          "cell": {
+            "intensity": 0.2,
+            "n": 8,
+            "mean_false_selections": 15.5,
+            "max_false_selections": 16,
+            "frac_runs_selecting": 1
+          }
+        }
+      ]
+    },
+    "scale": {
+      "regimes": [
+        {
+          "regime": "clean",
+          "cells": [
+            {
+              "intensity": 109,
+              "n": 5,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0,
+              "leaves": 109
+            },
+            {
+              "intensity": 360,
+              "n": 5,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0,
+              "leaves": 360
+            },
+            {
+              "intensity": 1456,
+              "n": 5,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0,
+              "leaves": 1456
+            },
+            {
+              "intensity": 3176,
+              "n": 3,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0,
+              "leaves": 3176,
+              "n_note": "reduced seed block"
+            },
+            {
+              "intensity": 6112,
+              "n": 3,
+              "mean_false_selections": 0,
+              "max_false_selections": 0,
+              "frac_runs_selecting": 0,
+              "leaves": 6112,
+              "n_note": "reduced seed block"
+            }
+          ]
+        },
+        {
+          "regime": "dispersion (ς=0.2)",
+          "cells": [
+            {
+              "intensity": 109,
+              "n": 5,
+              "mean_false_selections": 15.8,
+              "max_false_selections": 17,
+              "frac_runs_selecting": 1,
+              "leaves": 109
+            },
+            {
+              "intensity": 360,
+              "n": 5,
+              "mean_false_selections": 48.2,
+              "max_false_selections": 51,
+              "frac_runs_selecting": 1,
+              "leaves": 360
+            },
+            {
+              "intensity": 1456,
+              "n": 5,
+              "mean_false_selections": 173,
+              "max_false_selections": 182,
+              "frac_runs_selecting": 1,
+              "leaves": 1456
+            },
+            {
+              "intensity": 3176,
+              "n": 3,
+              "mean_false_selections": 378.3333333333333,
+              "max_false_selections": 381,
+              "frac_runs_selecting": 1,
+              "leaves": 3176,
+              "n_note": "reduced seed block"
+            },
+            {
+              "intensity": 6112,
+              "n": 3,
+              "mean_false_selections": 755,
+              "max_false_selections": 762,
+              "frac_runs_selecting": 1,
+              "leaves": 6112,
+              "n_note": "reduced seed block"
+            }
+          ]
+        },
+        {
+          "regime": "dispersion+latent (ς=0.2, load=0.25)",
+          "cells": [
+            {
+              "intensity": 109,
+              "n": 5,
+              "mean_false_selections": 16,
+              "max_false_selections": 17,
+              "frac_runs_selecting": 1,
+              "leaves": 109
+            },
+            {
+              "intensity": 360,
+              "n": 5,
+              "mean_false_selections": 49.6,
+              "max_false_selections": 52,
+              "frac_runs_selecting": 1,
+              "leaves": 360
+            },
+            {
+              "intensity": 1456,
+              "n": 5,
+              "mean_false_selections": 175.4,
+              "max_false_selections": 179,
+              "frac_runs_selecting": 1,
+              "leaves": 1456
+            },
+            {
+              "intensity": 3176,
+              "n": 3,
+              "mean_false_selections": 381,
+              "max_false_selections": 386,
+              "frac_runs_selecting": 1,
+              "leaves": 3176,
+              "n_note": "reduced seed block"
+            },
+            {
+              "intensity": 6112,
+              "n": 3,
+              "mean_false_selections": 770.6666666666666,
+              "max_false_selections": 780,
+              "frac_runs_selecting": 1,
+              "leaves": 6112,
+              "n_note": "reduced seed block"
+            }
+          ]
+        }
+      ]
+    },
+    "drift": {
+      "grid": [
+        0,
+        0.25,
+        0.5,
+        1
+      ],
+      "cells": [
+        {
+          "intensity": 0,
+          "n": 8,
+          "mean_false_selections": 15.5,
+          "max_false_selections": 17,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.23500041118208026
+        },
+        {
+          "intensity": 0.25,
+          "n": 8,
+          "mean_false_selections": 15.375,
+          "max_false_selections": 16,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.2341435068933014
+        },
+        {
+          "intensity": 0.5,
+          "n": 8,
+          "mean_false_selections": 13.875,
+          "max_false_selections": 15,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.2258482244054286
+        },
+        {
+          "intensity": 1,
+          "n": 8,
+          "mean_false_selections": 9.875,
+          "max_false_selections": 12,
+          "frac_runs_selecting": 1,
+          "realized_dispersion": 0.17294174734510065
+        }
+      ],
+      "control": {
+        "intensity": 1,
+        "n": 8,
+        "mean_false_selections": 9.375,
+        "max_false_selections": 12,
+        "frac_runs_selecting": 1,
+        "realized_dispersion": 0.17294174734510065
+      }
+    }
+  },
+  "truncations": [
+    "scale axis at 3176 leaves: n=3 seeds (runtime), vs n=5 below",
+    "scale axis at 6112 leaves: n=3 seeds (runtime), vs n=5 below"
+  ],
+  "caveat": "NULL runs only: every selection is a FALSE selection (no degradations injected). Synthetic Tier-2 (VALIDATION.md): maps where the synthetic model breaks under null mechanisms previously absent by construction (ADR-0050); NOT a real-fabric claim, and NOT a power measurement (ADR-0032 owns fault sensitivity). e-BH FDR control is a theorem conditional on valid per-leaf e-values — these axes measure where that condition fails, not a defect in e-BH."
+}

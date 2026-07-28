@@ -20,6 +20,8 @@
     "coverage": "node tools/coverage.js",
     "predegradation": "tsc -p tsconfig.test.json",
     "degradation": "node tools/degradation.js",
+    "preheterogeneity": "tsc -p tsconfig.test.json",
+    "heterogeneity": "node tools/heterogeneity.js",
     "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json"
   },
   "dependencies": {
