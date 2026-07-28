@@ -33,7 +33,7 @@
     "heterogeneity-power": "node tools/heterogeneity-power.js"
   },
   "dependencies": {
-    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.0-pre"
+    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.3-pre"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -389,6 +389,13 @@ the three zero-behavior contracts (domain 27 / signals 10 / verdict 10) exempted
 the threshold DROPS 27→10 (one above the behavioral max: calibration 9) — a behavioral module
 at 11 importers now blocks, restoring the eroded protection; exemption conditions recorded in
 the intent (behavior in an exempted file ⇒ ADR). Both directions mechanics-verified.
+Engine bump (same branch, **ADR-0056 ACCEPTED**, operator-ratified, pin-only): git-dep
+v0.6.0-pre → v0.6.3-pre (resolved e1d0c90, verified ≡ the tag commit — the ADR-0030 gotcha
+checked). Consumption surface verified unchanged across the gap (only a comment in an imported
+module); clean tsc, 299/299, gate PASS. Hygiene motive: v0.6.2-pre carries the corrected
+nuisanceRobustBF envelope (the known-false by-construction claim retired — un-imported here,
+but the pinned tree should not assert it). No surface adoption (ADR-0037-class decisions
+untouched). **299 tests, gate PASS.**
 
 ## Built so far
 
