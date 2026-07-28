@@ -22,7 +22,11 @@
     "degradation": "node tools/degradation.js",
     "preheterogeneity": "tsc -p tsconfig.test.json",
     "heterogeneity": "node tools/heterogeneity.js",
-    "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json"
+    "predispersion-gate": "tsc -p tsconfig.test.json",
+    "dispersion-gate": "node tools/dispersion-gate.js",
+    "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json",
+    "preper-leaf-scale": "tsc -p tsconfig.test.json",
+    "per-leaf-scale": "node tools/per-leaf-scale.js"
   },
   "dependencies": {
     "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.0-pre"

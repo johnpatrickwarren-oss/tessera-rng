@@ -44,7 +44,7 @@ import { computeFaultDomainHash } from './fault-domain-source';
 import { SIGNALS } from './signals';
 import type { SignalVector } from './signals';
 import type { FaultDomainSnapshot, PathClassId } from './domain';
-import type { AuditRecord, DetectorResult, PathClassVerdict } from './verdict';
+import type { AuditDispersionGate, AuditRecord, DetectorResult, PathClassVerdict } from './verdict';
 
 export interface SessionParams {
   snapshot: FaultDomainSnapshot;
@@ -64,6 +64,13 @@ export interface SessionParams {
    * setting (`calibrateForSession` with the matching flag) or the detectors are mis-calibrated.
    */
   commonModeRobust?: boolean;
+  /**
+   * The ADR-0051 ς̂ dispersion-gate field, computed by `calibrateForSession` (the shared prelude —
+   * calibration is batch per ADR-0027, so the estimate exists once, at open). When supplied it is
+   * stamped verbatim on every audit this session emits — identical to the batch pipeline's field
+   * by construction. Absent ⇒ no field (byte-identity).
+   */
+  dispersionGate?: AuditDispersionGate;
 }
 
 interface DetectorStates {
@@ -209,6 +216,7 @@ export class IncrementalSession {
       drain_top_k: this.p.drain_top_k ?? 1,
       magnitudeT,
       ticks: this.t,
+      dispersion_gate: this.p.dispersionGate ?? null,
     });
   }
 

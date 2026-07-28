@@ -23,7 +23,8 @@ import type { LocalizeOpts } from './tomography';
 import { simulateDrain } from './drain';
 import { makeEpochs, segmentPlan } from './epoch';
 import type { LeafReset, RerouteEvent, SnapshotEpoch } from './epoch';
-import type { AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
+import { estimateDispersion, dispersionGate, DEFAULT_SIGMA_THRESHOLD } from './dispersion-gate';
+import type { AuditDispersionGate, AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
 import type { PathClassId } from './domain';
 
 export interface PipelineParams {
@@ -75,6 +76,15 @@ export interface PipelineParams {
    * unchanged.
    */
   calibrationTicks?: number;
+  /**
+   * The ς̂ dispersion gate (ADR-0051), OPT-IN (default OFF — absent keeps every audit
+   * byte-identical). When set, the ADR-0050 validity precondition (per-leaf scale dispersion
+   * below the measured boundary) is ESTIMATED from the calibration residuals the detector
+   * context was built from, and the audit gains a `dispersion_gate` field. `passing: false`
+   * withholds the FDR-controlled READING of the selection set — it never suppresses the
+   * selections themselves (claim, not alarm). `true` uses DEFAULT_SIGMA_THRESHOLD.
+   */
+  dispersionGate?: boolean | { threshold?: number };
 }
 
 /**
@@ -185,7 +195,15 @@ export function calibrateForSession(
   // aberration gap; ≈ mean/sd on clean history; clean-fabric FDR stays 0 via the higher robust
   // min-cell-samples). Set false to opt out (the pre-robust mean/sd null).
   robustCalibration = true,
-): { calibration: ReturnType<typeof buildCalibration>; ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> } } {
+  // The ς̂ dispersion gate (ADR-0051), computed HERE — from the same calibration residuals the
+  // detector context is built from — so the batch pipeline and the incremental session stamp an
+  // identical field by construction (the shared-prelude property, ADR-0027).
+  dispersionGateOpt: boolean | { threshold?: number } = false,
+): {
+  calibration: ReturnType<typeof buildCalibration>;
+  ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> };
+  dispersionGate?: AuditDispersionGate;
+} {
   const calibRaw = generateTelemetry(snapshot, {
     seed: telemetry.seed ^ 0xca11b,
     ticks: telemetry.ticks,
@@ -198,7 +216,11 @@ export function calibrateForSession(
   const calibResiduals = commonModeRobust ? stripCommonMode(standardizeAll(calibRaw.series, calibration)) : standardizeAll(calibRaw.series, calibration);
   const familyCCell = makeFamilyCCellFromCovariance(estimateBaselineCovariance(calibResiduals).sigma, detect.alphaC);
   const familyDCells = estimateFamilyDNull(calibResiduals);
-  return { calibration, ctx: { familyCCell, familyDCells } };
+  if (!dispersionGateOpt) return { calibration, ctx: { familyCCell, familyDCells } };
+  const threshold = typeof dispersionGateOpt === 'object' && dispersionGateOpt.threshold !== undefined ? dispersionGateOpt.threshold : DEFAULT_SIGMA_THRESHOLD;
+  const est = estimateDispersion(calibResiduals);
+  const verdict = dispersionGate(est, threshold);
+  return { calibration, ctx: { familyCCell, familyDCells }, dispersionGate: { ...verdict, raw_log_sd: est.raw_log_sd, raw_log_sd_tail: est.raw_log_sd_tail, sampling_floor_sd: est.sampling_floor_sd, n_leaves: est.n_leaves, ticks: est.ticks, signals: est.signals } };
 }
 
 export async function runPipeline(params: PipelineParams): Promise<AuditRecord> {
@@ -212,7 +234,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Decoupled null depth (telemetry-realism): calibrate on a clean window of `calibrationTicks`
   // (default = the live length), so a deep robust null can back a short live detection window.
   const calibTel = params.calibrationTicks ? { ...params.telemetry, ticks: params.calibrationTicks } : params.telemetry;
-  const { calibration, ctx } = calibrateForSession(snapshot, calibTel, detect, cmRobust, params.robustCalibration ?? true);
+  const { calibration, ctx, dispersionGate: gateField } = calibrateForSession(snapshot, calibTel, detect, cmRobust, params.robustCalibration ?? true, params.dispersionGate ?? false);
   const { familyCCell, familyDCells } = ctx;
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
@@ -239,6 +261,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     // t-over-which-segment interacts with ADR-0018 grouping; recorded narrowing).
     magnitudeT: epochs ? null : leafTStats(residuals),
     ticks: params.telemetry.ticks,
+    dispersion_gate: gateField ?? null,
   });
 }
 
@@ -300,6 +323,8 @@ export function assembleAudit(args: {
   magnitudeT?: Map<PathClassId, number> | null;
   /** live window length (√T for the linear predictor); required with magnitudeT. */
   ticks?: number;
+  /** the ADR-0051 gate field; null/absent ⇒ no field on the audit (byte-identity). */
+  dispersion_gate?: AuditDispersionGate | null;
 }): AuditRecord {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
   const surface = buildSurface(verdicts, q);
@@ -342,5 +367,6 @@ export function assembleAudit(args: {
           eprocess_resets: resets ?? [],
         }
       : {}),
+    ...(args.dispersion_gate ? { dispersion_gate: args.dispersion_gate } : {}),
   };
 }

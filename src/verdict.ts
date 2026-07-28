@@ -133,4 +133,30 @@ export interface AuditRecord {
    * its verdict `segments`, never silently discarded. Absent on no-reroute runs.
    */
   eprocess_resets?: readonly { path_class_id: PathClassId; at_tick: number; epoch_index: number }[];
+  /**
+   * The ς̂ dispersion gate (ADR-0051), OPT-IN — absent unless the run asked for it (byte-identity).
+   * `passing: false` means the FDR-controlled READING of `selected_path_class_ids` is withheld
+   * (the ADR-0050 validity precondition is measurably violated); the selections themselves are
+   * unchanged — evidence/ranking survives, the claim does not. Estimate fields published so a
+   * floor-dominated short-window ς̂ is visible as such.
+   */
+  dispersion_gate?: AuditDispersionGate;
+}
+
+/** Flat merge of the ADR-0051 gate verdict + estimate (kept import-free — this file is the
+ *  zero-behavior type contract). Field meanings: src/dispersion-gate.ts. */
+export interface AuditDispersionGate {
+  passing: boolean;
+  sigma_hat: number;
+  /** tail-sensitive companion (plain-sd, debiased) — the gate binds on max(sigma_hat, this);
+   *  robust-only would launder tail-contaminated fleets (ADR-0051 cold-eye correction). */
+  sigma_hat_tail: number;
+  threshold: number;
+  margin: number;
+  raw_log_sd: number;
+  raw_log_sd_tail: number;
+  sampling_floor_sd: number;
+  n_leaves: number;
+  ticks: number;
+  signals: number;
 }
