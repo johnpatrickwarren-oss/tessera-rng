@@ -26,7 +26,11 @@
     "dispersion-gate": "node tools/dispersion-gate.js",
     "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json",
     "preper-leaf-scale": "tsc -p tsconfig.test.json",
-    "per-leaf-scale": "node tools/per-leaf-scale.js"
+    "per-leaf-scale": "node tools/per-leaf-scale.js",
+    "predrift-monitor": "tsc -p tsconfig.test.json",
+    "drift-monitor": "node tools/drift-monitor.js",
+    "preheterogeneity-power": "tsc -p tsconfig.test.json",
+    "heterogeneity-power": "node tools/heterogeneity-power.js"
   },
   "dependencies": {
     "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.0-pre"

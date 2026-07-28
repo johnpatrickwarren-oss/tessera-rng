@@ -72,33 +72,25 @@ const median = (xs: readonly number[]): number => {
  * approximation (imperfect whitening, cross-signal correlation) — validated empirically at ς=0
  * (test/dispersion-gate.test.ts), not assumed.
  */
-export function estimateDispersion(residuals: ReadonlyMap<PathClassId, ReadonlyArray<readonly number[]>>): DispersionEstimate {
-  if (residuals.size < 2) throw new RangeError(`estimateDispersion needs ≥ 2 leaves — got ${residuals.size}`);
-  const logScales: number[] = [];
-  let ticks = 0;
-  let signals = 0;
-  for (const pc of [...residuals.keys()].sort()) {
-    const m = residuals.get(pc)!;
-    const T = m.length;
-    const p = m[0]?.length ?? 0;
-    if (T < 3 || p < 1) throw new RangeError(`estimateDispersion: leaf ${pc} has a degenerate residual matrix (${T}×${p})`);
-    if (ticks !== 0 && (T !== ticks || p !== signals)) throw new RangeError(`estimateDispersion: ragged residual map (leaf ${pc} is ${T}×${p}, expected ${ticks}×${signals}) — the sampling floor would be wrong`);
-    ticks = T;
-    signals = p;
-    let sumLog = 0;
-    for (let j = 0; j < p; j++) {
-      let s = 0;
-      let sq = 0;
-      for (let t = 0; t < T; t++) {
-        s += m[t][j];
-        sq += m[t][j] * m[t][j];
-      }
-      const mean = s / T;
-      const varJ = Math.max(sq / T - mean * mean, 1e-12) * (T / (T - 1));
-      sumLog += 0.5 * Math.log(varJ);
-    }
-    logScales.push(sumLog / p);
+/**
+ * Per-leaf pooled log-scale from per-signal running sums (Σx, Σx²) over T ticks — the SESSION
+ * path (ADR-0053): a session accumulating these in per-tick order produces the exact floats the
+ * matrix path produces, so batch ≡ incremental holds bit-for-bit (bound by test).
+ */
+export function logScaleFromSums(sum: readonly number[], sumsq: readonly number[], T: number): number {
+  const p = sum.length;
+  let sumLog = 0;
+  for (let j = 0; j < p; j++) {
+    const mean = sum[j] / T;
+    const varJ = Math.max(sumsq[j] / T - mean * mean, 1e-12) * (T / (T - 1));
+    sumLog += 0.5 * Math.log(varJ);
   }
+  return sumLog / p;
+}
+
+/** The population statistics over per-leaf log-scales — shared by the matrix and sums paths.
+ *  `logScales` must be in sorted-leaf order (mean/sd float summation is order-sensitive). */
+export function dispersionFromLogScales(logScales: readonly number[], ticks: number, signals: number): DispersionEstimate {
   const med = median(logScales);
   const rawLogSd = 1.4826 * median(logScales.map((x) => Math.abs(x - med)));
   const mean = logScales.reduce((a, b) => a + b, 0) / logScales.length;
@@ -114,6 +106,32 @@ export function estimateDispersion(residuals: ReadonlyMap<PathClassId, ReadonlyA
     ticks,
     signals,
   };
+}
+
+export function estimateDispersion(residuals: ReadonlyMap<PathClassId, ReadonlyArray<readonly number[]>>): DispersionEstimate {
+  if (residuals.size < 2) throw new RangeError(`estimateDispersion needs ≥ 2 leaves — got ${residuals.size}`);
+  const logScales: number[] = [];
+  let ticks = 0;
+  let signals = 0;
+  for (const pc of [...residuals.keys()].sort()) {
+    const m = residuals.get(pc)!;
+    const T = m.length;
+    const p = m[0]?.length ?? 0;
+    if (T < 3 || p < 1) throw new RangeError(`estimateDispersion: leaf ${pc} has a degenerate residual matrix (${T}×${p})`);
+    if (ticks !== 0 && (T !== ticks || p !== signals)) throw new RangeError(`estimateDispersion: ragged residual map (leaf ${pc} is ${T}×${p}, expected ${ticks}×${signals}) — the sampling floor would be wrong`);
+    ticks = T;
+    signals = p;
+    const sum = new Array<number>(p).fill(0);
+    const sumsq = new Array<number>(p).fill(0);
+    for (let t = 0; t < T; t++) {
+      for (let j = 0; j < p; j++) {
+        sum[j] += m[t][j];
+        sumsq[j] += m[t][j] * m[t][j];
+      }
+    }
+    logScales.push(logScaleFromSums(sum, sumsq, T));
+  }
+  return dispersionFromLogScales(logScales, ticks, signals);
 }
 
 /** Apply the threshold to the PAIR. Pure and total: the verdict is data, the caller decides

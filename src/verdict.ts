@@ -141,6 +141,27 @@ export interface AuditRecord {
    * floor-dominated short-window ς̂ is visible as such.
    */
   dispersion_gate?: AuditDispersionGate;
+  /**
+   * The runtime drift monitor (ADR-0053), OPT-IN — absent unless the run asked for it
+   * (byte-identity). The ADR-0051 estimator on the LIVE window: `drifted` withholds the
+   * FDR-controlled reading (the ADR-0052 cliff's detector); `indeterminate` means the window
+   * is too short to verify the precondition (also withholds — visibly distinct from
+   * `drifted` so the operator knows to wait, not recalibrate). Selections never suppressed.
+   */
+  drift_monitor?: AuditDriftMonitor;
+}
+
+/** Flat ADR-0053 monitor verdict (import-free — this file is the zero-behavior type
+ *  contract). Field meanings: src/drift-monitor.ts. */
+export interface AuditDriftMonitor {
+  status: 'ok' | 'drifted' | 'indeterminate';
+  pattern: 'fleet' | 'tail' | null;
+  sigma_hat: number;
+  sigma_hat_tail: number;
+  threshold: number;
+  sampling_floor_sd: number;
+  ticks: number;
+  n_leaves: number;
 }
 
 /** Flat merge of the ADR-0051 gate verdict + estimate (kept import-free — this file is the

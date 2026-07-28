@@ -32,6 +32,8 @@ import {
 import type { FamilyCPerCell } from '@johnpatrickwarren-oss/deploysignal-engine/types/families/c';
 import { freshStreamStandardizer, standardizeTick } from './calibration';
 import { stripCommonModeTick } from './common-mode';
+import { logScaleFromSums, dispersionFromLogScales, DEFAULT_SIGMA_THRESHOLD } from './dispersion-gate';
+import { driftMonitor, degenerateDriftVerdict } from './drift-monitor';
 import type { CalibrationSubstrate, StreamStandardizer } from './calibration';
 import { DEFAULT_DETECT, combineSegmentRuns } from './detect';
 import type { DetectParams, DetectorContext, SegmentSpec } from './detect';
@@ -71,6 +73,14 @@ export interface SessionParams {
    * by construction. Absent ⇒ no field (byte-identity).
    */
   dispersionGate?: AuditDispersionGate;
+  /**
+   * The runtime drift monitor (ADR-0053), OPT-IN: `audit()` computes the ADR-0051 estimator on
+   * the live window from per-leaf running sums (Σx, Σx² — accumulated in the same per-tick
+   * order as the batch column sums, so the stamped field is bit-for-bit the batch pipeline's on
+   * the same inputs). Non-epoch'd sessions only (reroutes throw at open — recorded narrowing).
+   * At t < 3 the verdict is the degenerate `indeterminate` (no variance estimate exists).
+   */
+  driftMonitor?: boolean | { threshold?: number };
 }
 
 interface DetectorStates {
@@ -87,6 +97,8 @@ interface LeafState {
   /** per-signal running residual sums (ADR-0046) — the t-statistic numerator, accumulated in the
    *  same per-tick order as the batch path's column sums (byte-equality). */
   residSums: number[];
+  /** per-signal running Σx² (ADR-0053) — the drift monitor's variance numerator, same order. */
+  residSumsqs: number[];
   /** completed epoch segments: the segment's verdict + its spec (ADR-0018 bookkeeping). */
   doneRuns: PathClassVerdict[];
   doneSegs: SegmentSpec[];
@@ -105,6 +117,18 @@ function freshDetectors(ctx: DetectorContext): DetectorStates {
     dStates: d ? d.map((cell) => (cell ? freshSpectralStream() : null)) : null,
     dBufs: d ? d.map(() => []) : null,
   };
+}
+
+/** ADR-0053 open-time validation. Recorded narrowings: epoch resets fragment per-leaf live
+ *  windows (the running sums would silently span segments, wrong floor); and a 1-leaf
+ *  population has no cross-leaf dispersion — the batch estimator throws, and without the guard
+ *  the sums path divides by (n−1)=0 and NaN reads as 'ok' (cold-eye finding 2). */
+function validateDriftMonitorParams(params: SessionParams): void {
+  if (!params.driftMonitor) return;
+  if (params.reroutes?.length) throw new RangeError('driftMonitor with reroutes is unsupported (ADR-0053 recorded narrowing)');
+  if (params.snapshot.path_classes.length < 2) {
+    throw new RangeError(`driftMonitor needs ≥ 2 leaves — got ${params.snapshot.path_classes.length} (ADR-0053; parity with estimateDispersion)`);
+  }
 }
 
 export class IncrementalSession {
@@ -134,6 +158,7 @@ export class IncrementalSession {
         throw new RangeError(`reroute at_tick must be a positive integer — got ${ev.at_tick}`);
       }
     }
+    validateDriftMonitorParams(params);
     this.epochs = params.reroutes?.length ? makeEpochs(params.snapshot, params.reroutes) : null;
     this.hash = computeFaultDomainHash(params.snapshot);
     const resetsByLeaf = new Map<PathClassId, Map<number, number>>();
@@ -150,6 +175,7 @@ export class IncrementalSession {
         std: freshStreamStandardizer(params.calibration),
         det: freshDetectors(this.ctx),
         residSums: SIGNALS.map(() => 0),
+        residSumsqs: SIGNALS.map(() => 0),
         doneRuns: [],
         doneSegs: [],
         segStart: 0,
@@ -186,7 +212,10 @@ export class IncrementalSession {
     for (const [pc, ls] of this.leaves) {
       const resid = residByLeaf.get(pc)!;
       this.updateDetectors(ls.det, resid);
-      for (let i = 0; i < SIGNALS.length; i++) ls.residSums[i] += resid[i];
+      for (let i = 0; i < SIGNALS.length; i++) {
+        ls.residSums[i] += resid[i];
+        ls.residSumsqs[i] += resid[i] * resid[i];
+      }
     }
     this.t += 1;
   }
@@ -217,7 +246,23 @@ export class IncrementalSession {
       magnitudeT,
       ticks: this.t,
       dispersion_gate: this.p.dispersionGate ?? null,
+      drift_monitor: this.driftMonitorField(),
     });
+  }
+
+  /** ADR-0053: the live-window monitor from the running sums — bit-for-bit the batch value at
+   *  the same tick (same per-signal accumulation order, shared formula path, sorted leaves). */
+  private driftMonitorField(): ReturnType<typeof driftMonitor> | null {
+    if (!this.p.driftMonitor) return null;
+    const thr = typeof this.p.driftMonitor === 'object' && this.p.driftMonitor.threshold !== undefined ? this.p.driftMonitor.threshold : DEFAULT_SIGMA_THRESHOLD;
+    if (this.t < 3) return degenerateDriftVerdict(thr, this.t, this.leaves.size);
+    const logScales = [...this.leaves.keys()]
+      .sort()
+      .map((pc) => {
+        const ls = this.leaves.get(pc)!;
+        return logScaleFromSums(ls.residSums, ls.residSumsqs, this.t);
+      });
+    return driftMonitor(dispersionFromLogScales(logScales, this.t, SIGNALS.length), thr);
   }
 
   /** ADR-0018 wealth reset at an incidence-change boundary: finalize the segment, fresh states. */

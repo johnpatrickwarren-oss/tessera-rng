@@ -1,0 +1,127 @@
+{
+  "generated_for": "spraypoint:64x10x2",
+  "operating_point": "T=60; thresholds: shared-calibration default ς*=0.05 (clean-fabric ς̂ ≈ 0.009), perLeafScale regime 0.07 (fresh-correction noise ≈0.03–0.06, max 0.0594 on this seed set — measured, regime-dependent)",
+  "cliff": [
+    {
+      "label": "driftMix 0",
+      "threshold": 0.07,
+      "ok_rate": 1,
+      "drifted_rate": 0,
+      "indeterminate_rate": 0,
+      "fleet_rate": 0,
+      "mean_sigma_hat": 0.04162439499210681,
+      "mean_sigma_hat_tail": 0.04209706931364511,
+      "mean_false_selections": 0,
+      "n": 8
+    },
+    {
+      "label": "driftMix 0.25",
+      "threshold": 0.07,
+      "ok_rate": 0.875,
+      "drifted_rate": 0.125,
+      "indeterminate_rate": 0,
+      "fleet_rate": 0.125,
+      "mean_sigma_hat": 0.05861505081024849,
+      "mean_sigma_hat_tail": 0.056664969292223775,
+      "mean_false_selections": 0.25,
+      "n": 8
+    },
+    {
+      "label": "driftMix 0.5",
+      "threshold": 0.07,
+      "ok_rate": 0,
+      "drifted_rate": 1,
+      "indeterminate_rate": 0,
+      "fleet_rate": 1,
+      "mean_sigma_hat": 0.09367196363959024,
+      "mean_sigma_hat_tail": 0.0909298945228091,
+      "mean_false_selections": 3.125,
+      "n": 8
+    },
+    {
+      "label": "driftMix 1",
+      "threshold": 0.07,
+      "ok_rate": 0,
+      "drifted_rate": 1,
+      "indeterminate_rate": 0,
+      "fleet_rate": 1,
+      "mean_sigma_hat": 0.24651146334721719,
+      "mean_sigma_hat_tail": 0.2646636459529514,
+      "mean_false_selections": 25.25,
+      "n": 8
+    }
+  ],
+  "shared": [
+    {
+      "label": "ς 0",
+      "threshold": 0.05,
+      "ok_rate": 1,
+      "drifted_rate": 0,
+      "indeterminate_rate": 0,
+      "fleet_rate": 0,
+      "mean_sigma_hat": 0.006677041069261678,
+      "mean_sigma_hat_tail": 0.004507657948468825,
+      "mean_false_selections": 0,
+      "n": 8
+    },
+    {
+      "label": "ς 0.1",
+      "threshold": 0.05,
+      "ok_rate": 0,
+      "drifted_rate": 1,
+      "indeterminate_rate": 0,
+      "fleet_rate": 1,
+      "mean_sigma_hat": 0.098906094056001,
+      "mean_sigma_hat_tail": 0.1132952698569829,
+      "mean_false_selections": 5.25,
+      "n": 8
+    },
+    {
+      "label": "ς 0.2",
+      "threshold": 0.05,
+      "ok_rate": 0,
+      "drifted_rate": 1,
+      "indeterminate_rate": 0,
+      "fleet_rate": 1,
+      "mean_sigma_hat": 0.19064094277318688,
+      "mean_sigma_hat_tail": 0.22543915789332664,
+      "mean_false_selections": 15.5,
+      "n": 8
+    }
+  ],
+  "pattern": [
+    {
+      "label": "subpopulation variance fault (2/20 leaves, δ=4) → expect drifted/tail",
+      "verdicts": [
+        {
+          "status": "drifted",
+          "pattern": "tail"
+        }
+      ]
+    },
+    {
+      "label": "single-leaf single-signal variance fault on DEFAULT fabric (δ=3) → expect ok (correctly ignored)",
+      "verdicts": [
+        {
+          "status": "ok",
+          "pattern": null
+        }
+      ]
+    }
+  ],
+  "resolvability": [
+    {
+      "label": "T=40 @ ς*=0.05 (floor 0.051)",
+      "threshold": 0.05,
+      "ok_rate": 0,
+      "drifted_rate": 0,
+      "indeterminate_rate": 1,
+      "fleet_rate": 0,
+      "mean_sigma_hat": 0.0059772630221698615,
+      "mean_sigma_hat_tail": 0.0053753922678986335,
+      "mean_false_selections": null,
+      "n": 8
+    }
+  ],
+  "caveat": "Synthetic Tier-2. The false-selection columns recompute the ADR-0050/0052 cells (same seeds). The monitor gates the CLAIM, never the alarm; licensed ⇔ gate passing AND monitor ok (both opted in). Tail pattern is AMBIGUOUS between subpopulation drift and genuine localized variance faults — recorded, the claim is withheld either way. Thresholds are synthetic-boundary-derived (Tier 3: real deployments re-derive)."
+}

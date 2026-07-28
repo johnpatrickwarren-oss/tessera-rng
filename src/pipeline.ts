@@ -24,7 +24,8 @@ import { simulateDrain } from './drain';
 import { makeEpochs, segmentPlan } from './epoch';
 import type { LeafReset, RerouteEvent, SnapshotEpoch } from './epoch';
 import { estimateDispersion, dispersionGate, DEFAULT_SIGMA_THRESHOLD } from './dispersion-gate';
-import type { AuditDispersionGate, AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
+import { driftMonitor } from './drift-monitor';
+import type { AuditDispersionGate, AuditDriftMonitor, AuditRecord, Culprit, DrainAction, FiringFamilies, PathClassVerdict } from './verdict';
 import type { PathClassId } from './domain';
 
 export interface PipelineParams {
@@ -85,6 +86,14 @@ export interface PipelineParams {
    * selections themselves (claim, not alarm). `true` uses DEFAULT_SIGMA_THRESHOLD.
    */
   dispersionGate?: boolean | { threshold?: number };
+  /**
+   * The runtime drift monitor (ADR-0053), OPT-IN (default OFF — absent keeps every audit
+   * byte-identical). The ADR-0051 estimator applied to the LIVE residuals detection consumed:
+   * the detector for the ADR-0052 drift cliff (stale per-leaf corrections) and for dispersion
+   * arising after calibration. Non-epoch'd runs only (reroutes throw — per-leaf live windows
+   * fragment at resets; recorded narrowing). `true` uses DEFAULT_SIGMA_THRESHOLD.
+   */
+  driftMonitor?: boolean | { threshold?: number };
 }
 
 /**
@@ -249,6 +258,14 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   const residuals = cmRobust ? stripCommonMode(standardized) : standardized;
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells }, seg?.plan);
 
+  // Runtime drift monitor (ADR-0053): the estimator on the live residuals detection consumed.
+  let monitorField: AuditDriftMonitor | null = null;
+  if (params.driftMonitor) {
+    if (epochs) throw new RangeError('driftMonitor with reroutes is unsupported (ADR-0053 recorded narrowing)');
+    const thr = typeof params.driftMonitor === 'object' && params.driftMonitor.threshold !== undefined ? params.driftMonitor.threshold : DEFAULT_SIGMA_THRESHOLD;
+    monitorField = driftMonitor(estimateDispersion(residuals), thr);
+  }
+
   return assembleAudit({
     snapshot,
     snapshot_hash,
@@ -262,6 +279,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     magnitudeT: epochs ? null : leafTStats(residuals),
     ticks: params.telemetry.ticks,
     dispersion_gate: gateField ?? null,
+    drift_monitor: monitorField,
   });
 }
 
@@ -325,6 +343,8 @@ export function assembleAudit(args: {
   ticks?: number;
   /** the ADR-0051 gate field; null/absent ⇒ no field on the audit (byte-identity). */
   dispersion_gate?: AuditDispersionGate | null;
+  /** the ADR-0053 monitor field; null/absent ⇒ no field on the audit (byte-identity). */
+  drift_monitor?: AuditDriftMonitor | null;
 }): AuditRecord {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
   const surface = buildSurface(verdicts, q);
@@ -368,5 +388,6 @@ export function assembleAudit(args: {
         }
       : {}),
     ...(args.dispersion_gate ? { dispersion_gate: args.dispersion_gate } : {}),
+    ...(args.drift_monitor ? { drift_monitor: args.drift_monitor } : {}),
   };
 }
