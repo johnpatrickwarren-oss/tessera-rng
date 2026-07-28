@@ -318,6 +318,43 @@ point; a misattributed test retitled; AC-5 freshness extended to the D axis + .m
 drift no-mismatch CONTROL published: 9.38 vs 9.88 at identical realized ς — the reviewer also
 independently confirmed nothing calibrated is per-leaf and byte-identity vs compiled main).
 **276 tests, gate PASS.**
+Dispersion gate (same branch, **ADR-0051 ACCEPTED**): the ADR-0050 N2 prerequisite BUILT —
+`src/dispersion-gate.ts` estimates dispersion from the calibration residuals (per-leaf pooled
+log-scale, debiased by the sampling floor 1/(2(T−1)p) ≈ 0.041 @T=60) and gates the FDR CLAIM
+(never the alarm — Mode A/B split) at ς\* = 0.05 on a **PAIR: max(robust MAD ς̂, tail plain-sd
+ς̂)** — the cold-eye CRITICAL correction: robust-only LAUNDERS tail-contaminated fleets (10%
+of leaves at 2× reads robust ς̂≈0.03 passing while e-BH selects all the hot leaves; now a
+kill-test, AC-2b). Opt-in `PipelineParams.dispersionGate` → audit `dispersion_gate` field
+(absent ⇒ byte-identical; batch ≡ session by shared-prelude construction; in-pipeline audits
+always pass — synthetic self-generated calibration — the field is the wiring proof, real use
+calls estimateDispersion on real residuals). Validation (`pnpm dispersion-gate`): **pass 100%
+at ς=0 (ς̂ 0.009/0.006), fail 100% at every cell where selection lies** (ς ≥ 0.1) AND on the
+contaminated fleet; boundary-straddling ς=0.05 cell passes 13% — conservative; tail ς̂ tracks
+realized ς almost exactly (0.335 vs 0.353 — the pair also fixed the draft's MAD-core bias);
+two recorded spec corrections (AC-3 pass-rate prediction; the robust-only rationale). Depth
+row: T=240 floor halves to 0.020. ROC scope on the record: Gaussian-ς family + the two-point
+contamination case.
+Per-leaf scale calibration (same branch, **ADR-0052 ACCEPTED**): the remedy — opt-in
+`CalibrationOptions.perLeafScale`: per-leaf pooled log-scale SHRUNK by λ = ς̂²/raw² (the
+ADR-0051 decomposition; median-centered scalar per leaf, substrate-carried so incremental≡batch
+by construction; λ=1 mutant killed). **Measured (coverage-matrices/per-leaf-scale, OFF rows
+anchor-bound to ADR-0050): static dispersion absorbed COMPLETELY** — 0.00 false selections at
+every ς through 0.5 (OFF: up to 19), ς=0 injects nothing (<0.025; out-of-sample AC-3 per
+cold-eye). **But the D axis REVERSES as predicted, harder: full drift → 25.25 false sel —
+WORSE than no correction (9.88 at that cell; ≈15.5 at the realized-ς-matched reference)** —
+TWO recorded mechanisms (cold-eye): stale-correction compounding (≈ς√2) + a TIGHTENED Family
+C/D null (fit on corrected ≈ clean calibration residuals) that pushes past the OFF ~19
+saturation ceiling. **Cold-eye MAJOR correction on the record: the cliff has NO detector** —
+the gate refits at every re-calibration and cannot see staleness (a complete σ-reassignment
+reads ς̂=0.000 passing); only guard = fresh-calibration cadence until a runtime drift monitor
+exists (future ADR); no default flip. Gate loosening on the record: no-god-module 23→25
+(dispersion-gate src+tool type-only domain imports, 5th/6th instances; operator flag raised —
+consider a structural exemption for zero-behavior contracts). Cold-eye round 2 (fresh
+context): NOT-MERGE-READY verdict — 1 CRITICAL (robust-only gate launders tail subpopulations)
++ 3 MAJOR (staleness-mitigation story false in wiring; D-axis mechanism incomplete; AC-3 test
+not implementing its spec) — ALL folded in above (pair gate + kill-test; no-detector
+correction; two-mechanism record; out-of-sample AC-3), re-verified by the same reviewer.
+**291 tests, gate PASS.**
 
 ## Built so far
 

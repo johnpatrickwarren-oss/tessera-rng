@@ -39,6 +39,9 @@ export interface NullRunOpts {
   heterogeneity?: HeterogeneitySpec;
   latentNull?: LatentNullSpec;
   commonModeRobust?: boolean;
+  /** ADR-0052: build the calibration with the shrunk per-leaf scale correction. Default OFF —
+   *  every ADR-0050 published cell (and its freshness recompute) is the OFF path, unchanged. */
+  perLeafScale?: boolean;
 }
 
 export interface NullRunResult {
@@ -65,7 +68,7 @@ export function runNullRun(snapshot: FaultDomainSnapshot, seed: number, opts: Nu
     ...(calHet ? { heterogeneity: calHet } : {}),
     ...(opts.latentNull ? { latentNull: opts.latentNull } : {}),
   });
-  const calibration = buildCalibration(calibRaw.series, { robust: true });
+  const calibration = buildCalibration(calibRaw.series, { robust: true, perLeafScale: opts.perLeafScale ?? false });
   const calibStd = standardizeAll(calibRaw.series, calibration);
   const calibResiduals = cm ? stripCommonMode(calibStd) : calibStd;
   const familyCCell = makeFamilyCCellFromCovariance(estimateBaselineCovariance(calibResiduals).sigma, detect.alphaC);

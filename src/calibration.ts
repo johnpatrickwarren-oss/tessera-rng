@@ -98,6 +98,15 @@ export interface CalibrationSubstrate {
   pooled: CellStats;
   /** per-signal AR(p) model (ADR-0008). */
   ar: ArModel[];
+  /**
+   * SHRUNK per-leaf scale corrections (ADR-0052, `perLeafScale` opt-in): residuals are divided by
+   * `leafScale.get(pc) ?? 1` after pre-whitening, in BOTH the batch and incremental paths (the
+   * substrate carries the map — session parity by construction). Scalar per leaf (the σ_pc model),
+   * median-centered, shrunk by λ = ς̂²/raw² so a clean fleet gets ≈ no correction (the ADR-0006
+   * noise-injection trap, avoided structurally). Absent ⇒ no division ⇒ byte-identical pre-ADR
+   * standardization.
+   */
+  leafScale?: ReadonlyMap<PathClassId, number>;
 }
 
 interface Acc {
@@ -280,13 +289,67 @@ export interface CalibrationOptions {
    * real history are TOSSED, not absorbed into the null. On clean Gaussian history ≈ mean/sd.
    */
   robust?: boolean;
+  /**
+   * SHRUNK per-leaf scale correction (ADR-0052), default OFF. Adds a second calibration pass: per
+   * leaf, the pooled log-scale of its standardized calibration residuals, shrunk toward the fleet
+   * median by λ = ς̂²/raw² (the ADR-0051 decomposition) and stored as `substrate.leafScale`. A
+   * clean fleet (raw ≈ sampling floor) gets λ ≈ 0 ⇒ scales ≈ 1 ⇒ nothing injected — the ADR-0006
+   * lesson enforced by construction, not by a sample-count knob.
+   */
+  perLeafScale?: boolean;
 }
 
 export function buildCalibration(raw: ReadonlyMap<PathClassId, SignalVector[]>, opts: CalibrationOptions = {}): CalibrationSubstrate {
   const minCellSamples = opts.minCellSamples ?? (opts.robust ? ROBUST_MIN_CELL_SAMPLES : DEFAULT_MIN_CELL_SAMPLES);
   const pMax = opts.arPMax ?? DEFAULT_AR_PMAX;
   const { cells, pooled } = buildCells(raw, minCellSamples, opts.robust ?? false);
-  return { cells, pooled, ar: estimateAr(raw, cells, pooled, pMax) };
+  const base: CalibrationSubstrate = { cells, pooled, ar: estimateAr(raw, cells, pooled, pMax) };
+  if (!opts.perLeafScale) return base;
+  return { ...base, leafScale: shrunkLeafScales(raw, base) };
+}
+
+/**
+ * The ADR-0052 second pass: per-leaf pooled log-scale ℓ_i of the standardized calibration
+ * residuals (the ADR-0051 estimator's statistic), shrunk toward the fleet median by
+ * λ = max(0, raw² − floor)/raw² with raw = MAD-sd of {ℓ_i} and floor = 1/(2(T−1)p). Division by
+ * `exp(λ·(ℓ_i − median))` then removes the ESTIMATED-real part of each leaf's scale deviation
+ * while leaving the sampling-noise part (which division could only re-inject) untouched.
+ */
+function shrunkLeafScales(raw: ReadonlyMap<PathClassId, SignalVector[]>, sub: CalibrationSubstrate): Map<PathClassId, number> {
+  const logScales = new Map<PathClassId, number>();
+  let ticks = 0;
+  let signals = 0;
+  for (const pc of [...raw.keys()].sort()) {
+    const resid = standardizeStream(raw.get(pc)!, pc, sub); // sub has no leafScale yet — first-order residuals
+    const T = resid.length;
+    const p = resid[0]?.length ?? 0;
+    if (T < 3 || p < 1) throw new RangeError(`perLeafScale: leaf ${pc} has a degenerate calibration series (${T}×${p})`);
+    ticks = T;
+    signals = p;
+    let sumLog = 0;
+    for (let j = 0; j < p; j++) {
+      let s = 0;
+      let sq = 0;
+      for (let t = 0; t < T; t++) {
+        s += resid[t][j];
+        sq += resid[t][j] * resid[t][j];
+      }
+      const mean = s / T;
+      sumLog += 0.5 * Math.log(Math.max(sq / T - mean * mean, 1e-12) * (T / (T - 1)));
+    }
+    logScales.set(pc, sumLog / p);
+  }
+  const ls = [...logScales.values()];
+  const sorted = [...ls].sort((a, b) => a - b);
+  const med = sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+  const dev = ls.map((x) => Math.abs(x - med)).sort((a, b) => a - b);
+  const mad = dev.length % 2 ? dev[(dev.length - 1) / 2] : (dev[dev.length / 2 - 1] + dev[dev.length / 2]) / 2;
+  const rawSd = 1.4826 * mad;
+  const floorVar = 1 / (2 * (ticks - 1) * signals);
+  const lambda = rawSd * rawSd > floorVar ? (rawSd * rawSd - floorVar) / (rawSd * rawSd) : 0;
+  const out = new Map<PathClassId, number>();
+  for (const [pc, l] of logScales) out.set(pc, Math.exp(lambda * (l - med)));
+  return out;
 }
 
 /** AR(p) pre-whiten each signal column, rescaling innovations back to unit variance. */
@@ -301,9 +364,13 @@ function prewhitenColumns(resid: number[][], ar: readonly ArModel[]): number[][]
   return whitened;
 }
 
-/** Standardize a raw stream: per-cell de-mean/sd, then per-signal AR(p) pre-whitening → residuals. */
+/** Standardize a raw stream: per-cell de-mean/sd, per-signal AR(p) pre-whitening, then the
+ *  ADR-0052 per-leaf scale division when the substrate carries it (absent ⇒ untouched). */
 export function standardizeStream(series: readonly SignalVector[], pathClassId: PathClassId, sub: CalibrationSubstrate): number[][] {
-  return prewhitenColumns(deMean(series, pathClassId, sub.cells, sub.pooled), sub.ar);
+  const whitened = prewhitenColumns(deMean(series, pathClassId, sub.cells, sub.pooled), sub.ar);
+  const scale = sub.leafScale?.get(pathClassId);
+  if (scale === undefined || scale === 1) return whitened;
+  return whitened.map((row) => row.map((x) => x / scale));
 }
 
 /** Per-signal lag buffers for incremental standardization (ADR-0027). */
@@ -324,6 +391,9 @@ export function freshStreamStandardizer(sub: CalibrationSubstrate): StreamStanda
 export function standardizeTick(vec: SignalVector, tick: number, pathClassId: PathClassId, sub: CalibrationSubstrate, st: StreamStandardizer): number[] {
   const tc = trafficClassOf(pathClassId);
   const cell = sub.cells.get(cellKey(tick, tc)) ?? sub.pooled;
+  // ADR-0052: the same per-leaf division as `standardizeStream` — skipped identically when the
+  // substrate carries no map (byte-identity) so incremental ≡ batch holds under the flag too.
+  const leafScale = sub.leafScale?.get(pathClassId);
   return vec.map((x, i) => {
     const d = (x - cell.mean[i]) / cell.sd[i];
     const { phi, innovationSd } = sub.ar[i];
@@ -332,7 +402,8 @@ export function standardizeTick(vec: SignalVector, tick: number, pathClassId: Pa
     for (let k = 1; k <= Math.min(phi.length, lags.length); k++) innov -= phi[k - 1] * lags[lags.length - k];
     lags.push(d);
     if (lags.length > phi.length) lags.shift();
-    return innov / innovationSd;
+    const out = innov / innovationSd;
+    return leafScale === undefined || leafScale === 1 ? out : out / leafScale;
   });
 }
 

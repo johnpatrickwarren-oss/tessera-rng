@@ -106,9 +106,17 @@ skeleton plus many post-v1 rounds, one ADR per real decision (see [`design/adr/`
   **per-leaf noise-scale dispersion the shared calibration can't represent kills selection
   validity early** — on the default fabric, false selections onset at realized ς ≈ 0.12 (≈5%
   of the fleet, every run) and saturate ≈17% by ς ≈ 0.35; at ς = 0.2 the failing fraction
-  (≈12–14%) is scale-constant to 6112 leaves. A ς̂ dispersion gate is the recorded
-  prerequisite for any real-fabric FDR claim
+  (≈12–14%) is scale-constant to 6112 leaves
   ([`coverage-matrices/heterogeneity-boundary.md`](coverage-matrices/heterogeneity-boundary.md)).
+  Two opt-in responses, both measured: the **ς̂ dispersion gate** (ADR-0051) estimates the
+  condition from the calibration window — a PAIR of statistics, since a robust core alone is
+  blind to dispersed subpopulations — and withholds the FDR *claim* — never the alarm — when
+  it fails (fails 100% at every measured cell where selection lies, including a
+  tail-contaminated fleet); and **per-leaf scale calibration** (ADR-0052) absorbs static
+  dispersion completely, at the measured cost of a drift cliff (stale corrections are WORSE
+  than none under full drift) that currently has **no detector** — only a fresh-calibration
+  cadence guards it until a runtime drift monitor exists. Running the gate on the real
+  calibration window is the recorded prerequisite for any real-fabric FDR claim.
 - **Localization** — the tomographic solver over **weighted (fractional) incidence**: a
   **linear-magnitude member model** (ADR-0046 — per-leaf t-statistic evidence, y ~ N(θ·w·√T, 1),
   fixed θ-grid mixture, a null with **no fleet-corruptible parameter**), built into a minimal
