@@ -383,6 +383,12 @@ material-incidence threshold w ≥ 0.5 (crossOptic ε-edges degenerated the fals
 caught during build). Gate loosening on the record: no-god-module 25→27 (two new tools'
 type-only domain imports, 7th/8th instances — the operator structural-exemption flag stands
 with added force). **299 tests, gate PASS.**
+Invariant restructure (same branch, **ADR-0055 ACCEPTED**, operator-ratified): the no-god-module
+flag answered — sprag `module_fanin` gains an `exempt` list (sprag de823f9, 42/42 suites);
+the three zero-behavior contracts (domain 27 / signals 10 / verdict 10) exempted BY NAME and
+the threshold DROPS 27→10 (one above the behavioral max: calibration 9) — a behavioral module
+at 11 importers now blocks, restoring the eroded protection; exemption conditions recorded in
+the intent (behavior in an exempted file ⇒ ADR). Both directions mechanics-verified.
 
 ## Built so far
 
