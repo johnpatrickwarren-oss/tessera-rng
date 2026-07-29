@@ -156,6 +156,27 @@ export interface AuditRecord {
    * license (src/license.ts) requires 'per_leaf_scale'.
    */
   calibration_construction?: 'per_leaf_scale';
+  /**
+   * Anytime alarms (ADR-0062), OPT-IN, SESSION-ONLY — absent unless the session asked for it
+   * (byte-identity; the batch pipeline never stamps it — a batch run has no "when"). Ville rule
+   * on the tick-valid family mean (A + C)/2 at threshold 1/α_leaf: P(a null leaf EVER alarms)
+   * ≤ α **UNDER THE CALIBRATED NULL** — dispersion/drift voids the guarantee exactly as it
+   * voids e-BH validity (ADR-0050/0057), so the alarm read carries the same gate/monitor (or
+   * perLeafScale) preconditions as the evidence surface. Scope 'fleet': α/n per leaf ⇒
+   * fleet-wise ≤ α. Family D excluded (ADR-0044). Stamped even when `alarms` is empty —
+   * monitored-and-quiet is information. Alarms are DETECTION, not FDR claims (ADR-0060
+   * untouched).
+   */
+  eop_alarms?: AuditEopAlarms;
+}
+
+/** Flat ADR-0062 alarm record (import-free — this file is the zero-behavior type contract). */
+export interface AuditEopAlarms {
+  alpha: number;
+  scope: 'per-leaf' | 'fleet';
+  /** the per-leaf Ville threshold actually applied: 1/α ('per-leaf') or n/α ('fleet'). */
+  threshold: number;
+  alarms: readonly { path_class_id: PathClassId; at_tick: number }[];
 }
 
 /** Flat ADR-0053 monitor verdict (import-free — this file is the zero-behavior type

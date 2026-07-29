@@ -1,0 +1,102 @@
+{
+  "sibling_null_comparison": [
+    {
+      "seed": "b0a01",
+      "calibrated_sibling_e": 218539.99549712092,
+      "unit_variance_sibling_e": 0.03287727166504081
+    },
+    {
+      "seed": "b0a02",
+      "calibrated_sibling_e": 251840.3005243741,
+      "unit_variance_sibling_e": 1896.027073629534
+    },
+    {
+      "seed": "b0a03",
+      "calibrated_sibling_e": 112998.97229906058,
+      "unit_variance_sibling_e": 48.30451900399653
+    },
+    {
+      "seed": "b0a04",
+      "calibrated_sibling_e": 119502.5699618746,
+      "unit_variance_sibling_e": 0.0021204908174993985
+    }
+  ],
+  "generated_for": "spraypoint:64x10x2, T=60",
+  "operating_point": "α=0.05 per resource (fleet budget ≈ R·α, disclosed); tier fires when a neighborhood's aggregate crosses 1/α under the CALIBRATED null; leaf-layer control = the standard e-BH surface at q=0.05",
+  "clean": {
+    "calibrated_escalations": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "unit_variance_escalations": [
+      0,
+      1,
+      0,
+      0
+    ],
+    "resources": 76,
+    "per_resource_rate": 0,
+    "alpha": 0.05
+  },
+  "floors": [
+    {
+      "target": "room-0",
+      "delta": 0.5,
+      "leaf_detects": 0,
+      "tier_escalates": 4,
+      "mean_escalation_set": 20.25,
+      "top_resources": [
+        "optic-5",
+        "panel-4",
+        "panel-4",
+        "panel-2"
+      ],
+      "n": 4
+    },
+    {
+      "target": "room-0",
+      "delta": 1,
+      "leaf_detects": 2,
+      "tier_escalates": 4,
+      "mean_escalation_set": 72.75,
+      "top_resources": [
+        "room-0",
+        "room-0",
+        "panel-4",
+        "room-0"
+      ],
+      "n": 4
+    },
+    {
+      "target": "panel-7",
+      "delta": 1,
+      "leaf_detects": 0,
+      "tier_escalates": 3,
+      "mean_escalation_set": 1.5,
+      "top_resources": [
+        "optic-5",
+        "panel-7",
+        "panel-7",
+        "—"
+      ],
+      "n": 4
+    },
+    {
+      "target": "optic-3",
+      "delta": 1,
+      "leaf_detects": 2,
+      "tier_escalates": 2,
+      "mean_escalation_set": 0.75,
+      "top_resources": [
+        "optic-5",
+        "optic-3",
+        "optic-3",
+        "—"
+      ],
+      "n": 4
+    }
+  ],
+  "caveat": "Synthetic Tier-2 (ADR-0064). The tier is an EARLY-WARNING surface: a firing aggregate claims \"this overlapping NEIGHBORHOOD shifted — run the drill\", never \"this resource is at fault\"; it has no selection semantics and no license interaction (ADR-0060 untouched). NEIGHBORHOOD SIZES on this fabric: optics 3, panels 12, ROOMS = THE FLEET (76 — every tor leaf carries room weight 0.5, so a room escalation recommends drilling everything: rooms are fleet-scale domains here, disclosed). The drill-recommendation ORDER is not localization — spurious narrow resources can out-rank the true broad one (see top_resources). The e-process guarantee is conditional on the CALIBRATED null (ADR-0062-class conditionality; the T=60 plug-in (mean, sd) carries ≈9% sd estimation error and an in-sample/out-of-sample asymmetry — mildly anti-conservative, not binding at the measured clean 0/304). Clean-side, mean-betting is SCALE-FAIR, so the unit-variance column cannot show the probe error there; the calibrated null binds FAULT-SIDE — the sibling_null_comparison table: under a room-0 fault the room-1 aggregate GENUINELY shifts (shared members), and the calibrated null detects it consistently (E ≈ 1e5+ every seed — the confound is real and STRONGER than the probe suggested, which is exactly why the claim granularity is a neighborhood), while the unit-variance null is ERRATIC (2e-3 to 1.9e3 — clipped bets on mis-scaled data; the probe numbers were uninterpretable, not merely inflated). tier_escalates counts runs whose ESCALATION SET contains the true target in some fired neighborhood."
+}

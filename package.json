@@ -34,7 +34,11 @@
     "prereal-replay": "tsc -p tsconfig.test.json",
     "real-replay": "node tools/real-replay.js",
     "preonset-scale": "tsc -p tsconfig.test.json",
-    "onset-scale": "node tools/onset-scale.js"
+    "onset-scale": "node tools/onset-scale.js",
+    "preeop-alarms": "tsc -p tsconfig.test.json",
+    "eop-alarms": "node tools/eop-alarms.js",
+    "preresource-eprocess": "tsc -p tsconfig.test.json",
+    "resource-eprocess": "node tools/resource-eprocess.js"
   },
   "dependencies": {
     "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.3-pre"

@@ -1,0 +1,75 @@
+{
+  "generated_for": "spraypoint:64x10x2, sessions of T=60",
+  "operating_point": "α=0.05; per-leaf threshold 1/α=20; fleet threshold n/α=2180; alarm statistic = (A+C)/2 (D excluded, ADR-0044); δ=3 mean fault for the latency arm",
+  "clean": [
+    {
+      "scope": "per-leaf",
+      "threshold": 20,
+      "alarm_counts": [
+        1,
+        5,
+        2,
+        2,
+        3,
+        4,
+        0,
+        0
+      ],
+      "pooled_ever_alarm_fraction": 0.0194954128440367,
+      "guaranteed_bound": 0.05,
+      "expected_count_reference": 5.45
+    },
+    {
+      "scope": "fleet",
+      "threshold": 2180,
+      "alarm_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pooled_ever_alarm_fraction": 0,
+      "guaranteed_bound": 0.00045871559633027525,
+      "expected_count_reference": 0.05
+    }
+  ],
+  "faulted": [
+    {
+      "target": "optic-3",
+      "leaf": "tor-3",
+      "first_alarm_ticks": [
+        0,
+        4,
+        3,
+        2,
+        4,
+        10,
+        0,
+        3
+      ],
+      "alarmed": 8,
+      "n": 8
+    },
+    {
+      "target": "optic-40",
+      "leaf": "tor-40",
+      "first_alarm_ticks": [
+        13,
+        0,
+        1,
+        12,
+        3,
+        18,
+        15,
+        14
+      ],
+      "alarmed": 8,
+      "n": 8
+    }
+  ],
+  "caveat": "Synthetic Tier-2. THE GUARANTEE IS CONDITIONAL ON THE CALIBRATED NULL (ADR-0062): dispersion/drift voids it exactly as it voids e-BH validity (ADR-0050/0057 — real fleets measured far past the boundary); the alarm read carries the same gate/monitor (or perLeafScale) preconditions as the evidence surface. The guaranteed quantity is the per-leaf ever-alarm PROBABILITY ≤ α (pooled fraction column); per-seed counts fluctuate binomially around E ≤ N·α and are reference data. The Ville guarantee is over an INFINITE horizon — finite-window fractions sit under it a fortiori. Fleet scope buys fleet-wise ≤ α at a Bonferroni power cost. Alarms are DETECTION, not FDR claims (ADR-0060 untouched). First-alarm latency is the anytime win: the alarm fires mid-window with the guarantee intact at every tick."
+}

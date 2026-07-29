@@ -81,6 +81,19 @@ export interface SessionParams {
    * At t < 3 the verdict is the degenerate `indeterminate` (no variance estimate exists).
    */
   driftMonitor?: boolean | { threshold?: number };
+  /**
+   * Anytime alarms (ADR-0062): the Ville rule at threshold 1/α_leaf on the per-leaf tick-valid
+   * family mean (A + C)/2 — P(a null leaf EVER alarms) ≤ α_leaf UNDER THE CALIBRATED NULL:
+   * dispersion/drift voids the guarantee exactly as it voids e-BH validity (ADR-0050/0057 —
+   * real fleets measured far past the boundary), so the alarm read carries the SAME
+   * gate/monitor (or perLeafScale) preconditions as the evidence surface. Checked per ingest,
+   * first crossing recorded once; scope 'fleet' runs each leaf at α/n (fleet-wise ≤ α).
+   * Family D excluded (ADR-0044). Session-only; reroutes throw (wealth resets restart
+   * segments); commonModeRobust throws (the cross-leaf strip makes residuals depend on the
+   * fleet's concurrent tick — the per-leaf supermartingale is only approximate; recorded
+   * narrowing).
+   */
+  eopAlarms?: { alpha?: number; scope?: 'per-leaf' | 'fleet' };
 }
 
 interface DetectorStates {
@@ -131,6 +144,19 @@ function validateDriftMonitorParams(params: SessionParams): void {
   }
 }
 
+/** ADR-0062 open-time validation: α ∈ (0, 1); reroutes throw (wealth resets restart segments —
+ *  the Ville ever-guarantee does not span resets; recorded narrowing). Returns the per-leaf
+ *  threshold: 1/α ('per-leaf') or n/α ('fleet' — Bonferroni over the population). */
+function eopThreshold(params: SessionParams): number | null {
+  if (!params.eopAlarms) return null;
+  const alpha = params.eopAlarms.alpha ?? 0.05;
+  if (!(alpha > 0 && alpha < 1)) throw new RangeError(`eopAlarms.alpha must be in (0, 1) — got ${alpha}`);
+  if (params.reroutes?.length) throw new RangeError('eopAlarms with reroutes is unsupported (ADR-0062 recorded narrowing)');
+  if (params.commonModeRobust) throw new RangeError('eopAlarms with commonModeRobust is unsupported (ADR-0062 recorded narrowing — the cross-leaf strip breaks the per-leaf supermartingale)');
+  const scope = params.eopAlarms.scope ?? 'per-leaf';
+  return scope === 'fleet' ? params.snapshot.path_classes.length / alpha : 1 / alpha;
+}
+
 export class IncrementalSession {
   private readonly p: Required<Pick<SessionParams, 'snapshot' | 'calibration' | 'q'>> & SessionParams;
   private readonly detect: DetectParams;
@@ -141,6 +167,9 @@ export class IncrementalSession {
   private readonly hash: string;
   private readonly leaves: Map<PathClassId, LeafState> = new Map();
   private readonly firedResets: LeafReset[] = [];
+  /** ADR-0062: the per-leaf Ville threshold (null = alarms off) + first crossings, once each. */
+  private readonly eopThr: number | null;
+  private readonly eopFired: Map<PathClassId, number> = new Map();
   private t = 0;
 
   constructor(params: SessionParams) {
@@ -159,6 +188,7 @@ export class IncrementalSession {
       }
     }
     validateDriftMonitorParams(params);
+    this.eopThr = eopThreshold(params);
     this.epochs = params.reroutes?.length ? makeEpochs(params.snapshot, params.reroutes) : null;
     this.hash = computeFaultDomainHash(params.snapshot);
     const resetsByLeaf = new Map<PathClassId, Map<number, number>>();
@@ -216,6 +246,14 @@ export class IncrementalSession {
         ls.residSums[i] += resid[i];
         ls.residSumsqs[i] += resid[i] * resid[i];
       }
+      // ADR-0062: the Ville alarm on the tick-valid family mean — (A + C)/2 is a nonnegative
+      // supermartingale with E ≤ 1 under H0 (A is a mean of per-signal betting supermartingales,
+      // C is the Safe-Hotelling e-process; D is EXCLUDED — window filtration, ADR-0044), so
+      // P(a null leaf ever crosses 1/α) ≤ α at ANY time. First crossing only.
+      if (this.eopThr !== null && !this.eopFired.has(pc)) {
+        const aE = ls.det.aM.reduce((s, x) => s + x, 0) / ls.det.aM.length;
+        if ((aE + ls.det.cState.M) / 2 >= this.eopThr) this.eopFired.set(pc, this.t);
+      }
     }
     this.t += 1;
   }
@@ -248,7 +286,22 @@ export class IncrementalSession {
       dispersion_gate: this.p.dispersionGate ?? null,
       drift_monitor: this.driftMonitorField(),
       per_leaf_construction: this.p.calibration.leafScale !== undefined,
+      eop_alarms: this.eopAlarmsField(),
     });
+  }
+
+  /** ADR-0062: the alarm field — stamped whenever alarms are on (even when quiet: monitored-
+   *  and-quiet is information), sorted for replay-cleanliness, a SNAPSHOT (copied per audit). */
+  private eopAlarmsField(): import('./verdict').AuditEopAlarms | null {
+    if (this.eopThr === null || !this.p.eopAlarms) return null;
+    return {
+      alpha: this.p.eopAlarms.alpha ?? 0.05,
+      scope: this.p.eopAlarms.scope ?? 'per-leaf',
+      threshold: this.eopThr,
+      alarms: [...this.eopFired]
+        .map(([path_class_id, at_tick]) => ({ path_class_id, at_tick }))
+        .sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : 1)),
+    };
   }
 
   /** ADR-0053: the live-window monitor from the running sums — bit-for-bit the batch value at

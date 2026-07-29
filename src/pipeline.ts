@@ -358,6 +358,8 @@ export function assembleAudit(args: {
   drift_monitor?: AuditDriftMonitor | null;
   /** ADR-0060: true ⇒ stamp calibration_construction: 'per_leaf_scale' (absent/false ⇒ no field). */
   per_leaf_construction?: boolean;
+  /** ADR-0062: the session's alarm field (SESSION-ONLY — the batch pipeline never supplies it). */
+  eop_alarms?: import('./verdict').AuditEopAlarms | null;
 }): AuditRecord {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
   const surface = buildSurface(verdicts, q);
@@ -403,5 +405,6 @@ export function assembleAudit(args: {
     ...(args.dispersion_gate ? { dispersion_gate: args.dispersion_gate } : {}),
     ...(args.drift_monitor ? { drift_monitor: args.drift_monitor } : {}),
     ...(args.per_leaf_construction ? { calibration_construction: 'per_leaf_scale' as const } : {}),
+    ...(args.eop_alarms ? { eop_alarms: args.eop_alarms } : {}),
   };
 }

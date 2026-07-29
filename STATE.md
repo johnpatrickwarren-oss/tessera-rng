@@ -471,6 +471,56 @@ VALIDATION gate-row ⚠️ closed; ADR-0051/0053/0059 addenda record the era bou
 license supersession; z columns published (former laundering cells mean z 4.75/5.60 vs bounds
 4.35/4.65 — the closure is checkable data). **315 tests, gate PASS.**
 
+Anytime alarms (branch `post-merge-adoption`, **ADR-0062 ACCEPTED** — improvement
+recommendation 3, the ADR-0043 EOP adoption): RNG's per-leaf evidence is a genuine
+supermartingale (A = mean of per-signal betting supermartingales, C = Safe-Hotelling; D
+EXCLUDED per ADR-0044), so the adoption is STRONGER than detector-style EOP — the Ville rule
+at threshold 1/α on (A+C)/2 gives **P(a null leaf EVER alarms) ≤ α, no patience parameter,
+UNDER THE CALIBRATED NULL** (cold-eye CRITICAL, recorded: dispersion/drift voids the
+guarantee exactly as it voids e-BH validity — the alarm read carries the same gate/monitor
+(or perLeafScale) preconditions as the evidence surface; an unguarded alarm stream on a
+dispersed fleet is noise with a false certificate). `SessionParams.eopAlarms {alpha, scope}`
+(fleet scope = α/n Bonferroni); first crossing recorded once per leaf; `eop_alarms` stamped
+even when quiet (opt-in; session-only; reroutes AND commonModeRobust throw — recorded
+narrowings). **Measured (`pnpm eop-alarms`): pooled clean ever-alarm fraction 1.95% (17/872)
+≤ α=5% — the GUARANTEED quantity (per-seed counts {1,5,2,2,3,4,0,0} are binomial reference
+data, can legitimately exceed ⌈N·α⌉); fleet scope silent 8/8; faulted leaves alarm 16/16,
+first-alarm ticks mostly single-digit** — the anytime win vs the tick-60 fixed-time read.
+Alarms are DETECTION, not claims (ADR-0060 untouched); the streaming story is honest
+end-to-end conditional on the calibrated null: anytime alarms (Ville, under the gate/monitor
+preconditions) + fixed-time FDR under the license. **319 tests, gate PASS.**
+
+Engine-adoption review (same branch, **ADR-0063 ACCEPTED** — improvement recommendation 4,
+decision record in the ADR-0037 shape): at v0.6.3-pre NONE of the ADR-0049 candidates exist as
+engine surfaces — all are extension asks, none buildable RNG-side (charter). **One measured
+DEFECT recorded and test-pinned (test/overflow-defect.test.ts, a deliberate tripwire): at δ=32
+— inside the claimed δ∈{3..32} band — per-leaf e-values overflow to Infinity → JSON null in
+audits** (δ=3 max ≈4.5e9, fine; selection unaffected — the corruption is representational).
+The fix decision is PARKED with John (shared-engine API): (a) engine log-domain wealth
+(ADR-0034 fix B, the real fix, touches the GPU product) vs (b) an RNG-side interim clamp.
+Randomized e-BH queued behind the matched-filter program (power already 1.0 at tested points;
+gain is sub-floor); heavy-tail deferred to real-fabric evidence; aGRAPA/e-SR remain recorded
+engine conversations; ADR-0037's rejections re-checked and stand. **320 tests, gate PASS.**
+
+Escalation tier (same branch, **ADR-0064 ACCEPTED** — improvement recommendation 5, ADR-0049
+§2's build conditions DISCHARGED, with one RETRACTION on the record): resource-directed
+matched-filter e-processes as an EARLY-WARNING tier — per-resource w-weighted aggregates
+against a **CALIBRATED null** (mean/sd from the clean window's own aggregates; cross-leaf
+dependence priced) → per-signal betting e-processes → fired NEIGHBORHOODS (material-overlap
+union w≥0.5 + ADR-0047 ambiguity; hood sizes PUBLISHED: optics 3, panels 12, **rooms = the
+fleet, 76** — every tor leaf carries room weight 0.5; a room escalation recommends drilling
+everything, disclosed). No selection surface; R·α budget disclosed; ADR-0062-class
+conditionality; standalone. **Measured: clean 0/304; the ADR-0049 probe table REPRODUCES under
+the honest null** — room Δ=0.5 → 4/4 vs leaf 0/4 (escalation set 20.3, top-ranked often a
+spurious narrow resource — order ≠ localization, published), room Δ=1 → 4/4, panel-7 Δ=1 →
+3/4, optic Δ=1 → 2/4; **the sibling confound is REAL and STRONGER (calibrated room-1 E ≈
+1e5+ under a room-0 fault — the AC-1b fault-side pin that kills the no-calibration mutant;
+unit-variance is erratic, below 1/α half the time)**. **RETRACTED: the first published
+"narrow wins are null-error artifacts" claim — itself an artifact of a typo'd NONEXISTENT
+resource id that generateTelemetry silently no-opped (clean data as a faulted run); the
+generator now THROWS on unknown degradation resources (guard-tested)** — cold-eye CRITICAL,
+round 9. **326 tests, gate PASS.**
+
 ## Built so far
 
 - **Scaffold** — `pnpm` + `tsc` + `node --test` toolchain mirroring Tessera (tsconfig.json,
