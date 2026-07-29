@@ -471,6 +471,25 @@ VALIDATION gate-row ⚠️ closed; ADR-0051/0053/0059 addenda record the era bou
 license supersession; z columns published (former laundering cells mean z 4.75/5.60 vs bounds
 4.35/4.65 — the closure is checkable data). **315 tests, gate PASS.**
 
+Anytime alarms (branch `post-merge-adoption`, **ADR-0062 ACCEPTED** — improvement
+recommendation 3, the ADR-0043 EOP adoption): RNG's per-leaf evidence is a genuine
+supermartingale (A = mean of per-signal betting supermartingales, C = Safe-Hotelling; D
+EXCLUDED per ADR-0044), so the adoption is STRONGER than detector-style EOP — the Ville rule
+at threshold 1/α on (A+C)/2 gives **P(a null leaf EVER alarms) ≤ α, no patience parameter,
+UNDER THE CALIBRATED NULL** (cold-eye CRITICAL, recorded: dispersion/drift voids the
+guarantee exactly as it voids e-BH validity — the alarm read carries the same gate/monitor
+(or perLeafScale) preconditions as the evidence surface; an unguarded alarm stream on a
+dispersed fleet is noise with a false certificate). `SessionParams.eopAlarms {alpha, scope}`
+(fleet scope = α/n Bonferroni); first crossing recorded once per leaf; `eop_alarms` stamped
+even when quiet (opt-in; session-only; reroutes AND commonModeRobust throw — recorded
+narrowings). **Measured (`pnpm eop-alarms`): pooled clean ever-alarm fraction 1.95% (17/872)
+≤ α=5% — the GUARANTEED quantity (per-seed counts {1,5,2,2,3,4,0,0} are binomial reference
+data, can legitimately exceed ⌈N·α⌉); fleet scope silent 8/8; faulted leaves alarm 16/16,
+first-alarm ticks mostly single-digit** — the anytime win vs the tick-60 fixed-time read.
+Alarms are DETECTION, not claims (ADR-0060 untouched); the streaming story is honest
+end-to-end conditional on the calibrated null: anytime alarms (Ville, under the gate/monitor
+preconditions) + fixed-time FDR under the license. **319 tests, gate PASS.**
+
 ## Built so far
 
 - **Scaffold** — `pnpm` + `tsc` + `node --test` toolchain mirroring Tessera (tsconfig.json,
