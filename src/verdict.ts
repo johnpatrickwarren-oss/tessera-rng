@@ -13,6 +13,12 @@ import type { PathClassId, ResourceId, ResourceKind } from './domain';
 export interface DetectorResult {
   family: 'A' | 'C' | 'D';
   e_value: number;
+  /** ADR-0065 — the EXACT log-domain family e-value (engine ADR 0026 log-wealth for A/C; the
+   *  capped RNG-side spectral wealth for D, exact by its cap). `e_value` is its
+   *  Number.MAX_VALUE-saturating linear view; at extreme shifts the view ties at saturation
+   *  while this field keeps the true magnitudes. Optional: audits recorded before ADR-0065
+   *  lack it. */
+  log_e_value?: number;
   fired: boolean;
   /** α allocated to this detector. */
   alpha_allocated: number;
@@ -29,6 +35,8 @@ export interface SegmentVerdict {
   to_tick: number;
   /** the segment's combined e-value, accrued with FRESH wealth from from_tick. */
   e_value: number;
+  /** ADR-0065 — exact log-domain segment e-value (see DetectorResult.log_e_value). */
+  log_e_value?: number;
   fired: boolean;
 }
 
@@ -38,6 +46,10 @@ export interface PathClassVerdict {
   detectors: readonly DetectorResult[];
   /** combined per-path e-value (average of family e-values — valid under dependence). */
   e_value: number;
+  /** ADR-0065 — the same combined quantity kept EXACTLY in the log domain (logSumExp-mean of
+   *  the family log e-values). In range, log(e_value) ≈ log_e_value; at saturation this is
+   *  the only exact record. Optional: pre-ADR-0065 audits lack it. */
+  log_e_value?: number;
   /** true if any family fired. */
   fired: boolean;
   /** total α spent across detectors (audit record). */

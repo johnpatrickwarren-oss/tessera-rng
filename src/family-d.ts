@@ -207,6 +207,9 @@ export function readSpectralWealth(state: { M: number }): number {
 
 export interface FamilyDResult {
   e_value: number;
+  /** ADR-0065 — log of the family e-value; EXACT because per-signal wealth is capped at
+   *  WEALTH_CAP = 1e12, far inside float range (no saturation to price). */
+  log_e_value: number;
   fired: boolean;
   alpha_spent: number;
 }
@@ -227,8 +230,8 @@ export function runFamilyD(
     if (!cell) continue;
     wealths.push(signalSpectralWealth(series.map((row) => row[j]), cell, p));
   }
-  if (wealths.length === 0) return { e_value: 1, fired: false, alpha_spent: 0 };
+  if (wealths.length === 0) return { e_value: 1, log_e_value: 0, fired: false, alpha_spent: 0 };
   const e = wealths.reduce((s, x) => s + x, 0) / wealths.length;
   const fired = e >= 1 / p.alphaD;
-  return { e_value: e, fired, alpha_spent: fired ? p.alphaD : 0 };
+  return { e_value: e, log_e_value: Math.log(e), fired, alpha_spent: fired ? p.alphaD : 0 };
 }

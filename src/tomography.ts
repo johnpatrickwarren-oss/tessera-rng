@@ -65,8 +65,16 @@ export interface LocalizeOpts {
    * dormant; the flip to magnitude-by-default is Phase 2 (ADR-0031), alongside the cross-optic fabric.
    */
   magnitude?: ReadonlyMap<PathClassId, number>;
+  /**
+   * ADR-0065 — the same magnitude channel fed with EXACT log-domain e-values (`log_e_value` from
+   * the audit verdicts). Takes precedence over `magnitude`. Identical statistic in range
+   * (z consumes only ln E); at saturation the linear view ties every extreme leaf at
+   * z(ln MAX_VALUE) while this input keeps the true ordering. Same fail-closed contract.
+   */
+  logMagnitude?: ReadonlyMap<PathClassId, number>;
   /** fault-amplitude grid S the magnitude scorer mixes over with a 1/S prior (ADR-0029 D2); only used
-   *  when `magnitude` is set. Fixed-form, not a tunable knob — the meaningful 1–4σ standardized range. */
+   *  when `magnitude` or `logMagnitude` is set. Fixed-form, not a tunable knob — the meaningful 1–4σ
+   *  standardized range. */
   scales?: number[];
   /** z-calibration (ADR-0033): the number of observations the magnitude e-values were ACCRUED over,
    *  so z = √(2·max(ln E,0)/ticks) ≈ the per-tick shift θ (on μ's O(1) scale). Absent/1 ⇒ the raw
@@ -79,7 +87,8 @@ export interface LocalizeOpts {
    * exact Gaussian mean model y ~ N(θ·w·√T, 1) mixed over the fixed `thetas` grid with a 1/θ
    * prior; the null is y ~ N(0, 1) — PARAMETER-FREE: q₀ exits the magnitude path (the ADR-0034
    * root-cause-1 corruption dissolves), κ and S disappear (dilution is w, severity is θ, and the
-   * observation scale itself no longer saturates). Takes precedence over `magnitude`. Every
+   * observation scale itself no longer saturates). Precedence: magnitudeT > logMagnitude >
+   * magnitude. Every
    * firing leaf MUST appear in the map (fail-closed). A virtual fleet-event candidate
    * (`FLEET_RESOURCE_ID`, w = 1 on every leaf) competes in the cover: a genuinely uniform
    * elevation is reported as a non-drainable fleet_common_mode culprit instead of a fabricated
@@ -219,6 +228,36 @@ export function magnitudeZ(eValue: number, ticks = 1): number {
   // interpretation: z(e^{θ²/2}) = θ exactly, the D1 identity for direct callers / unit fixtures.
   if (eValue === Infinity) return Z_MAX;
   return Math.min(Z_MAX, Math.sqrt((2 * Math.max(Math.log(eValue), 0)) / Math.max(ticks, 1)));
+}
+
+/** ADR-0065 — magnitudeZ on an EXACT log-domain e-value. magnitudeZ only ever consumes ln E, so
+ *  the log-domain form is the same statistic with the saturation ceiling removed: a linear view
+ *  capped at Number.MAX_VALUE ties every saturated leaf at z(ln MAX) while the exact log e-value
+ *  keeps their true ordering (until the Z_MAX clamp, which the ticks-calibrated scale defers by a
+ *  factor of √ticks). NaN throws on the same contract as magnitudeZ; −∞ (a zero e-value) is z 0. */
+export function magnitudeZFromLog(logEValue: number, ticks = 1): number {
+  if (Number.isNaN(logEValue)) throw new RangeError('magnitudeZFromLog: log e-value must not be NaN');
+  return Math.min(Z_MAX, Math.sqrt((2 * Math.max(logEValue, 0)) / Math.max(ticks, 1)));
+}
+
+/** The magnitude-mode z lookup for `localize` (extracted for the complexity gate): logMagnitude
+ *  (exact log domain, ADR-0065) takes precedence over magnitude (linear, ADR-0029); either is
+ *  fail-closed on a firing leaf missing from its map; no magnitude channel ⇒ z ≡ 0 (binary mode). */
+function magnitudeZOf(opts: LocalizeOpts, fired: ReadonlySet<PathClassId>): (pc: PathClassId) => number {
+  const logMag = opts.logMagnitude;
+  const mag = opts.magnitude;
+  const magTicks = opts.magnitudeTicks ?? 1;
+  return (pc: PathClassId): number => {
+    if (!fired.has(pc) || (!logMag && !mag)) return 0;
+    if (logMag) {
+      const logE = logMag.get(pc);
+      if (logE === undefined) throw new RangeError(`magnitude mode: firing leaf ${pc} has no log e-value`);
+      return magnitudeZFromLog(logE, magTicks);
+    }
+    const e = mag!.get(pc);
+    if (e === undefined) throw new RangeError(`magnitude mode: firing leaf ${pc} has no e-value`);
+    return magnitudeZ(e, magTicks);
+  };
 }
 
 /** Soft-evidence member log-LR (ADR-0029): log[ N(z; μ, 1) / N(z; 0, 1) ] = μz − μ²/2, with μ = S·L
@@ -478,7 +517,7 @@ function bestMarginal(
   let best: { resource: ResourceId; score: number; cells: MixCell[] } | null = null;
   for (const [resource, a] of acc) {
     if (picked.has(resource) || !hasUnexplainedFiring(a, logG, opts.q0)) continue;
-    const p = opts.magnitude
+    const p = (opts.magnitude || opts.logMagnitude)
       ? resourceMagnitudeLLR(a, logG, zOf, opts.q0, opts.grid, opts.kappas, opts.scales ?? DEFAULT_SCALES)
       : resourceLLR(a, logG, opts.q0, opts.grid, opts.kappas);
     if (!p || !(p.score > 0)) continue;
@@ -595,14 +634,9 @@ export function localize(
   // Magnitude currency (ADR-0029): firing leaves carry z = magnitudeZ(e_value), quiet leaves z = 0.
   // Fail-closed — a firing leaf with no supplied e-value in magnitude mode is a contract violation,
   // not a silent z = 0 (which would falsify the very resource it fired for).
-  const mag = opts.magnitude;
-  const magTicks = opts.magnitudeTicks ?? 1;
-  const zOf = (pc: PathClassId): number => {
-    if (!mag || !fired.has(pc)) return 0;
-    const e = mag.get(pc);
-    if (e === undefined) throw new RangeError(`magnitude mode: firing leaf ${pc} has no e-value`);
-    return magnitudeZ(e, magTicks);
-  };
+  // ADR-0065 — logMagnitude (exact log-domain e-values) takes precedence: same statistic in range,
+  // true ordering preserved at saturation where the linear view ties.
+  const zOf = magnitudeZOf(opts, fired);
 
   // Marginal-LLR set construction (ADR-0022): each pick folds its (δ, κ) posterior into the
   // residual quiet factors, so the next candidate is scored on what remains SURPRISING — no

@@ -35,8 +35,9 @@ import { stripCommonModeTick } from './common-mode';
 import { logScaleFromSums, dispersionFromLogScales, DEFAULT_SIGMA_THRESHOLD } from './dispersion-gate';
 import { driftMonitor, degenerateDriftVerdict } from './drift-monitor';
 import type { CalibrationSubstrate, StreamStandardizer } from './calibration';
-import { DEFAULT_DETECT, combineSegmentRuns } from './detect';
+import { DEFAULT_DETECT, combineSegmentRuns, detectorLogE, saturateE } from './detect';
 import type { DetectParams, DetectorContext, SegmentSpec } from './detect';
+import { combineAverage } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/combine';
 import { makeFamilyCCell } from './family-c';
 import { DEFAULT_SPECTRAL, freshSpectralStream, feedSpectralWindow, readSpectralWealth } from './family-d';
 import { makeEpochs, changedLeaves, epochIndexAt } from './epoch';
@@ -350,13 +351,16 @@ export class IncrementalSession {
 
   /** The current segment's verdict from live states — replicates detectPathClass's assembly. */
   private segmentVerdict(pc: PathClassId, det: DetectorStates): PathClassVerdict {
-    const aE = det.aM.reduce((s, x) => s + x, 0) / det.aM.length;
+    const aE = saturateE(det.aM.reduce((s, x) => s + x, 0) / det.aM.length);
+    // ADR-0065 — the exact log-domain mean over the engine's per-signal log-wealth.
+    const aLogE = combineAverage(det.aStates.map((s, i) => s.log_M ?? Math.log(det.aM[i]))).log_fleet_e;
     const aFired = aE >= 1 / this.detect.alphaA;
     const detectors: DetectorResult[] = [
-      { family: 'A', e_value: aE, fired: aFired, alpha_allocated: this.detect.alphaA, alpha_spent: aFired ? this.detect.alphaA : 0 },
+      { family: 'A', e_value: aE, log_e_value: aLogE, fired: aFired, alpha_allocated: this.detect.alphaA, alpha_spent: aFired ? this.detect.alphaA : 0 },
       {
         family: 'C',
         e_value: det.cState.M,
+        log_e_value: det.cState.log_M ?? Math.log(det.cState.M),
         fired: det.cState.M >= 1 / this.detect.alphaC,
         alpha_allocated: this.detect.alphaC,
         alpha_spent: det.cState.alphaConsumed,
@@ -368,12 +372,14 @@ export class IncrementalSession {
       for (let i = 0; i < SIGNALS.length; i++) if (det.dStates[i]) wealths.push(readSpectralWealth(det.dStates[i]!));
       const e = wealths.length ? wealths.reduce((s, x) => s + x, 0) / wealths.length : 1;
       const fired = wealths.length ? e >= 1 / sp.alphaD : false;
-      detectors.push({ family: 'D', e_value: e, fired, alpha_allocated: sp.alphaD, alpha_spent: fired ? sp.alphaD : 0 });
+      // exact by the RNG-side WEALTH_CAP — see FamilyDResult.log_e_value.
+      detectors.push({ family: 'D', e_value: e, log_e_value: Math.log(e), fired, alpha_allocated: sp.alphaD, alpha_spent: fired ? sp.alphaD : 0 });
     }
     return {
       path_class_id: pc,
       detectors,
-      e_value: detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length,
+      e_value: saturateE(detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length),
+      log_e_value: combineAverage(detectors.map(detectorLogE)).log_fleet_e,
       fired: detectors.some((dt) => dt.fired),
       alpha_spent: detectors.reduce((s, dt) => s + dt.alpha_spent, 0),
     };

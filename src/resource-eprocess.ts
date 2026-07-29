@@ -21,6 +21,7 @@
  * Standalone (the ADR-0058 precedent): pure functions, no pipeline/audit threading.
  */
 import { freshBettingState, updateBettingState } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/betting-e-process';
+import { saturateE } from './detect';
 import { ambiguityGroupsByResource } from './identifiability';
 import type { FaultDomainSnapshot, PathClassId, ResourceId } from './domain';
 
@@ -142,7 +143,9 @@ export function escalationTier(
     for (let t = 0; t < liveT; t++) {
       for (let j = 0; j < p; j++) M[j] = updateBettingState(states[j], (live[t][j] - mean[j]) / sd[j], 0, 1, alpha);
     }
-    const e = M.reduce((s, x) => s + x, 0) / p;
+    // ADR-0065 — the mean of saturating views can itself overflow (cold-eye 0065 finding 1);
+    // keep the published aggregate JSON-safe.
+    const e = saturateE(M.reduce((s, x) => s + x, 0) / p);
     entries.push({ resource_id: r, e_value: e, fired: e >= threshold, neighborhood: hoods.get(r)! });
   }
   return {
