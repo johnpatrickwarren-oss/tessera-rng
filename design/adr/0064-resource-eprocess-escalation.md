@@ -132,6 +132,17 @@ Artifact: `coverage-matrices/resource-eprocess.{json,md}` (n = 4 seeds/cell, 76 
   everything. Hood sizes are published (optics 3, panels 12, rooms 76); whether the
   inclusive w ≥ 0.5 materiality on tor→room edges is the right rule is recorded as an open
   design point, not decided here.
+
+  **RESOLVED 2026-07-29 (operator-ratified): the inclusive w ≥ 0.5 rule stays.** A room on
+  this fabric genuinely is a fleet-scale domain — half the fabric's traffic materially
+  transits it — so a fleet-wide room hood is the honest claim, not a bug to threshold away.
+  A strict-inequality (w > 0.5) variant would shrink the hood by dropping exactly the
+  edges that carry the measured mutual-room confound (the split pair-leaves at w = ½),
+  purchasing tidier output by hiding real confusability; an asymmetric per-edge-kind
+  materiality rule was also considered and rejected as unprincipled without an operator
+  drill flow to calibrate against. If room-hood size becomes an operator pain point, the
+  remedy is fabric-side (finer room partitioning changes the true overlap structure), not
+  threshold-side.
 - The ADR-0037 evaluate-on-evidence loop closes: probed (0049) → build conditions recorded →
   shipped under them → the honest null CONFIRMED the probe's table and strengthened its
   confound. Randomized e-BH (ADR-0063, queued) should be re-weighed against sub-floor gains
