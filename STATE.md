@@ -433,6 +433,23 @@ coverage reads drift-shaped. Also folded: inert q0 deleted (magnitudeT path is p
 samplingFloorVar = the ONE floor definition shared by estimator/monitor/triage. Standalone (no
 pipeline threading — recorded follow-up once an operator flow consumes it). **307 tests, gate
 PASS.**
+Onset vs N (same branch, **ADR-0059 ACCEPTED**, operator-ratified — the GPU N13 transfer
+answered): **the dispersion onset COLLAPSES with N (0.075 @109 → ≤0.05 @1456/6112 — a
+ONE-SIDED bound: zero counts at ς=0.02 with n=5/3 cannot support a lower edge) — into the
+fixed gate threshold: a measured LAUNDERING region at paper scale (gate passes 100% of runs
+while e-BH false-selects in 40% = 2/5 and 67% = 2/3 of them @1456/6112, ς=0.05)** — the
+ADR-0051 fixed ς\* is anti-conservative at ≥ paper scale (mild magnitude ≤0.67/run at tested
+sizes, near-threshold band only; measured points monotone in N, not resolved at these n;
+VALIDATION carries the ⚠️ on the gate row). **The remedy is the fix: perLeafScale = 0 false
+selections in ALL 15 (size × ς) cells across a 56× size span** — the RNG mirror of the GPU
+rack-local construction, measured.
+runNullRun now returns gate_passing (additive). Cross-artifact anchor to ADR-0050 held
+exactly. **NO threshold change (anti-scope): the gate-redesign decision is PARKED with John**
+— options recorded in the ADR: (a) perLeafScale as default construction (carries the ADR-0052
+drift cliff ⇒ monitor+cadence preconditions), (b) max-statistic extreme-value gate, (c)
+scale-indexed threshold (recorded weakness: the index would be fit to 2-of-5-run one-sided
+onset estimates — thin material for a curve).
+**310 tests, gate PASS.**
 
 ## Built so far
 

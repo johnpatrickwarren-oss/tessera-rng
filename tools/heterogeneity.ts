@@ -30,6 +30,7 @@ import { detectAll, DEFAULT_DETECT } from '../src/detect';
 import { estimateBaselineCovariance, makeFamilyCCellFromCovariance } from '../src/family-c';
 import { estimateFamilyDNull } from '../src/family-d';
 import { buildSurface } from '../src/surface';
+import { estimateDispersion, dispersionGate } from '../src/dispersion-gate';
 import type { FaultDomainSnapshot } from '../src/domain';
 
 const Q = 0.05;
@@ -48,6 +49,11 @@ export interface NullRunResult {
   false_selections: number;
   fleet_log_e: number;
   selected: readonly string[];
+  /** the ADR-0051 PAIR-gate verdict on this run's calibration residuals (ADR-0059: the
+   *  laundering question is "gate passes AND e-BH false-selects"). For the perLeafScale arm
+   *  this is the gate on the CORRECTED residuals — in-sample ≈ 0 by construction (ADR-0052 §2),
+   *  which is exactly what makes the remedy arm's laundering column the N-robustness question. */
+  gate_passing: boolean;
 }
 
 /**
@@ -84,7 +90,12 @@ export function runNullRun(snapshot: FaultDomainSnapshot, seed: number, opts: Nu
   const residuals = cm ? stripCommonMode(liveStd) : liveStd;
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells });
   const surface = buildSurface(verdicts, Q);
-  return { false_selections: surface.selected_path_class_ids.length, fleet_log_e: surface.fleet_log_e, selected: surface.selected_path_class_ids };
+  return {
+    false_selections: surface.selected_path_class_ids.length,
+    fleet_log_e: surface.fleet_log_e,
+    selected: surface.selected_path_class_ids,
+    gate_passing: dispersionGate(estimateDispersion(calibResiduals)).passing,
+  };
 }
 
 // ───────────────────────── the sweep (grids are the record; truncations logged) ─────────────────────────

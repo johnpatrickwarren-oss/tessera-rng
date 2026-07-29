@@ -1,0 +1,75 @@
+/**
+ * ADR-0059 — onset-vs-N acceptance bar.
+ *
+ * The load-bearing binds: the cross-artifact anchor (109/shared overlap cells ≡ the ADR-0050
+ * artifact — same seeds, same composition), an exact freshness recompute, and the two measured
+ * findings pinned as data: the LAUNDERING region at (paper scale, ς = ς*) and the remedy arm's
+ * N-robustness. A stale or hand-edited artifact fails the recompute; a re-run that loses either
+ * finding fails the pins (which is correct — those pins ARE the ADR's recorded consequences).
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { generateSpraypointFabric } from '../src/spraypoint';
+import { runNullRun } from '../tools/heterogeneity';
+import { renderMarkdown } from '../tools/onset-scale';
+
+const rep = () => JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'onset-scale.json'), 'utf8'));
+const boundary = () => JSON.parse(readFileSync(join(__dirname, '..', 'coverage-matrices', 'heterogeneity-boundary.json'), 'utf8'));
+
+const cell = (r: ReturnType<typeof rep>, leaves: number, arm: string, sigma: number) =>
+  r.cells.find((c: { leaves: number; arm: string; sigma: number }) => c.leaves === leaves && c.arm === arm && c.sigma === sigma);
+
+test('AC-1: the 109/shared overlap cells reproduce the ADR-0050 artifact exactly (cross-artifact anchor)', () => {
+  const r = rep();
+  const b = boundary();
+  for (const sigma of [0.05, 0.1]) {
+    const here = cell(r, 109, 'shared', sigma);
+    const ref = b.axes.dispersion.cells.find((c: { intensity: number }) => c.intensity === sigma);
+    assert.ok(here && ref, `both artifacts must publish ς=${sigma} at 109 leaves`);
+    assert.equal(here.mean_false_selections, ref.mean_false_selections, `ς=${sigma}: mean must equal the ADR-0050 cell`);
+    assert.equal(here.max_false_selections, ref.max_false_selections, `ς=${sigma}: max must equal the ADR-0050 cell`);
+  }
+});
+
+test('AC-3: the 109/shared ς=0.075 cell recomputes exactly; .md bound to .json; truncations recorded', () => {
+  const r = rep();
+  const snap = generateSpraypointFabric({ nTors: 64, nPanels: 10, nRooms: 2, crossOptic: false });
+  const seeds = [0xb0a01, 0xb0a02, 0xb0a03, 0xb0a04, 0xb0a05, 0xb0a06, 0xb0a07, 0xb0a08];
+  const runs = seeds.map((s) => runNullRun(snap, s, { heterogeneity: { sigmaLogSd: 0.075 } }));
+  const c = cell(r, 109, 'shared', 0.075);
+  assert.equal(c.mean_false_selections, runs.reduce((a, x) => a + x.false_selections, 0) / runs.length, 'published mean must recompute exactly');
+  assert.equal(c.gate_pass_rate, runs.filter((x) => x.gate_passing).length / runs.length, 'published gate pass rate must recompute exactly');
+  assert.ok(r.truncations.length >= 3, 'seed and grid truncations must be on the record');
+  const md = readFileSync(join(__dirname, '..', 'coverage-matrices', 'onset-scale.md'), 'utf8');
+  assert.equal(md, renderMarkdown(r), 'published .md must equal renderMarkdown(published .json)');
+});
+
+test('AC-2: the two findings, pinned — the LAUNDERING region at (paper scale, ς*) and the remedy arm N-robust', () => {
+  const r = rep();
+  // finding 1: onset collapses INTO the fixed threshold — laundering at ς = 0.05 for 1456/6112.
+  for (const leaves of [1456, 6112]) {
+    const c = cell(r, leaves, 'shared', 0.05);
+    assert.ok(c.laundering_rate > 0, `${leaves} leaves @ ς=0.05: the gate must be measured LAUNDERING (passes while e-BH false-selects)`);
+    assert.equal(c.gate_pass_rate, 1, `${leaves} leaves @ ς=0.05: the fixed gate passes every run here — that is the anti-conservative failure`);
+  }
+  // onset monotone non-increasing with N on the shared arm (non-null asserted first — a null
+  // onset would coerce to 0 and pass vacuously, cold-eye finding 9).
+  const onset = (leaves: number) => {
+    const o = r.onsets.find((x: { leaves: number; arm: string }) => x.leaves === leaves && x.arm === 'shared')!.onset;
+    assert.ok(o !== null, `${leaves} leaves: the shared arm must have an in-grid onset`);
+    return o as number;
+  };
+  assert.ok(onset(1456) <= onset(109) && onset(6112) <= onset(1456), 'the shared-arm onset must not increase with N');
+  // the gate-wiring channel bound against an always-passing stub (cold-eye finding 2): the
+  // 109/shared cells where the gate FAILS (0% at ς=0.075) and straddles (12.5% at ς=0.05 —
+  // cross-anchoring ADR-0051's independently published 13% straddle cell).
+  assert.equal(cell(r, 109, 'shared', 0.075).gate_pass_rate, 0, 'the gate must be measured FAILING past the boundary — an always-pass stub dies here');
+  assert.equal(cell(r, 109, 'shared', 0.05).gate_pass_rate, 0.125, 'the 109 straddle cell must match ADR-0051 (1/8 runs pass)');
+  // finding 2: the remedy arm is N-robust — zero false selections and zero laundering EVERYWHERE.
+  for (const c of r.cells.filter((x: { arm: string }) => x.arm === 'perLeafScale')) {
+    assert.equal(c.mean_false_selections, 0, `perLeafScale ${c.leaves}@ς=${c.sigma}: the remedy must hold at scale`);
+    assert.equal(c.laundering_rate, 0, `perLeafScale ${c.leaves}@ς=${c.sigma}: no laundering`);
+  }
+});

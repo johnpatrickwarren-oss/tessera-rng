@@ -32,7 +32,9 @@
     "preheterogeneity-power": "tsc -p tsconfig.test.json",
     "heterogeneity-power": "node tools/heterogeneity-power.js",
     "prereal-replay": "tsc -p tsconfig.test.json",
-    "real-replay": "node tools/real-replay.js"
+    "real-replay": "node tools/real-replay.js",
+    "preonset-scale": "tsc -p tsconfig.test.json",
+    "onset-scale": "node tools/onset-scale.js"
   },
   "dependencies": {
     "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.3-pre"

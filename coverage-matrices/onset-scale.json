@@ -1,0 +1,345 @@
+{
+  "generated_for": "spraypoint crossOptic-off ramp 109 / 1456 / 6112 leaves (the ADR-0050 N-axis fabrics)",
+  "operating_point": "60 ticks, q=0.05, production calibration defaults; gate = the ADR-0051 PAIR at ς*=0.05 on the calibration residuals (perLeafScale arm: on the CORRECTED residuals — in-sample ≈ 0 by construction, which is what makes that arm's laundering column the N-robustness question)",
+  "cells": [
+    {
+      "leaves": 109,
+      "arm": "shared",
+      "sigma": 0.02,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "shared",
+      "sigma": 0.05,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 0.125,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "shared",
+      "sigma": 0.075,
+      "mean_false_selections": 2.25,
+      "max_false_selections": 4,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "shared",
+      "sigma": 0.1,
+      "mean_false_selections": 5.25,
+      "max_false_selections": 8,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "shared",
+      "sigma": 0.15,
+      "mean_false_selections": 12.25,
+      "max_false_selections": 14,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "perLeafScale",
+      "sigma": 0.02,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "perLeafScale",
+      "sigma": 0.05,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "perLeafScale",
+      "sigma": 0.075,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "perLeafScale",
+      "sigma": 0.1,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 109,
+      "arm": "perLeafScale",
+      "sigma": 0.15,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 8
+    },
+    {
+      "leaves": 1456,
+      "arm": "shared",
+      "sigma": 0.02,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "shared",
+      "sigma": 0.05,
+      "mean_false_selections": 0.4,
+      "max_false_selections": 1,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0.4,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "shared",
+      "sigma": 0.075,
+      "mean_false_selections": 8.8,
+      "max_false_selections": 11,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "shared",
+      "sigma": 0.1,
+      "mean_false_selections": 33,
+      "max_false_selections": 43,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "shared",
+      "sigma": 0.15,
+      "mean_false_selections": 113.6,
+      "max_false_selections": 118,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "perLeafScale",
+      "sigma": 0.02,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "perLeafScale",
+      "sigma": 0.05,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "perLeafScale",
+      "sigma": 0.075,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "perLeafScale",
+      "sigma": 0.1,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 1456,
+      "arm": "perLeafScale",
+      "sigma": 0.15,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 5
+    },
+    {
+      "leaves": 6112,
+      "arm": "shared",
+      "sigma": 0.02,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "shared",
+      "sigma": 0.05,
+      "mean_false_selections": 0.6666666666666666,
+      "max_false_selections": 1,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0.6666666666666666,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "shared",
+      "sigma": 0.075,
+      "mean_false_selections": 32.333333333333336,
+      "max_false_selections": 37,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "shared",
+      "sigma": 0.1,
+      "mean_false_selections": 144.66666666666666,
+      "max_false_selections": 157,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "shared",
+      "sigma": 0.15,
+      "mean_false_selections": 486.6666666666667,
+      "max_false_selections": 494,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "perLeafScale",
+      "sigma": 0.02,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "perLeafScale",
+      "sigma": 0.05,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "perLeafScale",
+      "sigma": 0.075,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "perLeafScale",
+      "sigma": 0.1,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 3
+    },
+    {
+      "leaves": 6112,
+      "arm": "perLeafScale",
+      "sigma": 0.15,
+      "mean_false_selections": 0,
+      "max_false_selections": 0,
+      "gate_pass_rate": 1,
+      "laundering_rate": 0,
+      "n": 3
+    }
+  ],
+  "onsets": [
+    {
+      "leaves": 109,
+      "arm": "shared",
+      "onset": 0.075
+    },
+    {
+      "leaves": 109,
+      "arm": "perLeafScale",
+      "onset": null
+    },
+    {
+      "leaves": 1456,
+      "arm": "shared",
+      "onset": 0.05
+    },
+    {
+      "leaves": 1456,
+      "arm": "perLeafScale",
+      "onset": null
+    },
+    {
+      "leaves": 6112,
+      "arm": "shared",
+      "onset": 0.05
+    },
+    {
+      "leaves": 6112,
+      "arm": "perLeafScale",
+      "onset": null
+    }
+  ],
+  "truncations": [
+    "ς grid capped at 0.15 (the ADR-0050 boundary region; higher is measured there)",
+    "sizes 360/3176 skipped (the trend is bound by three fabric sizes spanning 56× — 109 to 6112 leaves)",
+    "1456 leaves: n=5 seeds (runtime)",
+    "6112 leaves: n=3 seeds (runtime)"
+  ],
+  "caveat": "NULL runs — every selection is false. Synthetic Tier-2. The 109/shared ς∈{0.05,0.1} cells are cross-artifact-anchored to heterogeneity-boundary.json (same seeds/composition, test-bound). LAUNDERING = gate passes while e-BH false-selects — where that column is nonzero, the fixed ς* is anti-conservative at that scale; no threshold change is made here (the redesign decision is parked with the operator, ADR-0059). Onset estimates are grid-resolution-limited and small-n."
+}
