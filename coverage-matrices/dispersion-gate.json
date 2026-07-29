@@ -27,7 +27,7 @@
       "sd_sigma_hat": 0.007677672328480265,
       "mean_raw_log_sd": 0.068361659648091,
       "sampling_floor_sd": 0.04116934847963091,
-      "pass_rate": 0.125,
+      "pass_rate": 0,
       "mean_false_selections": 0,
       "n": 8
     },

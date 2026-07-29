@@ -49,11 +49,15 @@ export interface NullRunResult {
   false_selections: number;
   fleet_log_e: number;
   selected: readonly string[];
-  /** the ADR-0051 PAIR-gate verdict on this run's calibration residuals (ADR-0059: the
-   *  laundering question is "gate passes AND e-BH false-selects"). For the perLeafScale arm
-   *  this is the gate on the CORRECTED residuals — in-sample ≈ 0 by construction (ADR-0052 §2),
-   *  which is exactly what makes the remedy arm's laundering column the N-robustness question. */
+  /** the ADR-0061 TRIPLE-gate verdict on this run's calibration residuals (pair AND z_max ≤
+   *  bound; ADR-0059's laundering question is "gate passes AND e-BH false-selects"). For the
+   *  perLeafScale arm this is the gate on the CORRECTED residuals — in-sample ≈ 0 by
+   *  construction (ADR-0052 §2), which is exactly what makes the remedy arm's laundering
+   *  column the N-robustness question. */
   gate_passing: boolean;
+  /** the extreme-leaf statistic + bound (ADR-0061) — published so "fails via z_max" is data. */
+  gate_z_max: number;
+  gate_z_max_bound: number;
 }
 
 /**
@@ -90,11 +94,14 @@ export function runNullRun(snapshot: FaultDomainSnapshot, seed: number, opts: Nu
   const residuals = cm ? stripCommonMode(liveStd) : liveStd;
   const verdicts = detectAll(residuals, detect, { familyCCell, familyDCells });
   const surface = buildSurface(verdicts, Q);
+  const gate = dispersionGate(estimateDispersion(calibResiduals));
   return {
     false_selections: surface.selected_path_class_ids.length,
     fleet_log_e: surface.fleet_log_e,
     selected: surface.selected_path_class_ids,
-    gate_passing: dispersionGate(estimateDispersion(calibResiduals)).passing,
+    gate_passing: gate.passing,
+    gate_z_max: gate.z_max,
+    gate_z_max_bound: gate.z_max_bound,
   };
 }
 

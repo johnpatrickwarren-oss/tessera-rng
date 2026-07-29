@@ -1,19 +1,24 @@
 /**
- * Onset vs N (ADR-0059) — the GPU sibling's N13 transfer, answered for RNG.
+ * Onset vs N (ADR-0059, regenerated under ADR-0061's TRIPLE gate after the parked decision
+ * was taken) — the GPU sibling's N13 transfer, answered for RNG.
  *
  * Question 1: does the false-selection onset ς collapse with fleet size, toward/below the
- * fixed gate threshold ς* = 0.05? Where it does, the LAUNDERING column lights up: the gate
- * PASSES a calibration window while e-BH false-selects from it — the anti-conservative
- * failure a claim gate must never have. Question 2 (the GPU rack-local mirror): is
- * `perLeafScale` (ADR-0052) the N-robust construction — 0 false selections at every
- * (size, ς) — or does shrinkage-noise extreme-value growth re-break it at scale?
+ * gate threshold ς* = 0.05? Where a gate PASSES a calibration window while e-BH
+ * false-selects from it, the LAUNDERING column lights up — the anti-conservative failure a
+ * claim gate must never have. The PAIR-era artifact measured exactly that at paper scale
+ * (ADR-0059's recorded motivation); the current artifact runs the ADR-0061 triple gate
+ * (pair AND z_max ≤ Φ⁻¹(1−0.01/n)), whose z columns make the closure verifiable as data.
+ * Question 2 (the GPU rack-local mirror): is `perLeafScale` (ADR-0052) the N-robust
+ * construction — 0 false selections at every (size, ς) — or does shrinkage-noise
+ * extreme-value growth re-break it at scale?
  *
  * NULL runs only; the ADR-0050 crossOptic-off ramp; the 109/shared cells at ς ∈ {0.05, 0.1}
  * are CROSS-ARTIFACT ANCHORED to heterogeneity-boundary.json (same seeds; the fabrics differ
  * in crossOptic — the anchor is valid because incidence edges are INERT in dispersion-only
  * nulls (edges enter telemetry only via latentNull), and BREAKS if a latent arm is ever added
- * to this sweep — recorded, cold-eye finding 7). No gate/threshold change is made here: if
- * laundering appears, the redesign decision is PARKED with the operator (ADR-0059 anti-scope).
+ * to this sweep — recorded, cold-eye finding 7). The ADR-0059 run of this tool made no gate
+ * change and parked the redesign; the decision was TAKEN (ADR-0060/0061) and this tool now
+ * measures the ratified triple gate.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,6 +43,11 @@ export interface OnsetCell {
   gate_pass_rate: number;
   /** fraction of runs where the gate PASSED while e-BH false-selected ≥ 1 — the laundering rate. */
   laundering_rate: number;
+  /** the extreme-leaf statistic per cell (ADR-0061): the headline "fails via z_max" must be
+   *  verifiable from published data, not narrative. */
+  mean_z_max: number;
+  max_z_max: number;
+  z_max_bound: number;
   n: number;
 }
 
@@ -72,6 +82,9 @@ export function computeOnsetScale(log: (m: string) => void = () => {}): OnsetRep
           max_false_selections: Math.max(...runs.map((r) => r.false_selections)),
           gate_pass_rate: runs.filter((r) => r.gate_passing).length / runs.length,
           laundering_rate: runs.filter((r) => r.gate_passing && r.false_selections > 0).length / runs.length,
+          mean_z_max: mean(runs.map((r) => r.gate_z_max)),
+          max_z_max: Math.max(...runs.map((r) => r.gate_z_max)),
+          z_max_bound: runs[0].gate_z_max_bound,
           n: runs.length,
         });
       }
@@ -85,16 +98,17 @@ export function computeOnsetScale(log: (m: string) => void = () => {}): OnsetRep
   );
   return {
     generated_for: 'spraypoint crossOptic-off ramp 109 / 1456 / 6112 leaves (the ADR-0050 N-axis fabrics)',
-    operating_point: '60 ticks, q=0.05, production calibration defaults; gate = the ADR-0051 PAIR at ς*=0.05 on the calibration residuals (perLeafScale arm: on the CORRECTED residuals — in-sample ≈ 0 by construction, which is what makes that arm\'s laundering column the N-robustness question)',
+    operating_point: '60 ticks, q=0.05, production calibration defaults; gate = the ADR-0061 TRIPLE at ς*=0.05 — pair AND z_max ≤ Φ⁻¹(1−0.01/n) — on the calibration residuals (perLeafScale arm: on the CORRECTED residuals — in-sample ≈ 0 by construction, which is what makes that arm\'s laundering column the N-robustness question)',
     cells,
     onsets,
     truncations,
     caveat:
       'NULL runs — every selection is false. Synthetic Tier-2. The 109/shared ς∈{0.05,0.1} cells are ' +
-      'cross-artifact-anchored to heterogeneity-boundary.json (same seeds/composition, test-bound). ' +
-      'LAUNDERING = gate passes while e-BH false-selects — where that column is nonzero, the fixed ς* ' +
-      'is anti-conservative at that scale; no threshold change is made here (the redesign decision is ' +
-      'parked with the operator, ADR-0059). Onset estimates are grid-resolution-limited and small-n.',
+      'cross-artifact-anchored to heterogeneity-boundary.json (same seeds; anchor validity note in the ' +
+      'tool header, test-bound). LAUNDERING = gate passes while e-BH false-selects. The PAIR-era run of ' +
+      'this sweep measured laundering at paper scale (ADR-0059, preserved there); THIS artifact runs the ' +
+      'ratified ADR-0061 TRIPLE gate — the z_max columns make the closure verifiable as data. Onset ' +
+      'estimates are grid-resolution-limited and small-n.',
   };
 }
 
@@ -119,10 +133,10 @@ export function renderMarkdown(rep: OnsetReport): string {
   for (const arm of ['shared', 'perLeafScale']) {
     L.push(`## Arm: ${arm}`);
     L.push('');
-    L.push('| leaves | ς | mean false sel | max | gate pass | LAUNDERING | n |');
-    L.push('|---|---|---|---|---|---|---|');
+    L.push('| leaves | ς | mean false sel | max | gate pass | LAUNDERING | mean z_max | max z_max | z bound | n |');
+    L.push('|---|---|---|---|---|---|---|---|---|---|');
     for (const c of rep.cells.filter((x) => x.arm === arm)) {
-      L.push(`| ${c.leaves} | ${c.sigma} | ${c.mean_false_selections.toFixed(2)} | ${c.max_false_selections} | ${Math.round(c.gate_pass_rate * 100)}% | ${Math.round(c.laundering_rate * 100)}% | ${c.n} |`);
+      L.push(`| ${c.leaves} | ${c.sigma} | ${c.mean_false_selections.toFixed(2)} | ${c.max_false_selections} | ${Math.round(c.gate_pass_rate * 100)}% | ${Math.round(c.laundering_rate * 100)}% | ${c.mean_z_max.toFixed(2)} | ${c.max_z_max.toFixed(2)} | ${c.z_max_bound.toFixed(2)} | ${c.n} |`);
     }
     L.push('');
   }

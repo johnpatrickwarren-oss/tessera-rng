@@ -450,6 +450,26 @@ drift cliff ⇒ monitor+cadence preconditions), (b) max-statistic extreme-value 
 scale-indexed threshold (recorded weakness: the index would be fit to 2-of-5-run one-sided
 onset estimates — thin material for a curve).
 **310 tests, gate PASS.**
+The parked decision TAKEN (John: "let's do a and b") — same branch, two rounds:
+**ADR-0060 ACCEPTED (the license rule, in code):** `src/license.ts` `fdrLicense(audit)` —
+licensed ⇔ `calibration_construction: 'per_leaf_scale'` AND `drift_monitor.status: 'ok'`;
+every refusal names its conjunct; unmonitored/indeterminate windows refuse; shared-calibration
+audits NEVER license (Mode A). `PipelineParams.perLeafScale` threaded; the construction stamp
+derives from the substrate (batch ≡ session by construction; absent field = shared — the
+byte-identity encoding). Truth table + e2e + parity test-bound.
+**ADR-0061 ACCEPTED (the max-z triple gate):** the estimate gains z_max (max one-sided
+(ℓ−med)/√floor — the extreme-leaf statistic population stats can't see) + a Bonferroni bound
+Φ⁻¹(1−0.01/n), N-INDEXED FROM THEORY; the gate binds on pair AND z_max ≤ bound. **The
+ADR-0059 laundering is measured CLOSED**: former laundering cells (1456/6112, ς=0.05) now fail
+100% via z_max (predicted 4.6/5.1 from nominal ς vs bounds 4.35/4.65 — held: both trip, realized z above bound; z columns published); laundering 0 in every
+cell of both arms; clean-at-scale 100% pass; one conservative trip (109/ς=0.02, 7/8, zero
+false selections — the α=0.01 price, published); straddle cells fully conservative (13%→0%).
+Monitor deliberately NOT extended (recorded: floor-standardized max is wrong under the
+perLeafScale live regime — correction noise ≈ 2× floor; regime-aware max = future work; the
+license covers the monitor's role). dispersion-gate + onset-scale + drift-monitor (license-phrasing only) artifacts regenerated;
+VALIDATION gate-row ⚠️ closed; ADR-0051/0053/0059 addenda record the era boundary and the
+license supersession; z columns published (former laundering cells mean z 4.75/5.60 vs bounds
+4.35/4.65 — the closure is checkable data). **315 tests, gate PASS.**
 
 ## Built so far
 

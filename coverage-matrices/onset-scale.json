@@ -1,6 +1,6 @@
 {
   "generated_for": "spraypoint crossOptic-off ramp 109 / 1456 / 6112 leaves (the ADR-0050 N-axis fabrics)",
-  "operating_point": "60 ticks, q=0.05, production calibration defaults; gate = the ADR-0051 PAIR at ς*=0.05 on the calibration residuals (perLeafScale arm: on the CORRECTED residuals — in-sample ≈ 0 by construction, which is what makes that arm's laundering column the N-robustness question)",
+  "operating_point": "60 ticks, q=0.05, production calibration defaults; gate = the ADR-0061 TRIPLE at ς*=0.05 — pair AND z_max ≤ Φ⁻¹(1−0.01/n) — on the calibration residuals (perLeafScale arm: on the CORRECTED residuals — in-sample ≈ 0 by construction, which is what makes that arm's laundering column the N-robustness question)",
   "cells": [
     {
       "leaves": 109,
@@ -8,8 +8,11 @@
       "sigma": 0.02,
       "mean_false_selections": 0,
       "max_false_selections": 0,
-      "gate_pass_rate": 1,
+      "gate_pass_rate": 0.875,
       "laundering_rate": 0,
+      "mean_z_max": 2.720234138920456,
+      "max_z_max": 3.958843127148724,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -18,8 +21,11 @@
       "sigma": 0.05,
       "mean_false_selections": 0,
       "max_false_selections": 0,
-      "gate_pass_rate": 0.125,
+      "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 4.408683435906194,
+      "max_z_max": 6.065708193658573,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -30,6 +36,9 @@
       "max_false_selections": 4,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 6.042009497821229,
+      "max_z_max": 7.822658950328034,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -40,6 +49,9 @@
       "max_false_selections": 8,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 7.743220648080716,
+      "max_z_max": 9.482782297124045,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -50,6 +62,9 @@
       "max_false_selections": 14,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 11.179570202300555,
+      "max_z_max": 13.007087831347096,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -58,8 +73,11 @@
       "sigma": 0.02,
       "mean_false_selections": 0,
       "max_false_selections": 0,
-      "gate_pass_rate": 1,
+      "gate_pass_rate": 0.875,
       "laundering_rate": 0,
+      "mean_z_max": 2.1401910644817193,
+      "max_z_max": 3.958843127148724,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -70,6 +88,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.6350542540713193,
+      "max_z_max": 2.5167289399316766,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -80,6 +101,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.3181529707906252,
+      "max_z_max": 2.228256622109285,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -90,6 +114,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.1204608862855532,
+      "max_z_max": 1.674445459286401,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -100,6 +127,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 0.8477562597987774,
+      "max_z_max": 1.1702502531327053,
+      "z_max_bound": 3.740730423084717,
       "n": 8
     },
     {
@@ -110,6 +140,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 3.4062055318462185,
+      "max_z_max": 3.7517515684411586,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -118,8 +151,11 @@
       "sigma": 0.05,
       "mean_false_selections": 0.4,
       "max_false_selections": 1,
-      "gate_pass_rate": 1,
-      "laundering_rate": 0.4,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "mean_z_max": 4.754215027208142,
+      "max_z_max": 5.3546096262202365,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -130,6 +166,9 @@
       "max_false_selections": 11,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 6.353052584221333,
+      "max_z_max": 7.15102121870616,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -140,6 +179,9 @@
       "max_false_selections": 43,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 8.198263326423717,
+      "max_z_max": 8.929095076870908,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -150,6 +192,9 @@
       "max_false_selections": 118,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 11.929559081807254,
+      "max_z_max": 12.51984428939664,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -160,6 +205,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 2.7029163826182816,
+      "max_z_max": 2.9851824911357627,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -170,6 +218,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 2.095283728663296,
+      "max_z_max": 2.343571262057436,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -180,6 +231,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.7628156482603452,
+      "max_z_max": 1.9661335849511934,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -190,6 +244,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.5100797760528604,
+      "max_z_max": 1.6364218401975275,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -200,6 +257,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.1507038936855074,
+      "max_z_max": 1.1968794911153282,
+      "z_max_bound": 4.348035081769695,
       "n": 5
     },
     {
@@ -210,6 +270,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 3.7050526832009685,
+      "max_z_max": 3.8240711775166223,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -218,8 +281,11 @@
       "sigma": 0.05,
       "mean_false_selections": 0.6666666666666666,
       "max_false_selections": 1,
-      "gate_pass_rate": 1,
-      "laundering_rate": 0.6666666666666666,
+      "gate_pass_rate": 0,
+      "laundering_rate": 0,
+      "mean_z_max": 5.604827918718896,
+      "max_z_max": 6.110692868452723,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -230,6 +296,9 @@
       "max_false_selections": 37,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 7.707996111086363,
+      "max_z_max": 8.4201843286857,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -240,6 +309,9 @@
       "max_false_selections": 157,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 10.026663169035627,
+      "max_z_max": 10.728779616745074,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -250,6 +322,9 @@
       "max_false_selections": 494,
       "gate_pass_rate": 0,
       "laundering_rate": 0,
+      "mean_z_max": 14.688841029049618,
+      "max_z_max": 15.380284377298777,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -260,6 +335,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 2.9725946050702174,
+      "max_z_max": 3.0391914581421324,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -270,6 +348,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 2.3088189420781764,
+      "max_z_max": 2.477625230040593,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -280,6 +361,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.890369737328179,
+      "max_z_max": 1.9848050476079182,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -290,6 +374,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.541172786966899,
+      "max_z_max": 1.6004922055150128,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     },
     {
@@ -300,6 +387,9 @@
       "max_false_selections": 0,
       "gate_pass_rate": 1,
       "laundering_rate": 0,
+      "mean_z_max": 1.0904354133873522,
+      "max_z_max": 1.125524536059564,
+      "z_max_bound": 4.652946529265785,
       "n": 3
     }
   ],
@@ -341,5 +431,5 @@
     "1456 leaves: n=5 seeds (runtime)",
     "6112 leaves: n=3 seeds (runtime)"
   ],
-  "caveat": "NULL runs — every selection is false. Synthetic Tier-2. The 109/shared ς∈{0.05,0.1} cells are cross-artifact-anchored to heterogeneity-boundary.json (same seeds/composition, test-bound). LAUNDERING = gate passes while e-BH false-selects — where that column is nonzero, the fixed ς* is anti-conservative at that scale; no threshold change is made here (the redesign decision is parked with the operator, ADR-0059). Onset estimates are grid-resolution-limited and small-n."
+  "caveat": "NULL runs — every selection is false. Synthetic Tier-2. The 109/shared ς∈{0.05,0.1} cells are cross-artifact-anchored to heterogeneity-boundary.json (same seeds; anchor validity note in the tool header, test-bound). LAUNDERING = gate passes while e-BH false-selects. The PAIR-era run of this sweep measured laundering at paper scale (ADR-0059, preserved there); THIS artifact runs the ratified ADR-0061 TRIPLE gate — the z_max columns make the closure verifiable as data. Onset estimates are grid-resolution-limited and small-n."
 }

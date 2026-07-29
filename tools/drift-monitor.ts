@@ -141,7 +141,7 @@ export function computeMonitorEnvelope(log: (m: string) => void = () => {}): Mon
     resolvability,
     caveat:
       'Synthetic Tier-2. The false-selection columns recompute the ADR-0050/0052 cells (same seeds). The ' +
-      'monitor gates the CLAIM, never the alarm; licensed ⇔ gate passing AND monitor ok (both opted in). ' +
+      'monitor gates the CLAIM, never the alarm; license rule (ADR-0060, superseding the original gate-AND-monitor phrasing): per-leaf construction AND monitor ok. ' +
       'Tail pattern is AMBIGUOUS between subpopulation drift and genuine localized variance faults — ' +
       'recorded, the claim is withheld either way. Thresholds are synthetic-boundary-derived (Tier 3: ' +
       'real deployments re-derive).',

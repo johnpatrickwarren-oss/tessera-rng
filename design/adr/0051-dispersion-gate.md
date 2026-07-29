@@ -187,3 +187,12 @@ Real-fabric posture (Tier 3): the recorded N2 prerequisite from ADR-0050 is now 
 before any real-fabric FDR claim, run the gate on the real calibration window; `passing:
 false` (or a floor-dominated estimate — visible in the published fields) means Mode-A
 evidence/ranking only.
+
+---
+
+**ADDENDUM (2026-07-28, ADR-0061):** the PAIR binding recorded above is SUPERSEDED by the
+TRIPLE — pair AND z_max ≤ Φ⁻¹(1 − 0.01/n) (the extreme-leaf statistic; ADR-0059 measured the
+pair laundering at ≥ paper scale, ADR-0061 closed it). The 13% straddle-cell pass rate in
+this ADR's text is the pair-era value; under the triple that cell fully fails (0% — more
+conservative). This ADR's tail-contamination lesson and the pair's roles are unchanged; the
+scale story now lives in ADR-0059/0061.

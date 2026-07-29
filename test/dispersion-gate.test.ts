@@ -144,6 +144,38 @@ test('AC-4: a FAILING gate leaves the selection set untouched — the claim is w
   assert.equal(withGate.dispersion_gate!.passing, false, 'the audit must say the claim is withheld');
 });
 
+// ───────────────────────── ADR-0061: the z_max conjunct, directly bound ─────────────────────────
+
+test('ADR-0061: the TRIPLE binding — pair-passing with z_max over bound must FAIL (kills the pair-only mutant directly); normalQuantile pinned to reference values', () => {
+  const { normalQuantile, dispersionGate: gate } = require('../src/dispersion-gate');
+  // reference values (kills a degenerate/+Infinity-bound mutant): Acklam |rel err| < 1.15e-9.
+  assert.ok(Math.abs(normalQuantile(0.975) - 1.959964) < 1e-5, 'Φ⁻¹(0.975) ≈ 1.959964');
+  assert.ok(Math.abs(normalQuantile(1 - 0.01 / 109) - 3.7407) < 1e-3, 'Φ⁻¹(1−0.01/109) ≈ 3.7407');
+  assert.ok(Math.abs(normalQuantile(1 - 0.01 / 6112) - 4.6529) < 1e-3, 'Φ⁻¹(1−0.01/6112) ≈ 4.6529');
+  assert.throws(() => normalQuantile(0), /needs p/);
+  assert.throws(() => normalQuantile(1), /needs p/);
+
+  // estimate-level: pair comfortably under threshold, z_max over its bound ⇒ MUST fail; the
+  // same estimate with z_max under bound ⇒ passes. Deleting `&& z_max <= z_max_bound` from
+  // dispersionGate flips the first assertion (the ADR-0061 cold-eye CRITICAL, closed).
+  const base = {
+    sigma_hat: 0.02, sigma_hat_tail: 0.025, raw_log_sd: 0.045, raw_log_sd_tail: 0.047,
+    sampling_floor_sd: 0.041, n_leaves: 1456, ticks: 60, signals: 5, z_max_bound: 4.348,
+  };
+  assert.equal(gate({ ...base, z_max: 4.6 }).passing, false, 'pair-passing + z_max over bound must FAIL');
+  assert.equal(gate({ ...base, z_max: 4.0 }).passing, true, 'pair-passing + z_max under bound passes');
+});
+
+test('ADR-0061: production-path pin — a former laundering run (1456 leaves, ς=0.05) now fails the gate WITH the pair passing (z_max is the tripping conjunct)', async () => {
+  const { generateSpraypointFabric } = await import('../src/spraypoint');
+  const { runNullRun } = await import('../tools/heterogeneity');
+  const snap = generateSpraypointFabric({ nTors: 960, nPanels: 32, nRooms: 4, crossOptic: false });
+  // seed 0xb0a01 was one of the pair-era laundering runs (gate passed, e-BH false-selected).
+  const run = runNullRun(snap, 0xb0a01, { heterogeneity: { sigmaLogSd: 0.05 } });
+  assert.equal(run.gate_passing, false, 'the triple gate must refuse the former laundering run');
+  assert.ok(run.gate_z_max > run.gate_z_max_bound, `z_max (${run.gate_z_max.toFixed(2)}) must be the tripping conjunct (bound ${run.gate_z_max_bound.toFixed(2)})`);
+});
+
 // ───────────────────────── AC-6: published-envelope freshness ─────────────────────────
 
 test('AC-6: the published gate envelope is FRESH (the ς=0.1 ROC cell recomputes exactly) and the .md is bound to the .json', () => {

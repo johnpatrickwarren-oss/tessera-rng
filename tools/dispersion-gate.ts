@@ -111,7 +111,7 @@ export function renderMarkdown(rep: GateReport): string {
   L.push('');
   L.push('## Recovery + operating characteristic (n=8 per cell)');
   L.push('');
-  L.push('The gate binds on the PAIR max(ς̂, tail ς̂) — the robust core alone is blind to dispersed subpopulations (the ADR-0051 cold-eye correction; bound by the AC-2b contamination test).');
+  L.push('The gate binds on the ADR-0061 TRIPLE: max(ς̂, tail ς̂) ≤ ς* AND z_max ≤ Φ⁻¹(1−0.01/n) — the pair guards against dispersed subpopulations (the ADR-0051 cold-eye correction; AC-2b contamination test), the max-z against the extreme-leaf scale laundering (ADR-0059/0061).');
   L.push('');
   L.push('| nominal | realized ς | mean ς̂ (robust) | mean tail ς̂ | sd ς̂ | mean raw | floor | pass rate | mean false sel |');
   L.push('|---|---|---|---|---|---|---|---|---|');

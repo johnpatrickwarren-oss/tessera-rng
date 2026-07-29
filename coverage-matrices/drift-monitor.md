@@ -2,7 +2,7 @@
 
 Operating point: spraypoint:64x10x2; T=60; thresholds: shared-calibration default ς*=0.05 (clean-fabric ς̂ ≈ 0.009), perLeafScale regime 0.07 (fresh-correction noise ≈0.03–0.06, max 0.0594 on this seed set — measured, regime-dependent).
 
-> Synthetic Tier-2. The false-selection columns recompute the ADR-0050/0052 cells (same seeds). The monitor gates the CLAIM, never the alarm; licensed ⇔ gate passing AND monitor ok (both opted in). Tail pattern is AMBIGUOUS between subpopulation drift and genuine localized variance faults — recorded, the claim is withheld either way. Thresholds are synthetic-boundary-derived (Tier 3: real deployments re-derive).
+> Synthetic Tier-2. The false-selection columns recompute the ADR-0050/0052 cells (same seeds). The monitor gates the CLAIM, never the alarm; license rule (ADR-0060, superseding the original gate-AND-monitor phrasing): per-leaf construction AND monitor ok. Tail pattern is AMBIGUOUS between subpopulation drift and genuine localized variance faults — recorded, the claim is withheld either way. Thresholds are synthetic-boundary-derived (Tier 3: real deployments re-derive).
 
 ## Cliff detection (perLeafScale ON, the ADR-0052 D axis)
 

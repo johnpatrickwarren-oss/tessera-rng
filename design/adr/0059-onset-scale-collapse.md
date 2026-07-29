@@ -121,6 +121,13 @@ bounds — thin material for a curve). No change is made here; ADR-0051's thresh
 stands until the decision, and VALIDATION.md carries the laundering disclosure so the
 gate's scale limit cannot be read as protection it does not provide.
 
+**ADDENDUM (same day, ADR-0060/0061 — the parked decision was taken):** the operator ratified
+(a) + (b). The license rule is code (ADR-0060: FDR readings require the per-leaf construction
++ monitor-ok); the max-z third gate binding (ADR-0061) CLOSED the laundering measured above —
+the onset-scale artifact is regenerated under the triple gate (laundering 0 everywhere; the
+former laundering cells now fail 100% via z_max). The pair-era numbers in this ADR's text are
+the motivating measurement, preserved as recorded.
+
 Anchor note (cold-eye finding 7): the 109-leaf anchor crosses the crossOptic variant
 (ADR-0050's H axis ran crossOptic-on; this sweep's ramp is crossOptic-off) — valid because
 incidence edges are INERT in dispersion-only nulls (they enter telemetry only via

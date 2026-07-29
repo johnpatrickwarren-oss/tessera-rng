@@ -178,3 +178,13 @@ The ADR-0052 "no detector" posture is superseded: `perLeafScale` production use 
 with the monitor (recommended threshold 0.07) + the ADR-0051 gate; the license rule is
 gate-passing AND monitor-`ok`. The fresh-calibration cadence remains good hygiene, no longer
 the only guard.
+
+---
+
+**ADDENDUM (2026-07-28, ADR-0060):** the license rule stated in §2 and the Consequences
+("licensed ⇔ gate passing AND monitor ok") is SUPERSEDED. The ratified rule (ADR-0060,
+`src/license.ts`): licensed ⇔ per-leaf construction (`calibration_construction:
+'per_leaf_scale'`) AND monitor `ok`. The gate is no longer a license conjunct — under the
+per-leaf construction its calibration-window reading is in-sample-trivial (ADR-0052 §2), and
+shared-calibration audits are refused on construction grounds before the gate matters; the
+gate remains the Mode-A honesty instrument (and, since ADR-0061, binds on the triple).

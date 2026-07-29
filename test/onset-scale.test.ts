@@ -46,14 +46,24 @@ test('AC-3: the 109/shared ς=0.075 cell recomputes exactly; .md bound to .json;
   assert.equal(md, renderMarkdown(r), 'published .md must equal renderMarkdown(published .json)');
 });
 
-test('AC-2: the two findings, pinned — the LAUNDERING region at (paper scale, ς*) and the remedy arm N-robust', () => {
+test('AC-2: the findings pinned — the pair-era laundering region CLOSED by the ADR-0061 triple gate; the remedy arm N-robust', () => {
   const r = rep();
-  // finding 1: onset collapses INTO the fixed threshold — laundering at ς = 0.05 for 1456/6112.
+  // The pair-era finding (gate passes 100% while e-BH false-selects at these cells) is
+  // preserved in ADR-0059's text and git history; the artifact now records the TRIPLE gate
+  // (ADR-0061): the same cells FAIL via z_max — the laundering region is closed, exactly the
+  // extreme-value prediction. NB: a z_max-blind mutant is killed by the DIRECT tests in
+  // test/dispersion-gate.test.ts (estimate-level + production-path pins), NOT by these
+  // artifact pins alone (cold-eye-demonstrated) — these pins record the consequences.
   for (const leaves of [1456, 6112]) {
     const c = cell(r, leaves, 'shared', 0.05);
-    assert.ok(c.laundering_rate > 0, `${leaves} leaves @ ς=0.05: the gate must be measured LAUNDERING (passes while e-BH false-selects)`);
-    assert.equal(c.gate_pass_rate, 1, `${leaves} leaves @ ς=0.05: the fixed gate passes every run here — that is the anti-conservative failure`);
+    assert.equal(c.gate_pass_rate, 0, `${leaves} leaves @ ς=0.05: the TRIPLE gate must fail the former laundering cells (z_max trips)`);
+    assert.equal(c.laundering_rate, 0, `${leaves} leaves @ ς=0.05: laundering closed`);
+    assert.ok(c.mean_false_selections > 0, `${leaves} leaves @ ς=0.05: the false selections are still there — the gate now correctly refuses them`);
   }
+  // laundering is 0 in EVERY cell of both arms under the triple gate.
+  for (const c of r.cells) assert.equal(c.laundering_rate, 0, `${c.leaves}/${c.arm}/ς=${c.sigma}: no laundering anywhere under the triple gate`);
+  // clean-at-scale cells still pass (the α=0.01 budget holds where it must).
+  for (const leaves of [1456, 6112]) assert.equal(cell(r, leaves, 'shared', 0.02).gate_pass_rate, 1, `${leaves} leaves @ ς=0.02: clean fleets still pass`);
   // onset monotone non-increasing with N on the shared arm (non-null asserted first — a null
   // onset would coerce to 0 and pass vacuously, cold-eye finding 9).
   const onset = (leaves: number) => {
@@ -63,10 +73,11 @@ test('AC-2: the two findings, pinned — the LAUNDERING region at (paper scale, 
   };
   assert.ok(onset(1456) <= onset(109) && onset(6112) <= onset(1456), 'the shared-arm onset must not increase with N');
   // the gate-wiring channel bound against an always-passing stub (cold-eye finding 2): the
-  // 109/shared cells where the gate FAILS (0% at ς=0.075) and straddles (12.5% at ς=0.05 —
-  // cross-anchoring ADR-0051's independently published 13% straddle cell).
+  // 109/shared cells where the gate FAILS. NB the ς=0.05 straddle cell was 12.5% under the
+  // pair gate (ADR-0051's 13%); under the ADR-0061 triple it fully fails (0% — more
+  // conservative; the pair-era value is preserved in ADR-0051's text).
   assert.equal(cell(r, 109, 'shared', 0.075).gate_pass_rate, 0, 'the gate must be measured FAILING past the boundary — an always-pass stub dies here');
-  assert.equal(cell(r, 109, 'shared', 0.05).gate_pass_rate, 0.125, 'the 109 straddle cell must match ADR-0051 (1/8 runs pass)');
+  assert.equal(cell(r, 109, 'shared', 0.05).gate_pass_rate, 0, 'the 109 straddle cell fully fails under the triple gate');
   // finding 2: the remedy arm is N-robust — zero false selections and zero laundering EVERYWHERE.
   for (const c of r.cells.filter((x: { arm: string }) => x.arm === 'perLeafScale')) {
     assert.equal(c.mean_false_selections, 0, `perLeafScale ${c.leaves}@ς=${c.sigma}: the remedy must hold at scale`);

@@ -9,9 +9,10 @@
  *
  * Verdict semantics: three states, because a short window is not a clean window —
  * `indeterminate` (the sampling floor at this tick count cannot resolve a boundary-scale ς;
- * an early audit must not read as 'ok'), `drifted`, `ok`. The FDR-claim composition rule
- * (recorded in ADR-0053/VALIDATION): licensed ⇔ gate passing AND monitor 'ok'. Selections are
- * never suppressed (claim, not alarm — the ADR-0051 rule).
+ * an early audit must not read as 'ok'), `drifted`, `ok`. The FDR-claim composition rule (as
+ * SUPERSEDED by ADR-0060, replacing ADR-0053's original "gate AND monitor" phrasing):
+ * licensed ⇔ per-leaf construction AND monitor 'ok' (src/license.ts). Selections are never
+ * suppressed (claim, not alarm — the ADR-0051 rule).
  */
 import { DEFAULT_SIGMA_THRESHOLD } from './dispersion-gate';
 import type { DispersionEstimate } from './dispersion-gate';
