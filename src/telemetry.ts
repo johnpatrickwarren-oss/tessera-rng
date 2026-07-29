@@ -192,6 +192,13 @@ function buildDegCtxs(
 ): { ctxs: DegCtx[]; epochOf: (t: number) => number } {
   const epochs = epochsIn?.length ? epochsIn : null;
   const snapshots = epochs ? epochs.map((e) => e.snapshot) : [snapshot];
+  // ADR-0064 cold-eye CRITICAL guard: a degradation naming a resource ABSENT from the snapshot
+  // used to no-op SILENTLY — clean telemetry masquerading as a faulted run, which manufactured
+  // a false "correction" in a published measurement (a typo'd resource id). Fail loudly.
+  const known = new Set(snapshot.resources.map((r) => r.id));
+  for (const d of degs) {
+    if (!known.has(d.resource_id)) throw new RangeError(`degradation resource '${d.resource_id}' is not in the snapshot (${known.size} resources) — a silent no-op here fabricates clean data as a faulted run (ADR-0064)`);
+  }
   const ctxs = degs.map((deg) => ({
     deg,
     sigIdx: signalIndex(deg.signal ?? 'p99_latency'),

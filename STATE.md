@@ -502,6 +502,25 @@ Randomized e-BH queued behind the matched-filter program (power already 1.0 at t
 gain is sub-floor); heavy-tail deferred to real-fabric evidence; aGRAPA/e-SR remain recorded
 engine conversations; ADR-0037's rejections re-checked and stand. **320 tests, gate PASS.**
 
+Escalation tier (same branch, **ADR-0064 ACCEPTED** — improvement recommendation 5, ADR-0049
+§2's build conditions DISCHARGED, with one RETRACTION on the record): resource-directed
+matched-filter e-processes as an EARLY-WARNING tier — per-resource w-weighted aggregates
+against a **CALIBRATED null** (mean/sd from the clean window's own aggregates; cross-leaf
+dependence priced) → per-signal betting e-processes → fired NEIGHBORHOODS (material-overlap
+union w≥0.5 + ADR-0047 ambiguity; hood sizes PUBLISHED: optics 3, panels 12, **rooms = the
+fleet, 76** — every tor leaf carries room weight 0.5; a room escalation recommends drilling
+everything, disclosed). No selection surface; R·α budget disclosed; ADR-0062-class
+conditionality; standalone. **Measured: clean 0/304; the ADR-0049 probe table REPRODUCES under
+the honest null** — room Δ=0.5 → 4/4 vs leaf 0/4 (escalation set 20.3, top-ranked often a
+spurious narrow resource — order ≠ localization, published), room Δ=1 → 4/4, panel-7 Δ=1 →
+3/4, optic Δ=1 → 2/4; **the sibling confound is REAL and STRONGER (calibrated room-1 E ≈
+1e5+ under a room-0 fault — the AC-1b fault-side pin that kills the no-calibration mutant;
+unit-variance is erratic, below 1/α half the time)**. **RETRACTED: the first published
+"narrow wins are null-error artifacts" claim — itself an artifact of a typo'd NONEXISTENT
+resource id that generateTelemetry silently no-opped (clean data as a faulted run); the
+generator now THROWS on unknown degradation resources (guard-tested)** — cold-eye CRITICAL,
+round 9. **326 tests, gate PASS.**
+
 ## Built so far
 
 - **Scaffold** — `pnpm` + `tsc` + `node --test` toolchain mirroring Tessera (tsconfig.json,
