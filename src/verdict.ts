@@ -149,6 +149,13 @@ export interface AuditRecord {
    * `drifted` so the operator knows to wait, not recalibrate). Selections never suppressed.
    */
   drift_monitor?: AuditDriftMonitor;
+  /**
+   * The calibration construction (ADR-0060), stamped iff the substrate carries per-leaf scale
+   * corrections (`leafScale`, ADR-0052) — ABSENT ⇒ shared calibration (stamping 'shared'
+   * everywhere would break audit byte-identity; absence is the documented encoding). The FDR
+   * license (src/license.ts) requires 'per_leaf_scale'.
+   */
+  calibration_construction?: 'per_leaf_scale';
 }
 
 /** Flat ADR-0053 monitor verdict (import-free — this file is the zero-behavior type
@@ -172,6 +179,10 @@ export interface AuditDispersionGate {
   /** tail-sensitive companion (plain-sd, debiased) — the gate binds on max(sigma_hat, this);
    *  robust-only would launder tail-contaminated fleets (ADR-0051 cold-eye correction). */
   sigma_hat_tail: number;
+  /** the extreme-leaf statistic + its Bonferroni bound (ADR-0061) — the third gate binding;
+   *  population statistics cannot see the scale laundering (ADR-0059). */
+  z_max: number;
+  z_max_bound: number;
   threshold: number;
   margin: number;
   raw_log_sd: number;

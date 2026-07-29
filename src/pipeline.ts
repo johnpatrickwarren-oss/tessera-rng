@@ -94,6 +94,12 @@ export interface PipelineParams {
    * fragment at resets; recorded narrowing). `true` uses DEFAULT_SIGMA_THRESHOLD.
    */
   driftMonitor?: boolean | { threshold?: number };
+  /**
+   * The ADR-0052 shrunk per-leaf scale calibration, threaded (ADR-0060) — the construction the
+   * FDR license requires (src/license.ts). Opt-in, default OFF (byte-identity); when ON the
+   * audit is stamped `calibration_construction: 'per_leaf_scale'` (derived from the substrate).
+   */
+  perLeafScale?: boolean;
 }
 
 /**
@@ -208,6 +214,9 @@ export function calibrateForSession(
   // detector context is built from — so the batch pipeline and the incremental session stamp an
   // identical field by construction (the shared-prelude property, ADR-0027).
   dispersionGateOpt: boolean | { threshold?: number } = false,
+  // ADR-0060: build the substrate with the per-leaf scale construction (the license's
+  // required construction).
+  perLeafScale = false,
 ): {
   calibration: ReturnType<typeof buildCalibration>;
   ctx: { familyCCell: ReturnType<typeof makeFamilyCCellFromCovariance>; familyDCells: ReturnType<typeof estimateFamilyDNull> };
@@ -219,7 +228,7 @@ export function calibrateForSession(
     noiseCorr: telemetry.noiseCorr,
     arCoeffs: telemetry.arCoeffs,
   });
-  const calibration = buildCalibration(calibRaw.series, { robust: robustCalibration });
+  const calibration = buildCalibration(calibRaw.series, { robust: robustCalibration, perLeafScale });
   // Common-mode removal (ADR-0036) must be applied to the calibration residuals TOO, so Family C's Σ
   // and Family D's nulls are estimated under the same regime the live detector sees (else mismatch).
   const calibResiduals = commonModeRobust ? stripCommonMode(standardizeAll(calibRaw.series, calibration)) : standardizeAll(calibRaw.series, calibration);
@@ -243,7 +252,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
   // Decoupled null depth (telemetry-realism): calibrate on a clean window of `calibrationTicks`
   // (default = the live length), so a deep robust null can back a short live detection window.
   const calibTel = params.calibrationTicks ? { ...params.telemetry, ticks: params.calibrationTicks } : params.telemetry;
-  const { calibration, ctx, dispersionGate: gateField } = calibrateForSession(snapshot, calibTel, detect, cmRobust, params.robustCalibration ?? true, params.dispersionGate ?? false);
+  const { calibration, ctx, dispersionGate: gateField } = calibrateForSession(snapshot, calibTel, detect, cmRobust, params.robustCalibration ?? true, params.dispersionGate ?? false, params.perLeafScale ?? false);
   const { familyCCell, familyDCells } = ctx;
 
   // Epoch'd run (ADR-0017/0018): the live window follows the epoch sequence; changed leaves'
@@ -280,6 +289,8 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     ticks: params.telemetry.ticks,
     dispersion_gate: gateField ?? null,
     drift_monitor: monitorField,
+    // ADR-0060: the construction stamp, derived from the substrate (session derives identically).
+    per_leaf_construction: calibration.leafScale !== undefined,
   });
 }
 
@@ -345,6 +356,8 @@ export function assembleAudit(args: {
   dispersion_gate?: AuditDispersionGate | null;
   /** the ADR-0053 monitor field; null/absent ⇒ no field on the audit (byte-identity). */
   drift_monitor?: AuditDriftMonitor | null;
+  /** ADR-0060: true ⇒ stamp calibration_construction: 'per_leaf_scale' (absent/false ⇒ no field). */
+  per_leaf_construction?: boolean;
 }): AuditRecord {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
   const surface = buildSurface(verdicts, q);
@@ -389,5 +402,6 @@ export function assembleAudit(args: {
       : {}),
     ...(args.dispersion_gate ? { dispersion_gate: args.dispersion_gate } : {}),
     ...(args.drift_monitor ? { drift_monitor: args.drift_monitor } : {}),
+    ...(args.per_leaf_construction ? { calibration_construction: 'per_leaf_scale' as const } : {}),
   };
 }

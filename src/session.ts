@@ -247,6 +247,7 @@ export class IncrementalSession {
       ticks: this.t,
       dispersion_gate: this.p.dispersionGate ?? null,
       drift_monitor: this.driftMonitorField(),
+      per_leaf_construction: this.p.calibration.leafScale !== undefined,
     });
   }
 
