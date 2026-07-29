@@ -490,6 +490,18 @@ Alarms are DETECTION, not claims (ADR-0060 untouched); the streaming story is ho
 end-to-end conditional on the calibrated null: anytime alarms (Ville, under the gate/monitor
 preconditions) + fixed-time FDR under the license. **319 tests, gate PASS.**
 
+Engine-adoption review (same branch, **ADR-0063 ACCEPTED** — improvement recommendation 4,
+decision record in the ADR-0037 shape): at v0.6.3-pre NONE of the ADR-0049 candidates exist as
+engine surfaces — all are extension asks, none buildable RNG-side (charter). **One measured
+DEFECT recorded and test-pinned (test/overflow-defect.test.ts, a deliberate tripwire): at δ=32
+— inside the claimed δ∈{3..32} band — per-leaf e-values overflow to Infinity → JSON null in
+audits** (δ=3 max ≈4.5e9, fine; selection unaffected — the corruption is representational).
+The fix decision is PARKED with John (shared-engine API): (a) engine log-domain wealth
+(ADR-0034 fix B, the real fix, touches the GPU product) vs (b) an RNG-side interim clamp.
+Randomized e-BH queued behind the matched-filter program (power already 1.0 at tested points;
+gain is sub-floor); heavy-tail deferred to real-fabric evidence; aGRAPA/e-SR remain recorded
+engine conversations; ADR-0037's rejections re-checked and stand. **320 tests, gate PASS.**
+
 ## Built so far
 
 - **Scaffold** — `pnpm` + `tsc` + `node --test` toolchain mirroring Tessera (tsconfig.json,
