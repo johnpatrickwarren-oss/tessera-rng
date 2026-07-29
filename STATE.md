@@ -1,7 +1,7 @@
 # STATE — Tessera-RNG
 
 _Cold-readable snapshot of the "now". Overwritten as work lands; decision history lives in
-`design/adr/`. Last updated: 2026-07-02._
+`design/adr/`. Last updated: 2026-07-27._
 
 ## What this is
 
@@ -289,6 +289,187 @@ fault-model realism (CorrOpt step-dominant/loss-bucket/one-sided parameters — 
 question in the ADR-0042 class), engine-side items (log-domain e-values = ADR-0034 fix B,
 aGRAPA/clipped betting, randomized e-BH, heavy-tail-robust increments, e-SR wealth recursion —
 each an engine extension-point conversation), EOP adoption (ADR-0043). **265 tests, gate PASS.**
+Heterogeneity boundary study (branch `adr-0050-heterogeneity-boundary`, **ADR-0050 ACCEPTED**):
+measured where the SELECTION layer breaks under the two null mechanisms every prior run excluded
+by construction (cross-project provenance: GPU-Tessera A2-disp/N12 — mechanisms transfer, numbers
+don't). Two opt-in generator knobs (byte-identical when absent, main RNG stream untouched):
+per-leaf noise-scale dispersion `heterogeneity {sigmaLogSd(=ς), driftMix, driftSeed}` and
+correlated-null per-resource AR(1) factors `latentNull {load, phi}` riding the weighted incidence
+(throws with epochs). Null-run sweep tool (`tools/heterogeneity.ts` → `pnpm heterogeneity` →
+`coverage-matrices/heterogeneity-boundary.{json,md}`), inert-anchored bit-for-bit to
+`runPipeline`'s surface. **Findings: (1) the dispersion boundary is sharp and EARLY** — 0 false
+selections at realized ς≈0.06, 5.25/run (≈5% of fleet, 100% of runs) at ς≈0.12, saturating ≈17%
+by ς≈0.35 — far below the GPU sibling's 0.31; **(2) POSITIVE: correlated null alone breaks
+nothing** (load ≤ 0.5 ⇒ 0 false selections — e-BH's arbitrary-dependence theorem + shared-cell
+absorption doing their jobs); **(3) dispersion dominates the joint and `commonModeRobust` does
+NOT mitigate it** (per-leaf scale ≠ shared level — the fleet-level control is the wrong tool);
+**(4) scale: no N12 cascade but no protection either** — a constant ς-determined FRACTION
+(≈12–14.5%) false-selects, linear to 6112 leaves (~173/window at paper scale); clean stays 0 at
+every size (ADR-0025 re-confirmed 4× beyond paper scale); **(5) drift adds no effect** — counts
+track REALIZED draw dispersion (the apparent driftMix trend was a draw artifact, caught; realized-ς
+column now published per cell, DISCIPLINES §7). Recorded follow-ups (each its own ADR): per-leaf
+scale calibration (ADR-0006-style pooling), a ς̂ dispersion GATE (abstain above the measured
+floor) — **real-fabric work (N2) should not proceed ahead of the gate** — and an ADR-0032 ς
+power axis. Gate loosening on the record: no-god-module 22→23 (tools/heterogeneity.ts type-only
+domain import — the admitted zero-behavior-contract case, 4th instance). Cold-eye reviewed
+(fresh context): MERGE-READY, 0 critical/major, 5 minor + 5 observations — all folded in (number-
+language precision; the pooled-fallback calibration-regime disclosure at the 109-leaf operating
+point; a misattributed test retitled; AC-5 freshness extended to the D axis + .md≡.json bind; the
+drift no-mismatch CONTROL published: 9.38 vs 9.88 at identical realized ς — the reviewer also
+independently confirmed nothing calibrated is per-leaf and byte-identity vs compiled main).
+**276 tests, gate PASS.**
+Dispersion gate (same branch, **ADR-0051 ACCEPTED**): the ADR-0050 N2 prerequisite BUILT —
+`src/dispersion-gate.ts` estimates dispersion from the calibration residuals (per-leaf pooled
+log-scale, debiased by the sampling floor 1/(2(T−1)p) ≈ 0.041 @T=60) and gates the FDR CLAIM
+(never the alarm — Mode A/B split) at ς\* = 0.05 on a **PAIR: max(robust MAD ς̂, tail plain-sd
+ς̂)** — the cold-eye CRITICAL correction: robust-only LAUNDERS tail-contaminated fleets (10%
+of leaves at 2× reads robust ς̂≈0.03 passing while e-BH selects all the hot leaves; now a
+kill-test, AC-2b). Opt-in `PipelineParams.dispersionGate` → audit `dispersion_gate` field
+(absent ⇒ byte-identical; batch ≡ session by shared-prelude construction; in-pipeline audits
+always pass — synthetic self-generated calibration — the field is the wiring proof, real use
+calls estimateDispersion on real residuals). Validation (`pnpm dispersion-gate`): **pass 100%
+at ς=0 (ς̂ 0.009/0.006), fail 100% at every cell where selection lies** (ς ≥ 0.1) AND on the
+contaminated fleet; boundary-straddling ς=0.05 cell passes 13% — conservative; tail ς̂ tracks
+realized ς almost exactly (0.335 vs 0.353 — the pair also fixed the draft's MAD-core bias);
+two recorded spec corrections (AC-3 pass-rate prediction; the robust-only rationale). Depth
+row: T=240 floor halves to 0.020. ROC scope on the record: Gaussian-ς family + the two-point
+contamination case.
+Per-leaf scale calibration (same branch, **ADR-0052 ACCEPTED**): the remedy — opt-in
+`CalibrationOptions.perLeafScale`: per-leaf pooled log-scale SHRUNK by λ = ς̂²/raw² (the
+ADR-0051 decomposition; median-centered scalar per leaf, substrate-carried so incremental≡batch
+by construction; λ=1 mutant killed). **Measured (coverage-matrices/per-leaf-scale, OFF rows
+anchor-bound to ADR-0050): static dispersion absorbed COMPLETELY** — 0.00 false selections at
+every ς through 0.5 (OFF: up to 19), ς=0 injects nothing (<0.025; out-of-sample AC-3 per
+cold-eye). **But the D axis REVERSES as predicted, harder: full drift → 25.25 false sel —
+WORSE than no correction (9.88 at that cell; ≈15.5 at the realized-ς-matched reference)** —
+TWO recorded mechanisms (cold-eye): stale-correction compounding (≈ς√2) + a TIGHTENED Family
+C/D null (fit on corrected ≈ clean calibration residuals) that pushes past the OFF ~19
+saturation ceiling. **Cold-eye MAJOR correction on the record: the cliff has NO detector** —
+the gate refits at every re-calibration and cannot see staleness (a complete σ-reassignment
+reads ς̂=0.000 passing); only guard = fresh-calibration cadence until a runtime drift monitor
+exists (future ADR); no default flip. Gate loosening on the record: no-god-module 23→25
+(dispersion-gate src+tool type-only domain imports, 5th/6th instances; operator flag raised —
+consider a structural exemption for zero-behavior contracts). Cold-eye round 2 (fresh
+context): NOT-MERGE-READY verdict — 1 CRITICAL (robust-only gate launders tail subpopulations)
++ 3 MAJOR (staleness-mitigation story false in wiring; D-axis mechanism incomplete; AC-3 test
+not implementing its spec) — ALL folded in above (pair gate + kill-test; no-detector
+correction; two-mechanism record; out-of-sample AC-3), re-verified by the same reviewer.
+**291 tests, gate PASS.**
+Runtime drift monitor (same branch, **ADR-0053 ACCEPTED**): the ADR-0052 cliff's DETECTOR —
+`src/drift-monitor.ts`: the ADR-0051 estimator on the LIVE window; three-state verdict
+(ok / drifted / **indeterminate** when the window's sampling floor ≥ threshold — an early audit
+never reads ok) + pattern attribution (fleet = recalibrate-now vs tail = subpopulation;
+tail/genuine-variance-fault ambiguity recorded). Opt-in `driftMonitor` on pipeline+session
+(byte-identical absent; session via running Σx/Σx² — bit-for-bit ≡ batch; epochs throw).
+License rule: gate passing AND monitor ok. **Measured** (`pnpm drift-monitor`): cliff detection
+100% at driftMix ≥ 0.5 (where false sel ≥ 3.13), 13% at the mild 0.25 cell (0.25 false sel),
+100% ok fresh; shared-calibration regime consistent with the gate; subpopulation fault →
+drifted/tail, single-leaf fault → ok (correctly ignored); T=40@ς*=0.05 → 100% indeterminate.
+KEY amendment (measured): the monitor's clean baseline is REGIME-DEPENDENT — fresh perLeafScale
+corrections carry ≈0.03–0.06 out-of-sample correction noise (envelope-set max 0.0594 — the
+first "≤0.055" bracket was a 4-seed-subset artifact, cold-eye-caught and corrected), so the
+perLeafScale operating threshold is 0.07 (`PER_LEAF_SCALE_MONITOR_THRESHOLD`, ≈0.011 margin
+each side), not the shared-calibration 0.05.
+ADR-0052's "no detector" posture superseded.
+ς power axis (same branch, **ADR-0054 ACCEPTED**): closes ADR-0050's "not a power study"
+caveat — faulted runs (δ=3 optic, n=16/cell) across ς × {shared, perLeafScale}, composition
+anchor-bound BYTE-FOR-BYTE to runPipeline at the inert cell. **Measured: detection never fails
+(100% everywhere); attribution survives ς=0.1 (100% despite 5.4 false co-sel — real localizer
+margin) then collapses to 0% at ς=0.2 — toward WRONG PHYSICAL RESOURCES, never the fleet
+candidate (0%)** — the worst operational failure (confident wrong-hardware paging), dispersion
+now a measured cause of the ADR-0032 silent-mis-attribution shape. perLeafScale restores 100%
+attribution / 1 selection / 0 false co-sel at every tested ς. Metric correction on the record:
+material-incidence threshold w ≥ 0.5 (crossOptic ε-edges degenerated the false-co-sel metric —
+caught during build). Gate loosening on the record: no-god-module 25→27 (two new tools'
+type-only domain imports, 7th/8th instances — the operator structural-exemption flag stands
+with added force). **299 tests, gate PASS.**
+Invariant restructure (same branch, **ADR-0055 ACCEPTED**, operator-ratified): the no-god-module
+flag answered — sprag `module_fanin` gains an `exempt` list (sprag de823f9, 42/42 suites);
+the three zero-behavior contracts (domain 27 / signals 10 / verdict 10) exempted BY NAME and
+the threshold DROPS 27→10 (one above the behavioral max: calibration 9) — a behavioral module
+at 11 importers now blocks, restoring the eroded protection; exemption conditions recorded in
+the intent (behavior in an exempted file ⇒ ADR). Both directions mechanics-verified.
+Engine bump (same branch, **ADR-0056 ACCEPTED**, operator-ratified, pin-only): git-dep
+v0.6.0-pre → v0.6.3-pre (resolved e1d0c90, verified ≡ the tag commit — the ADR-0030 gotcha
+checked). Consumption surface verified unchanged across the gap (only a comment in an imported
+module); clean tsc, 299/299, gate PASS. Hygiene motive: v0.6.2-pre carries the corrected
+nuisanceRobustBF envelope (the known-false by-construction claim retired — un-imported here,
+but the pinned tree should not assert it). No surface adoption (ADR-0037-class decisions
+untouched). **299 tests, gate PASS.**
+Real-telemetry replay (same branch, **ADR-0057 ACCEPTED**, operator-ratified — recommendation 1
+of the improvement ranking): the FIRST real numbers in the repo. Adapter over the GPU sibling's
+mac-mini 1Hz per-core population (14 cores × {mhz,res}; real parked subpopulation; the 14-day
+outage+reboot as a natural drift experiment); the ADR-0051/0053 objects run VERBATIM (Tier-2.5:
+real but non-network telemetry; no RNG-domain/FDR claim; adapter standardization from the
+production engine primitives — recorded narrowing, no byte-anchor across the domain gap).
+**Measured: real ς̂ = 1.127 full / 0.381 active — 9–19×/3–6× past the ADR-0050 boundary
+(scale comparison, not a transfer claim — the boundary's location at n=14/p=2/1Hz is
+unmeasured); the gate WITHHOLDS on both** (the program's premise validated on first contact
+with reality); every live window `drifted` incl. the adjacent hour; the across-outage reboot
+= the largest drift in all four arms on the binding max(ς̂, tail ς̂) statistic; +3d
+same-hour < adjacent different-hour in 3 of 4 arms (consistent with a diurnal fingerprint,
+n=1/cell, the pls/active reversal disclosed — an HoD-aware real adapter + repeated windows
+recorded as the next replay step). perLeafScale absorbs most static
+structure (0.602→0.099 active adjacent) but nothing reaches `ok` — per-entity + HoD
+calibration graduates from remedy to PRECONDITION for real deployments. Committed downsampled
+fixtures recompute in CI (ς̂ 1.144 vs full-rate 1.127); full-rate day files off-repo (the mini
+~/concord/telemetry/data/ + local scratch). **302 tests, gate PASS.**
+Tail triage (same branch, **ADR-0058 ACCEPTED**, operator-ratified — recommendation 2): the
+monitor→tomography BRIDGE closing the ADR-0053 recorded tail ambiguity (subpopulation drift vs
+genuine localized fault — the fork where the operator action differs: recalibrate vs page).
+`src/tail-triage.ts`: one-sided z tail membership on the ADR-0051 ℓ statistic (inflation only —
+deflation, e.g. parked entities, is not the false-selection direction) → the ADR-0046 linear
+localizer on the scale-deviation currency (RECORDED REINTERPRETATION: z accrues as √T, fleet
+candidate competes; a triage heuristic, not a calibrated variance-fault model) → verdict
+fault-shaped (top physical culprit MATERIALLY incident, w ≥ 0.5, on ≥0.6 of the tail) /
+drift-shaped / no-tail / indeterminate (|tail|<2 — incidence cannot discriminate a singleton),
+carrying culprits + coverage fraction (evidence, not just a label). **Measured (test-bound):
+clean separation both directions at equal magnitude** — resource-aligned pair →
+fault-shaped/r-hot coverage 1.0; incidence-scattered trio → drift-shaped; the exact ADR-0053
+AC-4 ambiguous fixture resolves end-to-end to fault-shaped/r-hot; **and on DEFAULT_SPRAYPOINT
+full-support incidence (AC-1b)** — where the draft's weight-blind provenance coverage INVERTED
+the verdict (scattered → fault-shaped 1.0; cold-eye CRITICAL, demonstrated) — material-weight
+coverage reads drift-shaped. Also folded: inert q0 deleted (magnitudeT path is parameter-free);
+samplingFloorVar = the ONE floor definition shared by estimator/monitor/triage. Standalone (no
+pipeline threading — recorded follow-up once an operator flow consumes it). **307 tests, gate
+PASS.**
+Onset vs N (same branch, **ADR-0059 ACCEPTED**, operator-ratified — the GPU N13 transfer
+answered): **the dispersion onset COLLAPSES with N (0.075 @109 → ≤0.05 @1456/6112 — a
+ONE-SIDED bound: zero counts at ς=0.02 with n=5/3 cannot support a lower edge) — into the
+fixed gate threshold: a measured LAUNDERING region at paper scale (gate passes 100% of runs
+while e-BH false-selects in 40% = 2/5 and 67% = 2/3 of them @1456/6112, ς=0.05)** — the
+ADR-0051 fixed ς\* is anti-conservative at ≥ paper scale (mild magnitude ≤0.67/run at tested
+sizes, near-threshold band only; measured points monotone in N, not resolved at these n;
+VALIDATION carries the ⚠️ on the gate row). **The remedy is the fix: perLeafScale = 0 false
+selections in ALL 15 (size × ς) cells across a 56× size span** — the RNG mirror of the GPU
+rack-local construction, measured.
+runNullRun now returns gate_passing (additive). Cross-artifact anchor to ADR-0050 held
+exactly. **NO threshold change (anti-scope): the gate-redesign decision is PARKED with John**
+— options recorded in the ADR: (a) perLeafScale as default construction (carries the ADR-0052
+drift cliff ⇒ monitor+cadence preconditions), (b) max-statistic extreme-value gate, (c)
+scale-indexed threshold (recorded weakness: the index would be fit to 2-of-5-run one-sided
+onset estimates — thin material for a curve).
+**310 tests, gate PASS.**
+The parked decision TAKEN (John: "let's do a and b") — same branch, two rounds:
+**ADR-0060 ACCEPTED (the license rule, in code):** `src/license.ts` `fdrLicense(audit)` —
+licensed ⇔ `calibration_construction: 'per_leaf_scale'` AND `drift_monitor.status: 'ok'`;
+every refusal names its conjunct; unmonitored/indeterminate windows refuse; shared-calibration
+audits NEVER license (Mode A). `PipelineParams.perLeafScale` threaded; the construction stamp
+derives from the substrate (batch ≡ session by construction; absent field = shared — the
+byte-identity encoding). Truth table + e2e + parity test-bound.
+**ADR-0061 ACCEPTED (the max-z triple gate):** the estimate gains z_max (max one-sided
+(ℓ−med)/√floor — the extreme-leaf statistic population stats can't see) + a Bonferroni bound
+Φ⁻¹(1−0.01/n), N-INDEXED FROM THEORY; the gate binds on pair AND z_max ≤ bound. **The
+ADR-0059 laundering is measured CLOSED**: former laundering cells (1456/6112, ς=0.05) now fail
+100% via z_max (predicted 4.6/5.1 from nominal ς vs bounds 4.35/4.65 — held: both trip, realized z above bound; z columns published); laundering 0 in every
+cell of both arms; clean-at-scale 100% pass; one conservative trip (109/ς=0.02, 7/8, zero
+false selections — the α=0.01 price, published); straddle cells fully conservative (13%→0%).
+Monitor deliberately NOT extended (recorded: floor-standardized max is wrong under the
+perLeafScale live regime — correction noise ≈ 2× floor; regime-aware max = future work; the
+license covers the monitor's role). dispersion-gate + onset-scale + drift-monitor (license-phrasing only) artifacts regenerated;
+VALIDATION gate-row ⚠️ closed; ADR-0051/0053/0059 addenda record the era boundary and the
+license supersession; z columns published (former laundering cells mean z 4.75/5.60 vs bounds
+4.35/4.65 — the closure is checkable data). **315 tests, gate PASS.**
 
 ## Built so far
 

@@ -133,4 +133,62 @@ export interface AuditRecord {
    * its verdict `segments`, never silently discarded. Absent on no-reroute runs.
    */
   eprocess_resets?: readonly { path_class_id: PathClassId; at_tick: number; epoch_index: number }[];
+  /**
+   * The ς̂ dispersion gate (ADR-0051), OPT-IN — absent unless the run asked for it (byte-identity).
+   * `passing: false` means the FDR-controlled READING of `selected_path_class_ids` is withheld
+   * (the ADR-0050 validity precondition is measurably violated); the selections themselves are
+   * unchanged — evidence/ranking survives, the claim does not. Estimate fields published so a
+   * floor-dominated short-window ς̂ is visible as such.
+   */
+  dispersion_gate?: AuditDispersionGate;
+  /**
+   * The runtime drift monitor (ADR-0053), OPT-IN — absent unless the run asked for it
+   * (byte-identity). The ADR-0051 estimator on the LIVE window: `drifted` withholds the
+   * FDR-controlled reading (the ADR-0052 cliff's detector); `indeterminate` means the window
+   * is too short to verify the precondition (also withholds — visibly distinct from
+   * `drifted` so the operator knows to wait, not recalibrate). Selections never suppressed.
+   */
+  drift_monitor?: AuditDriftMonitor;
+  /**
+   * The calibration construction (ADR-0060), stamped iff the substrate carries per-leaf scale
+   * corrections (`leafScale`, ADR-0052) — ABSENT ⇒ shared calibration (stamping 'shared'
+   * everywhere would break audit byte-identity; absence is the documented encoding). The FDR
+   * license (src/license.ts) requires 'per_leaf_scale'.
+   */
+  calibration_construction?: 'per_leaf_scale';
+}
+
+/** Flat ADR-0053 monitor verdict (import-free — this file is the zero-behavior type
+ *  contract). Field meanings: src/drift-monitor.ts. */
+export interface AuditDriftMonitor {
+  status: 'ok' | 'drifted' | 'indeterminate';
+  pattern: 'fleet' | 'tail' | null;
+  sigma_hat: number;
+  sigma_hat_tail: number;
+  threshold: number;
+  sampling_floor_sd: number;
+  ticks: number;
+  n_leaves: number;
+}
+
+/** Flat merge of the ADR-0051 gate verdict + estimate (kept import-free — this file is the
+ *  zero-behavior type contract). Field meanings: src/dispersion-gate.ts. */
+export interface AuditDispersionGate {
+  passing: boolean;
+  sigma_hat: number;
+  /** tail-sensitive companion (plain-sd, debiased) — the gate binds on max(sigma_hat, this);
+   *  robust-only would launder tail-contaminated fleets (ADR-0051 cold-eye correction). */
+  sigma_hat_tail: number;
+  /** the extreme-leaf statistic + its Bonferroni bound (ADR-0061) — the third gate binding;
+   *  population statistics cannot see the scale laundering (ADR-0059). */
+  z_max: number;
+  z_max_bound: number;
+  threshold: number;
+  margin: number;
+  raw_log_sd: number;
+  raw_log_sd_tail: number;
+  sampling_floor_sd: number;
+  n_leaves: number;
+  ticks: number;
+  signals: number;
 }

@@ -1,0 +1,91 @@
+{
+  "generated_for": "spraypoint:64x10x2",
+  "operating_point": {
+    "ticks": 60,
+    "q": 0.05,
+    "threshold": 0.05,
+    "calibration": "robust per-cell, seed ⊕ 0xca11b (production defaults; at this operating point all cells are on the pooled-global fallback — ADR-0050 disclosure)"
+  },
+  "cells": [
+    {
+      "nominal": 0,
+      "realized": null,
+      "mean_sigma_hat": 0.008715087394064768,
+      "mean_sigma_hat_tail": 0.005751965618284415,
+      "sd_sigma_hat": 0.010276450234218228,
+      "mean_raw_log_sd": 0.041842422510826045,
+      "sampling_floor_sd": 0.04116934847963091,
+      "pass_rate": 1,
+      "mean_false_selections": 0,
+      "n": 8
+    },
+    {
+      "nominal": 0.05,
+      "realized": 0.05875010279552009,
+      "mean_sigma_hat": 0.05441198400666628,
+      "mean_sigma_hat_tail": 0.05616583915229321,
+      "sd_sigma_hat": 0.007677672328480265,
+      "mean_raw_log_sd": 0.068361659648091,
+      "sampling_floor_sd": 0.04116934847963091,
+      "pass_rate": 0,
+      "mean_false_selections": 0,
+      "n": 8
+    },
+    {
+      "nominal": 0.1,
+      "realized": 0.11750020559104016,
+      "mean_sigma_hat": 0.10198600917804292,
+      "mean_sigma_hat_tail": 0.11275234528551148,
+      "sd_sigma_hat": 0.01197863737901038,
+      "mean_raw_log_sd": 0.11006176248186479,
+      "sampling_floor_sd": 0.04116934847963091,
+      "pass_rate": 0,
+      "mean_false_selections": 5.25,
+      "n": 8
+    },
+    {
+      "nominal": 0.2,
+      "realized": 0.23500041118208026,
+      "mean_sigma_hat": 0.19129644776374075,
+      "mean_sigma_hat_tail": 0.22481647075966302,
+      "sd_sigma_hat": 0.017193456239158078,
+      "mean_raw_log_sd": 0.19570427148965946,
+      "sampling_floor_sd": 0.04116934847963091,
+      "pass_rate": 0,
+      "mean_false_selections": 15.5,
+      "n": 8
+    },
+    {
+      "nominal": 0.3,
+      "realized": 0.3525006167731204,
+      "mean_sigma_hat": 0.28644531815742597,
+      "mean_sigma_hat_tail": 0.33506370955052095,
+      "sd_sigma_hat": 0.02071605397964519,
+      "mean_raw_log_sd": 0.28940203697940875,
+      "sampling_floor_sd": 0.04116934847963091,
+      "pass_rate": 0,
+      "mean_false_selections": 18.875,
+      "n": 8
+    }
+  ],
+  "depth": {
+    "ticks": 240,
+    "cells": [
+      {
+        "nominal": 0,
+        "mean_sigma_hat": 0.007886529417073377,
+        "sampling_floor_sd": 0.020455073743230655,
+        "pass_rate": 1,
+        "n": 8
+      },
+      {
+        "nominal": 0.1,
+        "mean_sigma_hat": 0.09030844653648136,
+        "sampling_floor_sd": 0.020455073743230655,
+        "pass_rate": 0,
+        "n": 8
+      }
+    ]
+  },
+  "caveat": "Synthetic Tier-2 (VALIDATION.md): the gate is validated against the SAME synthetic mechanism the boundary was measured on (ADR-0050). The false-selection column reuses the ADR-0050 null-run cells so the ROC and the failure sit in one table. The ς* = 0.05 threshold is justified by the synthetic boundary ONLY — a real deployment must re-derive it (ADR-0051 anti-scope)."
+}

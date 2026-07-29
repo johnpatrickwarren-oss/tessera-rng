@@ -1,0 +1,89 @@
+{
+  "generated_for": "spraypoint:64x10x2",
+  "operating_point": "60 ticks, q=0.05, robust per-cell calibration (pooled-fallback regime at this size — ADR-0050 disclosure); OFF rows = the ADR-0050 published cells (same seeds, anchor-bound by test)",
+  "h": [
+    {
+      "intensity": 0,
+      "realized_dispersion": null,
+      "off_mean_false_selections": 0,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    },
+    {
+      "intensity": 0.05,
+      "realized_dispersion": 0.05875010279552009,
+      "off_mean_false_selections": 0,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    },
+    {
+      "intensity": 0.1,
+      "realized_dispersion": 0.11750020559104016,
+      "off_mean_false_selections": 5.25,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    },
+    {
+      "intensity": 0.2,
+      "realized_dispersion": 0.23500041118208026,
+      "off_mean_false_selections": 15.5,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    },
+    {
+      "intensity": 0.3,
+      "realized_dispersion": 0.3525006167731204,
+      "off_mean_false_selections": 18.875,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    },
+    {
+      "intensity": 0.5,
+      "realized_dispersion": 0.5875010279552005,
+      "off_mean_false_selections": 19,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    }
+  ],
+  "d": [
+    {
+      "intensity": 0,
+      "realized_dispersion": 0.23500041118208026,
+      "off_mean_false_selections": 15.5,
+      "on_mean_false_selections": 0,
+      "on_max_false_selections": 0,
+      "n": 8
+    },
+    {
+      "intensity": 0.25,
+      "realized_dispersion": 0.2341435068933014,
+      "off_mean_false_selections": 15.375,
+      "on_mean_false_selections": 0.25,
+      "on_max_false_selections": 1,
+      "n": 8
+    },
+    {
+      "intensity": 0.5,
+      "realized_dispersion": 0.2258482244054286,
+      "off_mean_false_selections": 13.875,
+      "on_mean_false_selections": 3.125,
+      "on_max_false_selections": 4,
+      "n": 8
+    },
+    {
+      "intensity": 1,
+      "realized_dispersion": 0.17294174734510065,
+      "off_mean_false_selections": 9.875,
+      "on_mean_false_selections": 25.25,
+      "on_max_false_selections": 28,
+      "n": 8
+    }
+  ],
+  "caveat": "Synthetic Tier-2. NULL runs — every selection is false. ON = CalibrationOptions.perLeafScale (shrunk, ADR-0052); OFF = the ADR-0050 baseline. The D axis is the recorded falsifiable prediction: under per-leaf correction, cal→live drift becomes a REAL mechanism (it was measured irrelevant under shared calibration, ADR-0050). Realized ς republished per cell (draw-artifact guard)."
+}

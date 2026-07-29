@@ -51,6 +51,46 @@ export interface DegradationSpec {
   oscillationAmp?: number;
 }
 
+/**
+ * Per-leaf noise-scale heterogeneity (ADR-0050): a STATIC multiplier σ_pc = exp(sigmaLogSd·g_pc)
+ * on the noise of ALL of a leaf's signals (baselines/means untouched), g_pc ~ N(0,1) drawn from a
+ * dedicated RNG seeded by (seed ⊕ hash(path-class id)) — deterministic per leaf, independent of
+ * the tick loop, the main RNG stream, and the population's composition. `sigmaLogSd` IS the
+ * population log-scale dispersion ς. This is baseline STRUCTURE (like noiseCorr/arCoeffs): fabric
+ * physics, present in calibration and live windows alike — the shared-cell calibration substrate
+ * (cellKey has no path-class in it) cannot represent it, which is the point under study.
+ *
+ * Drift (the cal/monitor mismatch axis): g_pc(m) = √(1−m²)·g_base + m·g_new, with g_new drawn
+ * from (driftSeed ⊕ hash(pc)) and m = driftMix ∈ [0,1]. The marginal stays N(0,1) at every m —
+ * drift moves WHICH leaves are noisy, never how dispersed the population is. driftMix 0 (the
+ * default) is exactly g_base.
+ */
+export interface HeterogeneitySpec {
+  /** population log-scale dispersion ς ≥ 0. 0 ⇒ σ_pc = 1 for every leaf (byte-identical). */
+  sigmaLogSd: number;
+  /** base draw seed (default 0x5e7e0). */
+  seed?: number;
+  /** cal/monitor drift mix m ∈ [0,1] (default 0 = no drift). */
+  driftMix?: number;
+  /** seed for the drift target draw (default base seed ⊕ 0xd41f7). */
+  driftSeed?: number;
+}
+
+/**
+ * Correlated-null structure (ADR-0050): independent per-resource AR(1) factors λ_r(t) (unit
+ * marginal variance, coefficient `phi`), drawn from a dedicated RNG per resource, injected into
+ * every traversing leaf's PRIMARY signal (p99_latency) as load·Σ_r w(pc,r)·λ_r(t) — the null
+ * correlated through shared hardware via the SAME weighted incidence that propagates faults.
+ * Baseline structure: present in calibration and live windows alike. load 0 ⇒ byte-identical.
+ * Unsupported with `epochs` (incidence is epoch-dependent) — throws, recorded narrowing.
+ */
+export interface LatentNullSpec {
+  /** factor loading ≥ 0 in noise-σ units per unit incidence weight. */
+  load: number;
+  /** AR(1) coefficient of each λ_r stream, in (−1, 1) (default 0.5). */
+  phi?: number;
+}
+
 export interface TelemetryParams {
   seed: number;
   ticks: number;
@@ -87,6 +127,10 @@ export interface TelemetryParams {
    * physics of the fabric. Absent ⇒ the static snapshot every tick, byte-identical v1.
    */
   epochs?: readonly SnapshotEpoch[];
+  /** per-leaf noise-scale heterogeneity (ADR-0050). Absent or sigmaLogSd 0 ⇒ byte-identical. */
+  heterogeneity?: HeterogeneitySpec;
+  /** correlated-null latent factors (ADR-0050). Absent or load 0 ⇒ byte-identical; throws with epochs. */
+  latentNull?: LatentNullSpec;
 }
 
 export interface Telemetry {
@@ -248,9 +292,84 @@ function degradeVector(
   }
 }
 
+/** The 31-multiplier string hash (same family as `trafficClassOf`'s) — per-id RNG seeding. */
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+/** Default heterogeneity draw seed / drift-seed salt (ADR-0050) — exported so the boundary tool
+ *  can run the drift CONTROL (the m=1 σ-set as a base draw) without duplicating the constants. */
+export const HET_BASE_SEED = 0x5e7e0;
+export const HET_DRIFT_SALT = 0xd41f7;
+const LATENT_SALT = 0x1a7e17;
+
+/** Validate the ADR-0050 structure params; throws RangeError on any out-of-domain value. */
+function validateStructure(params: TelemetryParams): void {
+  const het = params.heterogeneity;
+  if (het) {
+    if (!(het.sigmaLogSd >= 0)) throw new RangeError(`heterogeneity.sigmaLogSd must be ≥ 0 — got ${het.sigmaLogSd}`);
+    const m = het.driftMix ?? 0;
+    if (!(m >= 0 && m <= 1)) throw new RangeError(`heterogeneity.driftMix must be in [0, 1] — got ${m}`);
+  }
+  const ln = params.latentNull;
+  if (ln) {
+    if (!(ln.load >= 0)) throw new RangeError(`latentNull.load must be ≥ 0 — got ${ln.load}`);
+    const phi = ln.phi ?? 0.5;
+    if (!(phi > -1 && phi < 1)) throw new RangeError(`latentNull.phi must be in (−1, 1) — got ${phi}`);
+    if (params.epochs?.length) throw new RangeError('latentNull with epochs is unsupported (ADR-0050 recorded narrowing)');
+  }
+}
+
+/** σ_pc = exp(ς·g_pc) with the drift mix applied (ADR-0050). het absent or ς = 0 ⇒ exactly 1. */
+function leafSigma(pc: PathClassId, het: HeterogeneitySpec | undefined): number {
+  if (!het || het.sigmaLogSd === 0) return 1;
+  const base = het.seed ?? HET_BASE_SEED;
+  const gBase = makeRng((base ^ hashId(pc)) >>> 0).gaussian();
+  const m = het.driftMix ?? 0;
+  const g = m === 0 ? gBase : Math.sqrt(1 - m * m) * gBase + m * makeRng(((het.driftSeed ?? base ^ HET_DRIFT_SALT) ^ hashId(pc)) >>> 0).gaussian();
+  return Math.exp(het.sigmaLogSd * g);
+}
+
+/**
+ * Per-leaf latent-null contribution to the primary signal: contrib[pc][t] = load·Σ_r w(pc,r)·λ_r(t)
+ * (ADR-0050). Each λ_r is a stationary unit-variance AR(1) stream from a dedicated RNG seeded by
+ * (telemetry seed ⊕ LATENT_SALT ⊕ hash(resource id)) — the main RNG stream is untouched, so
+ * load 0 (which returns null here) is byte-identical, not just approximately clean.
+ */
+function buildLatentContrib(snapshot: FaultDomainSnapshot, ln: LatentNullSpec | undefined, seed: number, ticks: number): Map<PathClassId, Float64Array> | null {
+  if (!ln || ln.load === 0) return null;
+  const phi = ln.phi ?? 0.5;
+  const innovScale = Math.sqrt(1 - phi * phi);
+  const contrib = new Map<PathClassId, Float64Array>();
+  for (const pc of snapshot.path_classes) contrib.set(pc, new Float64Array(ticks));
+  const members = new Map<ResourceId, { pc: PathClassId; w: number }[]>();
+  for (const e of snapshot.edges) {
+    if (!members.has(e.resource)) members.set(e.resource, []);
+    members.get(e.resource)!.push({ pc: e.path_class, w: e.weight ?? 1 });
+  }
+  for (const r of [...members.keys()].sort()) {
+    const rng = makeRng((seed ^ LATENT_SALT ^ hashId(r)) >>> 0);
+    const lam = new Float64Array(ticks);
+    for (let t = 0; t < ticks; t++) lam[t] = t === 0 ? rng.gaussian() : phi * lam[t - 1] + innovScale * rng.gaussian();
+    for (const { pc, w } of members.get(r)!) {
+      const row = contrib.get(pc);
+      if (!row) continue; // an edge to a path-class outside the population — validated elsewhere
+      const scaled = ln.load * w;
+      for (let t = 0; t < ticks; t++) row[t] += scaled * lam[t];
+    }
+  }
+  return contrib;
+}
+
 export function generateTelemetry(snapshot: FaultDomainSnapshot, params: TelemetryParams): Telemetry {
+  validateStructure(params);
   const rng = makeRng(params.seed);
   const { ctxs, epochOf } = buildDegCtxs(snapshot, normalizeDegradations(params), params.epochs);
+  // ADR-0050 baseline structure: per-leaf σ multipliers + correlated-null latent contribution.
+  const latentContrib = buildLatentContrib(snapshot, params.latentNull, params.seed, params.ticks);
+  const primaryIdx = signalIndex('p99_latency');
   // the (at most one, validated) degradation carrying the second-order correlation swap.
   const corrCtx = ctxs.find((c) => c.deg.degradedNoiseCorr) ?? null;
   const series = new Map<PathClassId, SignalVector[]>();
@@ -267,6 +386,10 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
   const order = [...snapshot.path_classes].sort();
   for (const pc of order) {
     const tc = trafficClassOf(pc);
+    // per-leaf noise scale (ADR-0050): exactly 1 when heterogeneity is absent/zero, and 1·x === x
+    // in IEEE arithmetic, so the byte-identity guarantee is exact.
+    const sigma = leafSigma(pc, params.heterogeneity);
+    const latentRow = latentContrib?.get(pc);
     const matrix: number[][] = [];
     const hist: number[][] = SIGNALS.map(() => []);
     for (let t = 0; t < params.ticks; t++) {
@@ -283,8 +406,14 @@ export function generateTelemetry(snapshot: FaultDomainSnapshot, params: Telemet
         const noise = arStep(innov[i], arc[i], hist[i], unitVar);
         hist[i].push(noise);
         if (hist[i].length > arc[i].length) hist[i].shift(); // keep only the lags the order needs
-        vec[i] = rawBaseline(i, hour, tc) + noise;
+        // σ scales the NOISE only (a static per-leaf AR innovation-sd multiplier); the AR history
+        // stays raw so temporal structure is exactly preserved (ADR-0050).
+        vec[i] = rawBaseline(i, hour, tc) + sigma * noise;
       }
+      // correlated-null latent contribution on the primary signal (ADR-0050), added BEFORE
+      // degradations: λ is null NOISE, so a variance-mode fault (which inflates vec − center)
+      // scales it along with the leaf's own noise — deliberate, recorded semantics.
+      if (latentRow) vec[primaryIdx] += latentRow[t];
       applyDegradations(vec, ctxs, pc, e, t, hour, tc);
       matrix.push(vec);
     }

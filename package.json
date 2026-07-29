@@ -20,10 +20,24 @@
     "coverage": "node tools/coverage.js",
     "predegradation": "tsc -p tsconfig.test.json",
     "degradation": "node tools/degradation.js",
-    "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json"
+    "preheterogeneity": "tsc -p tsconfig.test.json",
+    "heterogeneity": "node tools/heterogeneity.js",
+    "predispersion-gate": "tsc -p tsconfig.test.json",
+    "dispersion-gate": "node tools/dispersion-gate.js",
+    "gate": "node ../sprag/arch.mjs check . --invariants arch-invariants.json --baseline-in arch-invariants.baseline.json",
+    "preper-leaf-scale": "tsc -p tsconfig.test.json",
+    "per-leaf-scale": "node tools/per-leaf-scale.js",
+    "predrift-monitor": "tsc -p tsconfig.test.json",
+    "drift-monitor": "node tools/drift-monitor.js",
+    "preheterogeneity-power": "tsc -p tsconfig.test.json",
+    "heterogeneity-power": "node tools/heterogeneity-power.js",
+    "prereal-replay": "tsc -p tsconfig.test.json",
+    "real-replay": "node tools/real-replay.js",
+    "preonset-scale": "tsc -p tsconfig.test.json",
+    "onset-scale": "node tools/onset-scale.js"
   },
   "dependencies": {
-    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.0-pre"
+    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.3-pre"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
