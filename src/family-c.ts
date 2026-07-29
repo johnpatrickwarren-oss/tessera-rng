@@ -100,6 +100,8 @@ export function estimateBaselineCovariance(residuals: ReadonlyMap<PathClassId, n
 
 export interface FamilyCResult {
   e_value: number;
+  /** ADR-0065 — the exact log-wealth (engine ADR 0026); e_value is its saturating view. */
+  log_e_value: number;
   fired: boolean;
   alpha_spent: number;
 }
@@ -111,5 +113,10 @@ export function runFamilyC(series: readonly SignalVector[], alphaC: number, cell
   for (const vec of series) {
     evaluateSafeHotelling({ cell: c, alpha: alphaC }, [...vec], state);
   }
-  return { e_value: state.M, fired: state.M >= 1 / alphaC, alpha_spent: state.alphaConsumed };
+  return {
+    e_value: state.M,
+    log_e_value: state.log_M ?? Math.log(state.M),
+    fired: state.M >= 1 / alphaC,
+    alpha_spent: state.alphaConsumed,
+  };
 }

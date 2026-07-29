@@ -19,6 +19,7 @@ import {
   freshBettingState,
   updateBettingState,
 } from '@johnpatrickwarren-oss/deploysignal-engine/detectors/betting-e-process';
+import { combineAverage } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/combine';
 import { runFamilyC } from './family-c';
 import { runFamilyD, DEFAULT_SPECTRAL } from './family-d';
 import type { SpectralParams } from './family-d';
@@ -63,11 +64,14 @@ function runFamilyA(series: readonly SignalVector[], alphaA: number): DetectorRe
       M[i] = updateBettingState(states[i], vec[i], /*baselineMean*/ 0, /*sigma^2*/ 1, alphaA);
     }
   }
-  const familyE = M.reduce((s, x) => s + x, 0) / p;
+  const familyE = saturateE(M.reduce((s, x) => s + x, 0) / p);
+  // ADR-0065 — the same mean kept exactly in the log domain (logSumExp over the engine's exact
+  // per-signal log-wealth); familyE is its saturating linear view.
+  const familyLogE = combineAverage(states.map((s, i) => s.log_M ?? Math.log(M[i]))).log_fleet_e;
   // α is booked as spent iff the family rejects (spent-on-fire), matching Family C; the engine's
   // betting state.alphaConsumed is a cumulative per-tick allocation and is deliberately not used.
   const fired = familyE >= 1 / alphaA;
-  return { family: 'A', e_value: familyE, fired, alpha_allocated: alphaA, alpha_spent: fired ? alphaA : 0 };
+  return { family: 'A', e_value: familyE, log_e_value: familyLogE, fired, alpha_allocated: alphaA, alpha_spent: fired ? alphaA : 0 };
 }
 
 export function detectPathClass(
@@ -80,21 +84,46 @@ export function detectPathClass(
   const c = runFamilyC(series, params.alphaC, ctx.familyCCell);
   const detectors: DetectorResult[] = [
     a,
-    { family: 'C', e_value: c.e_value, fired: c.fired, alpha_allocated: params.alphaC, alpha_spent: c.alpha_spent },
+    { family: 'C', e_value: c.e_value, log_e_value: c.log_e_value, fired: c.fired, alpha_allocated: params.alphaC, alpha_spent: c.alpha_spent },
   ];
   // Family D (spectral) runs only when its nulls are calibrated (ADR-0009); A+C-only callers are
   // unchanged. The combined e-value is the mean over whatever detectors are present (2 → (a+c)/2).
   if (ctx.familyDCells) {
     const d = runFamilyD(series, ctx.familyDCells, ctx.spectral ?? DEFAULT_SPECTRAL);
-    detectors.push({ family: 'D', e_value: d.e_value, fired: d.fired, alpha_allocated: (ctx.spectral ?? DEFAULT_SPECTRAL).alphaD, alpha_spent: d.alpha_spent });
+    detectors.push({ family: 'D', e_value: d.e_value, log_e_value: d.log_e_value, fired: d.fired, alpha_allocated: (ctx.spectral ?? DEFAULT_SPECTRAL).alphaD, alpha_spent: d.alpha_spent });
   }
   return {
     path_class_id: pathClassId,
     detectors,
-    e_value: detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length,
+    e_value: saturateE(detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length),
+    log_e_value: combineAverage(detectors.map(detectorLogE)).log_fleet_e,
     fired: detectors.some((dt) => dt.fired),
     alpha_spent: detectors.reduce((s, dt) => s + dt.alpha_spent, 0),
   };
+}
+
+/** ADR-0065 — saturate a linear e-value mean at Number.MAX_VALUE. The engine saturates each
+ *  STATE's view, but a SUM of near-saturated views overflows to Infinity (MAX + MAX/5 = ∞) —
+ *  reachable in a long always-on session where Family A saturates alongside C (cold-eye 0065
+ *  finding 1). In range this is the identity (bytes preserved); the exact record lives in
+ *  log_e_value either way. */
+export function saturateE(x: number): number {
+  return Math.min(x, Number.MAX_VALUE);
+}
+
+/** ADR-0065 — a detector's exact log e-value, healing rows that lack it:
+ *  - a pre-0065 DEFECT-ERA audit row whose e_value JSON-serialized Infinity to null heals to
+ *    the saturation point (the engine healLogWealth convention), NOT to the floor — null must
+ *    never be coerced to a number;
+ *  - a live non-positive/absent value heals to the engine wealth floor;
+ *  - otherwise log of the linear view (saturation → log MAX). */
+export function detectorLogE(dt: { e_value: number | null; log_e_value?: number | null }): number {
+  const logE = dt.log_e_value;
+  if (logE != null && !Number.isNaN(logE)) return logE;
+  const e = dt.e_value;
+  if (e == null) return Math.log(Number.MAX_VALUE);
+  if (!(e > 0)) return Math.log(1e-300);
+  return Number.isFinite(e) ? Math.log(e) : Math.log(Number.MAX_VALUE);
 }
 
 /** One planned e-process segment for a leaf whose incidence changed mid-stream (ADR-0018). */
@@ -111,7 +140,8 @@ function combineFamily(runs: readonly PathClassVerdict[], f: number): DetectorRe
   const rows = runs.map((r) => r.detectors[f]);
   return {
     family: rows[0].family,
-    e_value: rows.reduce((s, r) => s + r.e_value, 0) / rows.length,
+    e_value: saturateE(rows.reduce((s, r) => s + r.e_value, 0) / rows.length),
+    log_e_value: combineAverage(rows.map(detectorLogE)).log_fleet_e,
     fired: rows.some((r) => r.fired),
     alpha_allocated: rows[0].alpha_allocated,
     alpha_spent: rows.reduce((s, r) => s + r.alpha_spent, 0),
@@ -133,6 +163,7 @@ export function combineSegmentRuns(pathClassId: PathClassId, runs: readonly Path
     from_tick: s.from_tick,
     to_tick: s.to_tick,
     e_value: runs[i].e_value,
+    log_e_value: detectorLogE(runs[i]),
     fired: runs[i].fired,
   }));
   let best = 0;
@@ -140,7 +171,8 @@ export function combineSegmentRuns(pathClassId: PathClassId, runs: readonly Path
   return {
     path_class_id: pathClassId,
     detectors,
-    e_value: detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length,
+    e_value: saturateE(detectors.reduce((s, dt) => s + dt.e_value, 0) / detectors.length),
+    log_e_value: combineAverage(detectors.map(detectorLogE)).log_fleet_e,
     fired: detectors.some((dt) => dt.fired),
     alpha_spent: detectors.reduce((s, dt) => s + dt.alpha_spent, 0),
     segments,

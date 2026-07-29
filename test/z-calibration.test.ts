@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { runPipeline } from '../src/pipeline';
 import { generateSpraypointFabric, DEFAULT_SPRAYPOINT } from '../src/spraypoint';
 import { buildSurface } from '../src/surface';
-import { localize, magnitudeZ, DEFAULT_LOCALIZE } from '../src/tomography';
+import { localize, magnitudeZ, magnitudeZFromLog, DEFAULT_LOCALIZE } from '../src/tomography';
 import type { FaultDomainSnapshot } from '../src/domain';
 
 const CROSS = generateSpraypointFabric({ ...DEFAULT_SPRAYPOINT, crossOptic: true });
@@ -21,7 +21,14 @@ const TICKS = 60;
 const top2 = (cs: readonly { resource_id: string }[]): string[] => cs.slice(0, 2).map((c) => c.resource_id);
 const both = (t: string[]): boolean => t.includes('optic-3') && t.includes('panel-7');
 
-/** cross-kind recovery count over seeds, for raw (ticks=1) vs calibrated (ticks=T) z. */
+/** cross-kind recovery count over seeds, for raw (ticks=1) vs calibrated (ticks=T) z.
+ *
+ *  ADR-0065: the magnitudes feed the EXACT log-domain record (`log_e_value` → `logMagnitude`).
+ *  Under the pre-0065 linear e-values this band pin only held by Infinity-arithmetic accident at
+ *  high δ — once engine ADR 0026 saturated the linear view at Number.MAX_VALUE, every extreme
+ *  leaf tied and BOTH scales lost the high-δ band (measured: cal 0/3, raw 0/3). The exact log
+ *  record restores the true ordering and the recorded tradeoff reproduces as originally
+ *  measured. */
 async function counts(snap: FaultDomainSnapshot, delta: number, seeds: number[]): Promise<{ raw: number; cal: number }> {
   let raw = 0;
   let cal = 0;
@@ -30,9 +37,9 @@ async function counts(snap: FaultDomainSnapshot, delta: number, seeds: number[])
       { resource_id: 'optic-3', delta, start_tick: 0 }, { resource_id: 'panel-7', delta, start_tick: 0 },
     ] } });
     const surface = buildSurface(audit.verdicts, 0.05);
-    const eOf = new Map(audit.verdicts.map((v) => [v.path_class_id, v.e_value]));
-    const mag = new Map(surface.selected_path_class_ids.map((pc) => [pc, eOf.get(pc)!]));
-    const opts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0, magnitude: mag };
+    const logOf = new Map(audit.verdicts.map((v) => [v.path_class_id, v.log_e_value!]));
+    const mag = new Map(surface.selected_path_class_ids.map((pc) => [pc, logOf.get(pc)!]));
+    const opts = { ...DEFAULT_LOCALIZE, q0: surface.base_rate_q0, logMagnitude: mag };
     if (both(top2(localize(snap, surface.selected_path_class_ids, opts).culprits))) raw += 1;
     if (both(top2(localize(snap, surface.selected_path_class_ids, { ...opts, magnitudeTicks: TICKS }).culprits))) cal += 1;
   }
@@ -46,6 +53,14 @@ test('magnitudeZ calibration recovers the per-tick shift: z(e^{T·θ²/2}, T) �
   }
   // raw z over an accrued e-value is √T larger than the calibrated z — the scale mismatch itself.
   assert.ok(magnitudeZ(Math.exp(TICKS * 0.5), 1) > 5 * magnitudeZ(Math.exp(TICKS * 0.5), TICKS), 'raw z is √T-inflated vs calibrated');
+  // ADR-0065 (cold-eye finding 2): the log-domain form is the identical statistic — and its
+  // Z_MAX clamp is load-bearing (μz blowup in the mixture without it). Bind both.
+  for (const theta of [1, 2, 3]) {
+    assert.ok(Math.abs(magnitudeZFromLog((TICKS * theta * theta) / 2, TICKS) - theta) < 1e-9, `log-domain calibrated identity θ=${theta}`);
+  }
+  assert.equal(magnitudeZFromLog(3000, 1), 40, 'raw z clamps at Z_MAX on a beyond-linear-range log e-value');
+  assert.equal(magnitudeZFromLog(3000, TICKS), 10, 'calibrated z of the same value discriminates below the clamp (√(2·3000/60) = 10 exactly)');
+  assert.equal(magnitudeZFromLog(96000, TICKS), 40, 'and clamps once the calibrated scale exceeds Z_MAX too');
 });
 
 test('TRADEOFF (recorded): raw (accrued) z wins the LOW-δ band; calibrated z wins the HIGH-δ band', async () => {
