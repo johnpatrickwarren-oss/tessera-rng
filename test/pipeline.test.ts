@@ -89,3 +89,23 @@ test('TIERED drain budgeting: every evidence group\'s rank-1 drains before any g
   const tie = [c('B', 5, 0), c('A', 5, 1), c('A', 2, 0)];
   assert.deepEqual(drainTargets(tie, 3).map((t) => t.resource_id), ['A', 'B'], 'score/id ordering within a tier; one drain per resource');
 });
+
+test('ADR-0066: the audit carries log_threshold_e and per-leaf margins; margin sign reproduces the selection; JSON-safe', async () => {
+  const target = mostTraversedShuffler();
+  const rec = await runPipeline({
+    fabric: FABRIC,
+    telemetry: { seed: 7, ticks: 100, degradation: { resource_id: target, delta: 4, start_tick: 0 } },
+    q: 0.05,
+  });
+  const N = rec.verdicts.length;
+  const K = rec.selected_path_class_ids.length;
+  assert.ok(K > 0, 'precondition: a firing run');
+  assert.equal(rec.margins.length, N, 'one margin per verdict');
+  assert.deepEqual(rec.margins.map((m) => m.path_class_id), rec.verdicts.map((v) => v.path_class_id), 'margins align with the audit verdict order');
+  assert.deepEqual(rec.margins.filter((m) => m.log_margin >= 0).map((m) => m.path_class_id).sort(), [...rec.selected_path_class_ids].sort(), 'margin ≥ 0 ⇔ selected');
+  const expected = Math.log(N / (0.05 * Math.max(K, 1)));
+  assert.ok(Math.abs(rec.log_threshold_e - expected) <= 1e-12 * expected, `log_threshold_e = log(N/(qK)) (got ${rec.log_threshold_e}, expected ${expected})`);
+  const back = JSON.parse(JSON.stringify(rec));
+  assert.ok(Number.isFinite(back.log_threshold_e));
+  assert.ok(back.margins.every((m: { log_margin: number | null }) => typeof m.log_margin === 'number' && Number.isFinite(m.log_margin)), 'no null/Infinity margin after a JSON round-trip');
+});
