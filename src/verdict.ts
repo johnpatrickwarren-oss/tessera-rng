@@ -127,6 +127,18 @@ export interface AuditRecord {
   fleet_log_e: number;
   verdicts: readonly PathClassVerdict[];
   selected_path_class_ids: readonly PathClassId[];
+  /**
+   * The realized e-BH threshold, log domain: log(N/(q·max(K,1))) (ADR-0066; engine ADR 0027;
+   * Ramdas–Wang 2025 Prop. 9.12). DIAGNOSTIC, not a guarantee: data-dependent (moves with K).
+   * The FDR reading of `selected_path_class_ids` is licensed exactly as before (ADR-0050 boundary,
+   * ADR-0060 license) — this field adds ranking context, no claim. Meaning: src/surface.ts.
+   */
+  log_threshold_e: number;
+  /**
+   * Per-leaf log-margin to `log_threshold_e`, aligned with `verdicts` (canonical id order):
+   * ≥ 0 iff selected in THIS snapshot; floored, never −Infinity (ADR-0066). Diagnostic only.
+   */
+  margins: readonly { path_class_id: PathClassId; log_margin: number }[];
   culprits: readonly Culprit[];
   /** firing paths the parsimonious culprit set does not explain (honest measurement). */
   unexplained_path_class_ids: readonly PathClassId[];

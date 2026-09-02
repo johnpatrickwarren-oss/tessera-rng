@@ -392,6 +392,8 @@ export function assembleAudit(args: {
     fleet_log_e: surface.fleet_log_e,
     verdicts: [...verdicts].sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : 0)),
     selected_path_class_ids: surface.selected_path_class_ids,
+    log_threshold_e: surface.log_threshold_e,
+    margins: surface.margins,
     culprits: loc.culprits,
     unexplained_path_class_ids: loc.unexplained_path_class_ids,
     drain_actions,

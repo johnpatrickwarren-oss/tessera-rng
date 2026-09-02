@@ -56,6 +56,18 @@ test('FIXED (ADR-0065, was ADR-0063 KNOWN DEFECT): δ=32 per-leaf e-values are f
         `log/linear coherence for ${v.path_class_id}`);
     }
   }
+  // ADR-0066 (AC-1/AC-5): the surface's margins reproduce the selection here too, and — because
+  // every verdict carries log_e_value, selection ran in the log domain — the saturated leaves'
+  // margins are strictly ordered where their linear views tie.
+  assert.deepEqual(
+    audit.margins.filter((m) => m.log_margin >= 0).map((m) => m.path_class_id).sort(),
+    [...audit.selected_path_class_ids].sort(),
+    'margin ≥ 0 ⇔ selected, at saturation',
+  );
+  const satIds = new Set(saturated.map((v) => v.path_class_id));
+  const satMargins = audit.margins.filter((m) => satIds.has(m.path_class_id)).map((m) => m.log_margin);
+  assert.ok(satMargins.every(Number.isFinite), 'saturated margins are finite');
+  assert.ok(new Set(satMargins).size > 1, 'the saturated leaves keep their exact ordering in the margins (log-variant selection)');
 });
 
 test('cold-eye 0065 finding 1: the LINEAR MEANS saturate too — a long-session hard fault cannot overflow the combined e-value to Infinity → JSON null', async () => {

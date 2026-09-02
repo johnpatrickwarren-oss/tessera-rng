@@ -15,7 +15,9 @@ import type { ScenarioResult } from './scenarios';
 export function render(scenarios: ScenarioResult[]): string {
   // Embed the verdict SURFACE, not every per-path-class verdict (the dashboard renders the
   // surface + culprits + drain). Dropping the large verdicts array keeps the file lean.
-  const data = JSON.stringify(scenarios, (k, v) => (k === 'verdicts' ? undefined : v));
+  // (ADR-0066: the per-leaf e-BH `margins` array is dropped on the same grounds — the page
+  // renders neither; the scalar `log_threshold_e` stays embedded.)
+  const data = JSON.stringify(scenarios, (k, v) => (k === 'verdicts' || k === 'margins' ? undefined : v));
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/>
 <title>Tessera-RNG — demo</title>

@@ -43,6 +43,8 @@ test('an AuditRecord exposes the honest-measurement fields (unexplained set + fi
     fleet_log_e: 1.2,
     verdicts: [],
     selected_path_class_ids: [],
+    log_threshold_e: Math.log(1 / 0.05),
+    margins: [],
     culprits: [],
     unexplained_path_class_ids: [],
     drain_actions: [],
