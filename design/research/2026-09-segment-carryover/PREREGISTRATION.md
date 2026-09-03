@@ -95,3 +95,63 @@ ordering; verdict HELD/FAILED on that one inequality.**
 Synthetic fabric only; Family A only for the registered endpoints; α = 0.05; two boundary
 counts; two δ levels. No claim about real telemetry. Non-finite merged values in any cell stop
 the run.
+
+## Amendment A — 2026-09-02, appended before the run (harness smoke only; no registered run yet)
+
+Nothing above changes: endpoints, bands, N, α, γ, cells and stop conditions stand as frozen at
+`c21029b`. This section fixes the readings the registration left open and records one registered
+assumption the substrate cannot satisfy, so the verdicts are scored as registered and the reason is
+on the record before any number exists.
+
+**A.1 Free readings, fixed here.**
+- Fault resource: `pzone-0` (97 leaves of the 400; weight 1), mean shift on `p99_latency`, never
+  drained, so the degradation persists through every epoch on every leaf that traverses it.
+- Reroutes: boundary k drains `czone-k` at fraction 1 (`czone-0` at T/2 in the 1-boundary cells;
+  `czone-0`, `czone-1`, `czone-2` at T/4, T/2, 3T/4 in the 3-boundary cells). Cooling zones are
+  drained rather than optics because a leaf has exactly one, so the changed set is large (97 leaves
+  at the first boundary) and the fault resource is untouched.
+- Population per cell: changed leaves that traverse `pzone-0` in every epoch AND reset at every
+  boundary of the cell (K = boundaries + 1 segments; 34 leaves per seed in the 1-boundary cells,
+  about 3–5 per seed in the 3-boundary cells, where a leaf must be drained three times in a row).
+  This is the population the P2 rationale ("three restarts from 1") describes. The same leaves
+  changed at ≥ 1 boundary (any K ≥ 2) are REPORTED, no verdict.
+- P1/P2/P3 evaluate "ever reaches 1/α" at segment ends, the merge's own stopping times (§3). P4
+  is at tick resolution: the merge over completed segments times the running Family A wealth of
+  the current segment, the per-tick wealth recomputed from the engine's betting states and
+  asserted equal to the shipped segment value at every segment end. Non-crossers are censored at
+  +∞; the median is the upper median. P5 is the (n−1) sample variance of exp(merged log e) at T.
+- Seeds: telemetry seed = one house-LCG draw from `fnv1a("2026-09-segment-carryover|<cell>|<i>")`,
+  i = 0..199; reroute seeds derive from the same key; the calibration seed is the pipeline's
+  `seed ^ 0xca11b`.
+- The martingale arm is a local copy of engine `fleet/combine.ts` `combineMartingale` /
+  `adaptiveLambdas` (γ = ½) at `d6785f3` (PR #77, now on engine `main`; identical at
+  `origin/c63/martingale-merging`), asserted to 1e-12 against values computed by that commit's own
+  compiled dist on three fixed vectors, one of which exercises the bisection at interior λ. The
+  product arm uses the installed pin's ungated `combineProduct` (v0.6.9-pre) and a local sum,
+  cross-checked. The mean arm is the shipped `combineSegmentRuns` output, asserted equal to the
+  harness's running mean at the last segment end.
+
+**A.2 The fault-onset lead — a registered assumption the substrate cannot satisfy.** §2 says the
+degradation starts "before the first boundary" without saying how long before. The harness smoke
+(one seed, 34 leaves, run before this amendment, not a registered measurement) shows that a
+fully faulted 50-tick segment after a boundary reaches Family A e ≈ 1e12 at δ = 2 and ≈ 1e22 at
+δ = 4 on its own. Every merge therefore detects by the end of the second segment at both δ,
+whatever the onset, and P2's "≥ 0.10 absolute margin at δ = 4 in the 3-boundary cells" cannot be
+produced on this substrate at these δ and segment lengths: the restarts cost the mean time, not
+detections at T. **P2 is kept and scored exactly as registered.** What the lead does decide is P4
+(time to cross): with an onset so close to the boundary that the first segment ends below wealth
+1, the product carries that deficit and crosses LATER than the mean; with an onset far enough
+back that the first segment fires, every arm crosses before the boundary and the arms tie. The
+pilot made this dependence visible before the choice. There is no natural shortest lead to take
+as the harder-to-pass reading, so the lead is fixed at the structural midpoint of the shortest
+segment, **T/8 = 25 ticks before the first boundary** (onset at tick 75 in the 1-boundary cells,
+tick 25 in the 3-boundary cells), and a post-hoc lead sweep at 5, 10 and 40 ticks is reported
+without verdict (A.4).
+
+**A.3 Stop conditions applied by the harness.** Any assertion failure aborts the run: shipped
+verdict ≠ re-derived verdict, per-tick wealth ≠ shipped segment value, non-finite merged value,
+local martingale ≠ engine reference. There is no catch anywhere in the harness.
+
+**A.4 Post-hoc, declared in advance, no verdict:** the lead sweep of A.2 on the four injected
+cells at the registered N; Family C and D merges at segment ends; tick-resolution detection
+rates; the any-boundary population; the martingale-vs-product relation (§3 P3).
