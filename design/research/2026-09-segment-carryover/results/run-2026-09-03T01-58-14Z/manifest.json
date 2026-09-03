@@ -1,0 +1,171 @@
+{
+  "study": "2026-09-segment-carryover",
+  "registration": "PREREGISTRATION.md (frozen at c21029b; amendment 2026-09-02 appended before this run)",
+  "repo_sha": "9ad6c205ffaacb30f2da04364e18fa1cd366db2a",
+  "engine_pin": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.9-pre",
+  "engine_installed_version": "0.6.9-pre",
+  "engine_adr0028_reference": "fleet/combine.ts at d6785f3 (origin/c63/martingale-merging, PR #77), local copy asserted to 1e-12 on 3 vectors",
+  "node_version": "v25.9.0",
+  "fabric": "generateFabric(DEFAULT_FABRIC)",
+  "fabric_hash": "2bc6340d939e851f69bd58398975cb5ca5aae49d8fd939c6e422e6a02a7ad745",
+  "ticks": 200,
+  "alpha": 0.05,
+  "gamma": 0.5,
+  "detect_params": {
+    "alphaA": 0.01,
+    "alphaC": 0.01
+  },
+  "seed_scheme": "telemetry seed = floor(makeRng(fnv1a(`2026-09-segment-carryover|<cell>|b<B>|d<δ>|L<lead>|<i>`)).next()·2^32); reroute k seed = same key + `|reroute|<k>`; calibration seed = telemetry seed ^ 0xca11b (calibrateForSession)",
+  "n_seeds_per_cell": 200,
+  "cell_grid": {
+    "boundaries": {
+      "1": [
+        100
+      ],
+      "3": [
+        50,
+        100,
+        150
+      ]
+    },
+    "deltas": [
+      0,
+      2,
+      4
+    ],
+    "lead": 25
+  },
+  "design": {
+    "degraded_resource": "pzone-0",
+    "degradation": "mean shift δ on p99_latency from tick (first boundary − 25), weight 1, persisting through every epoch (the resource is never drained)",
+    "reroutes": [
+      "boundary 0: drain czone-0, fraction 1",
+      "boundary 1: drain czone-1, fraction 1",
+      "boundary 2: drain czone-2, fraction 1"
+    ],
+    "population_registered": "changed leaves traversing pzone-0 in every epoch AND reset at every boundary of the cell (K = boundaries + 1)",
+    "population_reported": "the same, changed at ≥ 1 boundary (any K ≥ 2)",
+    "p1_p2_p3_evaluation": "merged value ≥ 1/α at any segment end (the merge's own stopping times)",
+    "p4_evaluation": "first tick at which the merge over completed segments × the running Family A wealth ≥ 1/α; per-tick wealth recomputed from the engine betting states and asserted equal to the shipped segment value",
+    "p5_evaluation": "sample variance (n−1) of exp(merged log e) at T over the H0 population"
+  },
+  "counters": {
+    "b1-d0": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b1-d2": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b1-d4": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b3-d0": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b3-d2": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b3-d4": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b1-d2-L5": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b1-d4-L5": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b3-d2-L5": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b3-d4-L5": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b1-d2-L10": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b1-d4-L10": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b3-d2-L10": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b3-d4-L10": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b1-d2-L40": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b1-d4-L40": {
+      "seeds": 200,
+      "shipped_equalities": 6800,
+      "trajectory_equalities": 6800,
+      "leaves_changed_total": 19400
+    },
+    "b3-d2-L40": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    },
+    "b3-d4-L40": {
+      "seeds": 200,
+      "shipped_equalities": 14400,
+      "trajectory_equalities": 14400,
+      "leaves_changed_total": 57400
+    }
+  },
+  "posthoc": {
+    "leads": [
+      5,
+      10,
+      40
+    ],
+    "note": "post-hoc, labelled, no verdict"
+  },
+  "dry_run": false
+}
