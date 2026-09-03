@@ -1,0 +1,322 @@
+{
+  "label": "POST-HOC — lead sensitivity, no verdict",
+  "leads": [
+    5,
+    10,
+    40
+  ],
+  "cells": {
+    "b1-d2-L5": {
+      "boundaries": 1,
+      "delta": 2,
+      "lead": 5,
+      "n_leaves": 6800,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.09147058823529412
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.09147058823529412
+      },
+      "median_first_tick": {
+        "mean": 119,
+        "product": 121,
+        "martingale": null
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.04573529411764706
+      ]
+    },
+    "b1-d4-L5": {
+      "boundaries": 1,
+      "delta": 4,
+      "lead": 5,
+      "n_leaves": 6800,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.11794117647058823
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.11794117647058823
+      },
+      "median_first_tick": {
+        "mean": 111,
+        "product": 112,
+        "martingale": null
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.058970588235294115
+      ]
+    },
+    "b3-d2-L5": {
+      "boundaries": 3,
+      "delta": 2,
+      "lead": 5,
+      "n_leaves": 760,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 69,
+        "product": 69,
+        "martingale": 117
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.09144736842105264,
+        0.49733733105647104,
+        0.49998364617240276
+      ]
+    },
+    "b3-d4-L5": {
+      "boundaries": 3,
+      "delta": 4,
+      "lead": 5,
+      "n_leaves": 721,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 60,
+        "product": 60,
+        "martingale": 110
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.1317614424410541,
+        0.5,
+        0.5
+      ]
+    },
+    "b1-d2-L10": {
+      "boundaries": 1,
+      "delta": 2,
+      "lead": 10,
+      "n_leaves": 6800,
+      "rate_end": {
+        "mean": 1,
+        "product": 0.9998529411764706,
+        "martingale": 0.1275
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 0.9998529411764706,
+        "martingale": 0.1275
+      },
+      "median_first_tick": {
+        "mean": 119,
+        "product": 120,
+        "martingale": null
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.06375
+      ]
+    },
+    "b1-d4-L10": {
+      "boundaries": 1,
+      "delta": 4,
+      "lead": 10,
+      "n_leaves": 6800,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.24632352941176472
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.24632352941176472
+      },
+      "median_first_tick": {
+        "mean": 110,
+        "product": 111,
+        "martingale": null
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.12316176470588236
+      ]
+    },
+    "b3-d2-L10": {
+      "boundaries": 3,
+      "delta": 2,
+      "lead": 10,
+      "n_leaves": 741,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 68,
+        "product": 68,
+        "martingale": 117
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.13225371120107962,
+        0.49736994423416486,
+        0.4998022991891722
+      ]
+    },
+    "b3-d4-L10": {
+      "boundaries": 3,
+      "delta": 4,
+      "lead": 10,
+      "n_leaves": 763,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 60,
+        "product": 59,
+        "martingale": 62
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.272608125819135,
+        0.5,
+        0.5
+      ]
+    },
+    "b1-d2-L40": {
+      "boundaries": 1,
+      "delta": 2,
+      "lead": 40,
+      "n_leaves": 6800,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9177941176470589
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9177941176470589
+      },
+      "median_first_tick": {
+        "mean": 96,
+        "product": 96,
+        "martingale": 119
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.45889705882352944
+      ]
+    },
+    "b1-d4-L40": {
+      "boundaries": 1,
+      "delta": 4,
+      "lead": 40,
+      "n_leaves": 6800,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9873529411764705
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9873529411764705
+      },
+      "median_first_tick": {
+        "mean": 81,
+        "product": 81,
+        "martingale": 111
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.49367647058823527
+      ]
+    },
+    "b3-d2-L40": {
+      "boundaries": 3,
+      "delta": 2,
+      "lead": 40,
+      "n_leaves": 751,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 32,
+        "product": 32,
+        "martingale": 69
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.47003994673768307,
+        0.5,
+        0.5
+      ]
+    },
+    "b3-d4-L40": {
+      "boundaries": 3,
+      "delta": 4,
+      "lead": 40,
+      "n_leaves": 754,
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 23,
+        "product": 23,
+        "martingale": 60
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.496684350132626,
+        0.5,
+        0.5
+      ]
+    }
+  }
+}

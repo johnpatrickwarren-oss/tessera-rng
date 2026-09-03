@@ -1,0 +1,436 @@
+{
+  "P1": {
+    "name": "validity (H0 ever-crossing at segment ends, all three arms)",
+    "measured": {
+      "mean": {
+        "b1-d0": {
+          "measured": 0.0048529411764705885,
+          "n_leaves": 6800,
+          "band_upper": 0.05792891209806387,
+          "held": true
+        },
+        "b3-d0": {
+          "measured": 0.007926023778071334,
+          "n_leaves": 757,
+          "band_upper": 0.0737640315221888,
+          "held": true
+        }
+      },
+      "product": {
+        "b1-d0": {
+          "measured": 0.004411764705882353,
+          "n_leaves": 6800,
+          "band_upper": 0.05792891209806387,
+          "held": true
+        },
+        "b3-d0": {
+          "measured": 0.022457067371202115,
+          "n_leaves": 757,
+          "band_upper": 0.0737640315221888,
+          "held": true
+        }
+      },
+      "martingale": {
+        "b1-d0": {
+          "measured": 0.00014705882352941175,
+          "n_leaves": 6800,
+          "band_upper": 0.05792891209806387,
+          "held": true
+        },
+        "b3-d0": {
+          "measured": 0.001321003963011889,
+          "n_leaves": 757,
+          "band_upper": 0.0737640315221888,
+          "held": true
+        }
+      }
+    },
+    "pooled_reported": {
+      "mean": {
+        "measured": 0.005160778086542279,
+        "n_leaves": 7557,
+        "band_upper": 0.05752130756498483
+      },
+      "product": {
+        "measured": 0.006219399232499669,
+        "n_leaves": 7557,
+        "band_upper": 0.05752130756498483
+      },
+      "martingale": {
+        "measured": 0.00026465528648934763,
+        "n_leaves": 7557,
+        "band_upper": 0.05752130756498483
+      }
+    },
+    "band": "≤ α + 3·se_binomial(α, N_leaves) per arm per H0 cell, α = 0.05",
+    "verdict": "HELD"
+  },
+  "P2": {
+    "name": "power: product ≥ mean on every injected cell; ≥ 0.10 absolute margin at δ = 4, 3 boundaries",
+    "measured": {
+      "per_cell": {
+        "b1-d2": {
+          "product": 1,
+          "mean": 1,
+          "diff": 0,
+          "n_leaves": 6800
+        },
+        "b1-d4": {
+          "product": 1,
+          "mean": 1,
+          "diff": 0,
+          "n_leaves": 6800
+        },
+        "b3-d2": {
+          "product": 1,
+          "mean": 1,
+          "diff": 0,
+          "n_leaves": 752
+        },
+        "b3-d4": {
+          "product": 1,
+          "mean": 1,
+          "diff": 0,
+          "n_leaves": 741
+        }
+      },
+      "margin_b3_d4": 0
+    },
+    "band": "product ≥ mean on 4/4 cells AND (product − mean) ≥ 0.10 at b3-d4",
+    "verdict": "FAILED",
+    "clauses": {
+      "all_cells_product_ge_mean": true,
+      "margin_b3_d4_ge_0_10": false
+    }
+  },
+  "P3": {
+    "name": "power: adaptive martingale ≥ mean on every injected cell (its relation to the product REPORTED)",
+    "measured": {
+      "b1-d2": {
+        "martingale": 0.5116176470588235,
+        "mean": 1,
+        "product": 1,
+        "n_leaves": 6800
+      },
+      "b1-d4": {
+        "martingale": 0.9308823529411765,
+        "mean": 1,
+        "product": 1,
+        "n_leaves": 6800
+      },
+      "b3-d2": {
+        "martingale": 1,
+        "mean": 1,
+        "product": 1,
+        "n_leaves": 752
+      },
+      "b3-d4": {
+        "martingale": 1,
+        "mean": 1,
+        "product": 1,
+        "n_leaves": 741
+      }
+    },
+    "band": "martingale ≥ mean on 4/4 cells",
+    "verdict": "FAILED"
+  },
+  "P4": {
+    "name": "time to cross: median first tick at 1/α on δ = 4 cells, product vs mean (tick resolution; non-crossers censored as +∞)",
+    "measured": {
+      "b1-d4": {
+        "product": 98,
+        "mean": 98,
+        "martingale_reported": 111,
+        "n_leaves": 6800
+      },
+      "b3-d4": {
+        "product": 41,
+        "mean": 41,
+        "martingale_reported": 61,
+        "n_leaves": 741
+      }
+    },
+    "band": "product ≤ mean on both boundary counts",
+    "verdict": "HELD"
+  },
+  "P5": {
+    "name": "null variance at T: product > martingale (H0 cells)",
+    "measured": {
+      "b1-d0": {
+        "product": 12.160169496179488,
+        "martingale": 0.15260988764173228,
+        "mean_reported_not_comparable": 10.923560068722207,
+        "n_leaves": 6800
+      },
+      "b3-d0": {
+        "product": 22.71074653984621,
+        "martingale": 1.3951302048028082,
+        "mean_reported_not_comparable": 51.997766669816215,
+        "n_leaves": 757
+      }
+    },
+    "band": "Var(product) > Var(martingale) on both H0 cells",
+    "verdict": "HELD"
+  },
+  "REPORTED": {
+    "martingale_vs_product_rate_end": {
+      "b1-d2": {
+        "martingale": 0.5116176470588235,
+        "product": 1
+      },
+      "b1-d4": {
+        "martingale": 0.9308823529411765,
+        "product": 1
+      },
+      "b3-d2": {
+        "martingale": 1,
+        "product": 1
+      },
+      "b3-d4": {
+        "martingale": 1,
+        "product": 1
+      }
+    },
+    "tick_resolution_rates": {
+      "b1-d0": {
+        "mean": 0.04029411764705882,
+        "product": 0.039264705882352945,
+        "martingale": 0.0010294117647058824
+      },
+      "b3-d0": {
+        "mean": 0.022457067371202115,
+        "product": 0.043593130779392336,
+        "martingale": 0.003963011889035667
+      },
+      "b1-d2": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.5116176470588235
+      },
+      "b1-d4": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9308823529411765
+      },
+      "b3-d2": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "b3-d4": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      }
+    },
+    "family_C_rate_end": {
+      "b1-d0": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "b3-d0": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "b1-d2": {
+        "mean": 0.10529411764705883,
+        "product": 0.0008823529411764706,
+        "martingale": 0.00014705882352941175
+      },
+      "b1-d4": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.3151470588235294
+      },
+      "b3-d2": {
+        "mean": 0.3829787234042553,
+        "product": 0.05053191489361702,
+        "martingale": 0.08377659574468085
+      },
+      "b3-d4": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      }
+    },
+    "family_D_rate_end": {
+      "b1-d0": {
+        "mean": 0,
+        "product": 0.000588235294117647,
+        "martingale": 0
+      },
+      "b3-d0": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "b1-d2": {
+        "mean": 0.00014705882352941175,
+        "product": 0.0002941176470588235,
+        "martingale": 0.00014705882352941175
+      },
+      "b1-d4": {
+        "mean": 0.00014705882352941175,
+        "product": 0.0008823529411764706,
+        "martingale": 0
+      },
+      "b3-d2": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "b3-d4": {
+        "mean": 0,
+        "product": 0.005398110661268556,
+        "martingale": 0
+      }
+    },
+    "any_boundary_population": {
+      "b1-d0": {
+        "n_leaves": 6800,
+        "K_histogram": {
+          "2": 6800
+        },
+        "rate_end": {
+          "mean": 0.0048529411764705885,
+          "product": 0.004411764705882353,
+          "martingale": 0.00014705882352941175
+        },
+        "median_first_tick": {
+          "mean": null,
+          "product": null,
+          "martingale": null
+        }
+      },
+      "b3-d0": {
+        "n_leaves": 14400,
+        "K_histogram": {
+          "2": 8728,
+          "3": 4915,
+          "4": 757
+        },
+        "rate_end": {
+          "mean": 0.006111111111111111,
+          "product": 0.007013888888888889,
+          "martingale": 0.00034722222222222224
+        },
+        "median_first_tick": {
+          "mean": null,
+          "product": null,
+          "martingale": null
+        }
+      },
+      "b1-d2": {
+        "n_leaves": 6800,
+        "K_histogram": {
+          "2": 6800
+        },
+        "rate_end": {
+          "mean": 1,
+          "product": 1,
+          "martingale": 0.5116176470588235
+        },
+        "median_first_tick": {
+          "mean": 118,
+          "product": 116,
+          "martingale": 132
+        }
+      },
+      "b1-d4": {
+        "n_leaves": 6800,
+        "K_histogram": {
+          "2": 6800
+        },
+        "rate_end": {
+          "mean": 1,
+          "product": 1,
+          "martingale": 0.9308823529411765
+        },
+        "median_first_tick": {
+          "mean": 98,
+          "product": 98,
+          "martingale": 111
+        }
+      },
+      "b3-d2": {
+        "n_leaves": 14400,
+        "K_histogram": {
+          "2": 8592,
+          "3": 5056,
+          "4": 752
+        },
+        "rate_end": {
+          "mean": 1,
+          "product": 1,
+          "martingale": 0.9769444444444444
+        },
+        "median_first_tick": {
+          "mean": 53,
+          "product": 53,
+          "martingale": 117
+        }
+      },
+      "b3-d4": {
+        "n_leaves": 14400,
+        "K_histogram": {
+          "2": 8660,
+          "3": 4999,
+          "4": 741
+        },
+        "rate_end": {
+          "mean": 1,
+          "product": 1,
+          "martingale": 0.9908333333333333
+        },
+        "median_first_tick": {
+          "mean": 41,
+          "product": 41,
+          "martingale": 110
+        }
+      }
+    },
+    "shipped_family_A_fired_rate": {
+      "b1-d0": 0.001176470588235294,
+      "b3-d0": 0.001321003963011889,
+      "b1-d2": 0.9998529411764706,
+      "b1-d4": 1,
+      "b3-d2": 1,
+      "b3-d4": 1
+    },
+    "lambda_mean_by_segment": {
+      "b1-d0": [
+        0,
+        0.043823529411764706
+      ],
+      "b3-d0": [
+        0,
+        0.0772787318361955,
+        0.08010220602097548,
+        0.0755169921341978
+      ],
+      "b1-d2": [
+        0,
+        0.25588235294117645
+      ],
+      "b1-d4": [
+        0,
+        0.46544117647058825
+      ],
+      "b3-d2": [
+        0,
+        0.4348404255319149,
+        0.5,
+        0.5
+      ],
+      "b3-d4": [
+        0,
+        0.4750337381916329,
+        0.5,
+        0.5
+      ]
+    },
+    "ship_rule": "DOES NOT FIRE: no code change"
+  }
+}

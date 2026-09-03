@@ -1,0 +1,542 @@
+{
+  "b1-d0": {
+    "boundaries": 1,
+    "delta": 0,
+    "lead": 25,
+    "registered": {
+      "n_leaves": 6800,
+      "K_histogram": {
+        "2": 6800
+      },
+      "rate_end": {
+        "mean": 0.0048529411764705885,
+        "product": 0.004411764705882353,
+        "martingale": 0.00014705882352941175
+      },
+      "rate_tick": {
+        "mean": 0.04029411764705882,
+        "product": 0.039264705882352945,
+        "martingale": 0.0010294117647058824
+      },
+      "median_first_tick": {
+        "mean": null,
+        "product": null,
+        "martingale": null
+      },
+      "variance_final_linear": {
+        "mean": 10.923560068722207,
+        "product": 12.160169496179488,
+        "martingale": 0.15260988764173228
+      },
+      "shipped_fired_A_rate": 0.001176470588235294,
+      "rate_end_C": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "rate_end_D": {
+        "mean": 0,
+        "product": 0.000588235294117647,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.043823529411764706
+      ]
+    },
+    "any_boundary": {
+      "n_leaves": 6800,
+      "K_histogram": {
+        "2": 6800
+      },
+      "rate_end": {
+        "mean": 0.0048529411764705885,
+        "product": 0.004411764705882353,
+        "martingale": 0.00014705882352941175
+      },
+      "rate_tick": {
+        "mean": 0.04029411764705882,
+        "product": 0.039264705882352945,
+        "martingale": 0.0010294117647058824
+      },
+      "median_first_tick": {
+        "mean": null,
+        "product": null,
+        "martingale": null
+      },
+      "variance_final_linear": {
+        "mean": 10.923560068722207,
+        "product": 12.160169496179488,
+        "martingale": 0.15260988764173228
+      },
+      "shipped_fired_A_rate": 0.001176470588235294,
+      "rate_end_C": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "rate_end_D": {
+        "mean": 0,
+        "product": 0.000588235294117647,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.043823529411764706
+      ]
+    }
+  },
+  "b1-d2": {
+    "boundaries": 1,
+    "delta": 2,
+    "lead": 25,
+    "registered": {
+      "n_leaves": 6800,
+      "K_histogram": {
+        "2": 6800
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.5116176470588235
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.5116176470588235
+      },
+      "median_first_tick": {
+        "mean": 118,
+        "product": 116,
+        "martingale": 132
+      },
+      "variance_final_linear": {
+        "mean": 4.086354119853805e+27,
+        "product": 1.996533304210211e+34,
+        "martingale": 2.515682437642125e+27
+      },
+      "shipped_fired_A_rate": 0.9998529411764706,
+      "rate_end_C": {
+        "mean": 0.10529411764705883,
+        "product": 0.0008823529411764706,
+        "martingale": 0.00014705882352941175
+      },
+      "rate_end_D": {
+        "mean": 0.00014705882352941175,
+        "product": 0.0002941176470588235,
+        "martingale": 0.00014705882352941175
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.25588235294117645
+      ]
+    },
+    "any_boundary": {
+      "n_leaves": 6800,
+      "K_histogram": {
+        "2": 6800
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.5116176470588235
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.5116176470588235
+      },
+      "median_first_tick": {
+        "mean": 118,
+        "product": 116,
+        "martingale": 132
+      },
+      "variance_final_linear": {
+        "mean": 4.086354119853805e+27,
+        "product": 1.996533304210211e+34,
+        "martingale": 2.515682437642125e+27
+      },
+      "shipped_fired_A_rate": 0.9998529411764706,
+      "rate_end_C": {
+        "mean": 0.10529411764705883,
+        "product": 0.0008823529411764706,
+        "martingale": 0.00014705882352941175
+      },
+      "rate_end_D": {
+        "mean": 0.00014705882352941175,
+        "product": 0.0002941176470588235,
+        "martingale": 0.00014705882352941175
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.25588235294117645
+      ]
+    }
+  },
+  "b1-d4": {
+    "boundaries": 1,
+    "delta": 4,
+    "lead": 25,
+    "registered": {
+      "n_leaves": 6800,
+      "K_histogram": {
+        "2": 6800
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9308823529411765
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9308823529411765
+      },
+      "median_first_tick": {
+        "mean": 98,
+        "product": 98,
+        "martingale": 111
+      },
+      "variance_final_linear": {
+        "mean": 1.848334942157104e+45,
+        "product": 8.91747406388696e+56,
+        "martingale": 1.754121906612068e+45
+      },
+      "shipped_fired_A_rate": 1,
+      "rate_end_C": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.3151470588235294
+      },
+      "rate_end_D": {
+        "mean": 0.00014705882352941175,
+        "product": 0.0008823529411764706,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.46544117647058825
+      ]
+    },
+    "any_boundary": {
+      "n_leaves": 6800,
+      "K_histogram": {
+        "2": 6800
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9308823529411765
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9308823529411765
+      },
+      "median_first_tick": {
+        "mean": 98,
+        "product": 98,
+        "martingale": 111
+      },
+      "variance_final_linear": {
+        "mean": 1.848334942157104e+45,
+        "product": 8.91747406388696e+56,
+        "martingale": 1.754121906612068e+45
+      },
+      "shipped_fired_A_rate": 1,
+      "rate_end_C": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.3151470588235294
+      },
+      "rate_end_D": {
+        "mean": 0.00014705882352941175,
+        "product": 0.0008823529411764706,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.46544117647058825
+      ]
+    }
+  },
+  "b3-d0": {
+    "boundaries": 3,
+    "delta": 0,
+    "lead": 25,
+    "registered": {
+      "n_leaves": 757,
+      "K_histogram": {
+        "4": 757
+      },
+      "rate_end": {
+        "mean": 0.007926023778071334,
+        "product": 0.022457067371202115,
+        "martingale": 0.001321003963011889
+      },
+      "rate_tick": {
+        "mean": 0.022457067371202115,
+        "product": 0.043593130779392336,
+        "martingale": 0.003963011889035667
+      },
+      "median_first_tick": {
+        "mean": null,
+        "product": null,
+        "martingale": null
+      },
+      "variance_final_linear": {
+        "mean": 51.997766669816215,
+        "product": 22.71074653984621,
+        "martingale": 1.3951302048028082
+      },
+      "shipped_fired_A_rate": 0.001321003963011889,
+      "rate_end_C": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "rate_end_D": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.0772787318361955,
+        0.08010220602097548,
+        0.0755169921341978
+      ]
+    },
+    "any_boundary": {
+      "n_leaves": 14400,
+      "K_histogram": {
+        "2": 8728,
+        "3": 4915,
+        "4": 757
+      },
+      "rate_end": {
+        "mean": 0.006111111111111111,
+        "product": 0.007013888888888889,
+        "martingale": 0.00034722222222222224
+      },
+      "rate_tick": {
+        "mean": 0.031041666666666665,
+        "product": 0.03770833333333334,
+        "martingale": 0.0014583333333333334
+      },
+      "median_first_tick": {
+        "mean": null,
+        "product": null,
+        "martingale": null
+      },
+      "variance_final_linear": {
+        "mean": 18.025288695160242,
+        "product": 69.20404118687387,
+        "martingale": 0.30779180589687055
+      },
+      "shipped_fired_A_rate": 0.0008333333333333334,
+      "rate_end_C": {
+        "mean": 0.0001388888888888889,
+        "product": 0,
+        "martingale": 0
+      },
+      "rate_end_D": {
+        "mean": 0.00034722222222222224,
+        "product": 0.00125,
+        "martingale": 0.00006944444444444444
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.05649305555555555,
+        0.06605443995316054,
+        0.0755169921341978
+      ]
+    }
+  },
+  "b3-d2": {
+    "boundaries": 3,
+    "delta": 2,
+    "lead": 25,
+    "registered": {
+      "n_leaves": 752,
+      "K_histogram": {
+        "4": 752
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 64,
+        "product": 56,
+        "martingale": 70
+      },
+      "variance_final_linear": {
+        "mean": 4469569248116.414,
+        "product": 4.047395106711692e+42,
+        "martingale": 2.9767924777742848e+35
+      },
+      "shipped_fired_A_rate": 1,
+      "rate_end_C": {
+        "mean": 0.3829787234042553,
+        "product": 0.05053191489361702,
+        "martingale": 0.08377659574468085
+      },
+      "rate_end_D": {
+        "mean": 0,
+        "product": 0,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.4348404255319149,
+        0.5,
+        0.5
+      ]
+    },
+    "any_boundary": {
+      "n_leaves": 14400,
+      "K_histogram": {
+        "2": 8592,
+        "3": 5056,
+        "4": 752
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9769444444444444
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9771527777777778
+      },
+      "median_first_tick": {
+        "mean": 53,
+        "product": 53,
+        "martingale": 117
+      },
+      "variance_final_linear": {
+        "mean": 6.581526383642634e+41,
+        "product": 7.471608544454238e+47,
+        "martingale": 9.86678550840868e+41
+      },
+      "shipped_fired_A_rate": 1,
+      "rate_end_C": {
+        "mean": 0.18340277777777778,
+        "product": 0.04548611111111111,
+        "martingale": 0.020555555555555556
+      },
+      "rate_end_D": {
+        "mean": 0.00034722222222222224,
+        "product": 0.0019444444444444444,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.4671180555555556,
+        0.4998875386691209,
+        0.5
+      ]
+    }
+  },
+  "b3-d4": {
+    "boundaries": 3,
+    "delta": 4,
+    "lead": 25,
+    "registered": {
+      "n_leaves": 741,
+      "K_histogram": {
+        "4": 741
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "median_first_tick": {
+        "mean": 41,
+        "product": 41,
+        "martingale": 61
+      },
+      "variance_final_linear": {
+        "mean": 1.213765506756069e+21,
+        "product": 5.813577400186343e+75,
+        "martingale": 6.1623528124752925e+63
+      },
+      "shipped_fired_A_rate": 1,
+      "rate_end_C": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 1
+      },
+      "rate_end_D": {
+        "mean": 0,
+        "product": 0.005398110661268556,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.4750337381916329,
+        0.5,
+        0.5
+      ]
+    },
+    "any_boundary": {
+      "n_leaves": 14400,
+      "K_histogram": {
+        "2": 8660,
+        "3": 4999,
+        "4": 741
+      },
+      "rate_end": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9908333333333333
+      },
+      "rate_tick": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.9908333333333333
+      },
+      "median_first_tick": {
+        "mean": 41,
+        "product": 41,
+        "martingale": 110
+      },
+      "variance_final_linear": {
+        "mean": 9.300632537678175e+67,
+        "product": 4.807150325620029e+79,
+        "martingale": 8.189304871687885e+67
+      },
+      "shipped_fired_A_rate": 1,
+      "rate_end_C": {
+        "mean": 1,
+        "product": 1,
+        "martingale": 0.995
+      },
+      "rate_end_D": {
+        "mean": 0.0024305555555555556,
+        "product": 0.007083333333333333,
+        "martingale": 0
+      },
+      "lambda_mean_by_k": [
+        0,
+        0.48604166666666665,
+        0.5,
+        0.5
+      ]
+    }
+  }
+}
