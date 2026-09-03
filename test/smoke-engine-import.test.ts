@@ -55,7 +55,9 @@ test('Welford runtime is signal-agnostic: recovers the mean of an arbitrary stre
 
 test('Hierarchical combination: product and average are Ville-bounded merges', () => {
   const logEs = [Math.log(50), Math.log(0.5), Math.log(8)];
-  const prod = combineProduct(logEs);
+  // engine v0.6.10-pre (ADR 0028): the product needs an explicit sequential/independence assertion
+  assert.throws(() => combineProduct(logEs), /sequential/);
+  const prod = combineProduct(logEs, { sequential: true });
   const avg = combineAverage(logEs);
   // Product = sum of logs; average = logSumExp - log(N). Both finite, prod >= avg here.
   assert.ok(Number.isFinite(prod.log_fleet_e));
