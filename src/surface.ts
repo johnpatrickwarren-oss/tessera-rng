@@ -11,8 +11,12 @@
  */
 import { combineAverage } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/combine';
 import { eBenjaminiHochberg, eBenjaminiHochbergLog } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/e-bh';
+import { eBenjaminiYekutieli } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/e-by';
+import { CS_SIGMA_SQUARED_PRIOR } from './detect';
+import { SIGNALS } from './signals';
+import type { EffectIntervals } from './verdict';
 import type { PathClassId } from './domain';
-import type { PathClassVerdict } from './verdict';
+import type { PathClassVerdict, EffectCs } from './verdict';
 
 const WEALTH_FLOOR = 1e-12;
 /** Jeffreys pseudo-count for the floored fleet base firing rate q₀ (ADR-0016) — keeps q₀ ∈ (0,1)
@@ -58,9 +62,44 @@ export interface FleetSurface {
    * caveat as `log_threshold_e`: ranking information, no FDR claim of its own.
    */
   margins: ReadonlyArray<LeafMargin>;
+  /**
+   * ADR-0067 — e-BY effect-size intervals for every selected leaf, one per signal, at
+   * `alpha_i = fcrDelta·|S|/|leaves|` (engine `fleet/e-by.ts`; Ramdas–Wang 2025 Theorem 13.7:
+   * FCR ≤ fcrDelta for ANY selection rule under ANY dependence, given level-free e-CIs). Present
+   * iff every verdict's Family A row carries `effect_cs` (the level-free inputs); a verdict set
+   * that lacks it anywhere (pre-ADR-0067 audits) yields a surface without this field, byte-identical
+   * to before. Reported: the interval is the shift from the calibrated baseline in residual units
+   * over the leaf's current segment, covering a CONSTANT shift (study 2026-09-e-by-surface P1b on
+   * what per-cell standardization does to a raw level shift). No selection, α or verdict reads it.
+   */
+  effect_intervals?: EffectIntervals;
 }
 
-export function buildSurface(verdicts: readonly PathClassVerdict[], q: number): FleetSurface {
+/** ADR-0067 — true iff every verdict has a Family A row with a full `effect_cs`. */
+function allCarryEffectCs(verdicts: readonly PathClassVerdict[]): boolean {
+  return verdicts.every((v) => {
+    const a = v.detectors.find((d) => d.family === 'A');
+    return !!a?.effect_cs && a.effect_cs.length === SIGNALS.length;
+  });
+}
+
+function effectIntervals(ordered: readonly PathClassVerdict[], selected: readonly PathClassId[], delta: number): EffectIntervals {
+  const p = SIGNALS.length;
+  const K = ordered.length * p;
+  const byId = new Map(ordered.map((v) => [v.path_class_id, v.detectors.find((d) => d.family === 'A')!.effect_cs as readonly EffectCs[]]));
+  const inputs = selected.flatMap((pc) => byId.get(pc)!.map((c) => ({
+    id: `${pc}/${c.signal}`,
+    level_free: { S_t: c.S_t, t: c.t, sigma_squared: 1, sigma_squared_prior: CS_SIGMA_SQUARED_PRIOR },
+  })));
+  const out = eBenjaminiYekutieli(inputs, K, delta);
+  const intervals = out.intervals.map((iv) => {
+    const slash = iv.id.lastIndexOf('/');
+    return { path_class_id: iv.id.slice(0, slash) as PathClassId, signal: iv.id.slice(slash + 1) as EffectIntervals['intervals'][number]['signal'], center: iv.center, half_width: iv.half_width, lower: iv.lower, upper: iv.upper };
+  });
+  return { delta, K, selected: out.selected_count, alpha_i: out.alpha_i, intervals, guarantee: out.guarantee };
+}
+
+export function buildSurface(verdicts: readonly PathClassVerdict[], q: number, fcrDelta: number = q): FleetSurface {
   // canonical order so indices ↔ ids are stable and replay-clean.
   const ordered = [...verdicts].sort((a, b) => (a.path_class_id < b.path_class_id ? -1 : a.path_class_id > b.path_class_id ? 1 : 0));
   const logEs = ordered.map((v) => Math.log(Math.max(v.e_value, WEALTH_FLOOR)));
@@ -79,5 +118,8 @@ export function buildSurface(verdicts: readonly PathClassVerdict[], q: number): 
   const margins = ordered.map((v, i) => ({ path_class_id: v.path_class_id, log_margin: ebh.log_margin[i] }));
 
   const base_rate_q0 = (selected.length + Q0_PSEUDO) / (ordered.length + 2 * Q0_PSEUDO);
-  return { fleet_log_e: fleet.log_fleet_e, q, selected_path_class_ids: selected, base_rate_q0, log_threshold_e: ebh.log_threshold_e, margins };
+  const surface: FleetSurface = { fleet_log_e: fleet.log_fleet_e, q, selected_path_class_ids: selected, base_rate_q0, log_threshold_e: ebh.log_threshold_e, margins };
+  // ADR-0067: only when every leaf carries the level-free inputs; otherwise the surface is as before.
+  if (ordered.length > 0 && allCarryEffectCs(ordered)) surface.effect_intervals = effectIntervals(ordered, selected, fcrDelta);
+  return surface;
 }

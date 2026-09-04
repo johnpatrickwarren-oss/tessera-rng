@@ -54,6 +54,8 @@ export interface SessionParams {
   /** built from a CLEAN window, offline — the batch calibration substrate (recorded narrowing). */
   calibration: CalibrationSubstrate;
   q: number;
+  /** ADR-0067 — the FCR level of the surface's e-BY intervals; defaults to q, as in the batch path. */
+  fcrDelta?: number;
   detect?: DetectParams;
   /** the calibrated detector context (learned Σ cell, Family D nulls) — same as the batch path. */
   ctx?: DetectorContext;
@@ -100,6 +102,10 @@ export interface SessionParams {
 interface DetectorStates {
   aStates: ReturnType<typeof freshBettingState>[];
   aM: number[];
+  /** ADR-0067 — per-signal residual sums and the tick count of the CURRENT segment (reset with the
+   *  segment), accumulated in the batch path's order so `effect_cs` is byte-equal across paths. */
+  csSums: number[];
+  csN: number;
   cState: ReturnType<typeof freshSafeHotellingState>;
   dStates: (ReturnType<typeof freshSpectralStream> | null)[] | null;
   dBufs: number[][] | null;
@@ -127,6 +133,8 @@ function freshDetectors(ctx: DetectorContext): DetectorStates {
   return {
     aStates: SIGNALS.map(() => freshBettingState()),
     aM: SIGNALS.map(() => 1),
+    csSums: SIGNALS.map(() => 0),
+    csN: 0,
     cState: freshSafeHotellingState(),
     dStates: d ? d.map((cell) => (cell ? freshSpectralStream() : null)) : null,
     dBufs: d ? d.map(() => []) : null,
@@ -278,6 +286,7 @@ export class IncrementalSession {
       snapshot: this.p.snapshot,
       snapshot_hash: this.hash,
       q: this.p.q,
+      fcr_delta: this.p.fcrDelta,
       verdicts,
       epochs: activeEpochs,
       resets,
@@ -333,7 +342,9 @@ export class IncrementalSession {
   private updateDetectors(det: DetectorStates, resid: number[]): void {
     for (let i = 0; i < SIGNALS.length; i++) {
       det.aM[i] = updateBettingState(det.aStates[i], resid[i], 0, 1, this.detect.alphaA);
+      det.csSums[i] += resid[i];
     }
+    det.csN += 1;
     evaluateSafeHotelling({ cell: this.cCell, alpha: this.detect.alphaC }, [...resid], det.cState);
     if (det.dStates && det.dBufs && this.ctx.familyDCells) {
       const sp = this.ctx.spectral ?? DEFAULT_SPECTRAL;
@@ -356,7 +367,10 @@ export class IncrementalSession {
     const aLogE = combineAverage(det.aStates.map((s, i) => s.log_M ?? Math.log(det.aM[i]))).log_fleet_e;
     const aFired = aE >= 1 / this.detect.alphaA;
     const detectors: DetectorResult[] = [
-      { family: 'A', e_value: aE, log_e_value: aLogE, fired: aFired, alpha_allocated: this.detect.alphaA, alpha_spent: aFired ? this.detect.alphaA : 0 },
+      {
+        family: 'A', e_value: aE, log_e_value: aLogE, fired: aFired, alpha_allocated: this.detect.alphaA, alpha_spent: aFired ? this.detect.alphaA : 0,
+        effect_cs: SIGNALS.map((signal, i) => ({ signal, S_t: det.csSums[i], t: det.csN })),
+      },
       {
         family: 'C',
         e_value: det.cState.M,

@@ -8,6 +8,7 @@
  * separate, low-coupling concerns.)
  */
 import type { PathClassId, ResourceId, ResourceKind } from './domain';
+import type { SignalName } from './signals';
 
 /** One family's anytime-valid result for a path-class, with its α-budget (v1 spec AC-2a/2b; +D ADR-0009). */
 export interface DetectorResult {
@@ -24,6 +25,42 @@ export interface DetectorResult {
   alpha_allocated: number;
   /** α actually spent (nonzero once the detector fires). */
   alpha_spent: number;
+  /**
+   * ADR-0067 — Family A rows only: the CURRENT segment's per-signal residual sum and count, the
+   * level-free inputs of the engine's Gaussian-mixture confidence sequence (σ² = 1 on the
+   * standardized residual, ρ = `CS_SIGMA_SQUARED_PRIOR`). The interval at any level α is
+   * `S_t/t ± sqrt(v·log(v/(α²ρ)))/t`, `v = t + ρ` (engine ADR 0030). REPORTED instrument: no
+   * selection, α or verdict reads it. Absent on C/D rows and on pre-0067 audits.
+   */
+  effect_cs?: readonly EffectCs[];
+}
+
+/** ADR-0067 — one (signal) entry of `DetectorResult.effect_cs`. */
+export interface EffectCs {
+  signal: SignalName;
+  /** running standardized-residual sum over the current segment. */
+  S_t: number;
+  /** ticks in the current segment. */
+  t: number;
+}
+
+/** ADR-0067 — the e-BY effect-size report on the surface (engine `fleet/e-by.ts`, Ramdas–Wang
+ *  2025 Theorem 13.7): every selected leaf's per-signal interval at `alpha_i = delta·|S|/K`,
+ *  FCR ≤ delta for any selection rule under any dependence, given the premise on
+ *  `DetectorResult.effect_cs`. The interval is the shift FROM THE CALIBRATED BASELINE in
+ *  residual units (the ADR-0046 scale), for the leaf's current segment. Reported, no claim of
+ *  its own beyond FCR; the FDR reading of the selection is unchanged. */
+export interface EffectIntervals {
+  /** the FCR target (defaults to the surface's q). */
+  delta: number;
+  /** parameters in the universe: |leaves| × signals. */
+  K: number;
+  /** selected parameters: |selected leaves| × signals. */
+  selected: number;
+  /** delta·selected/K = delta·|S|/|leaves|; 0 when nothing is selected. */
+  alpha_i: number;
+  intervals: readonly { path_class_id: PathClassId; signal: SignalName; center: number; half_width: number; lower: number; upper: number }[];
+  guarantee: string;
 }
 
 /** One epoch-segment of a leaf's e-process run after an incidence-change reset (ADR-0018). */
@@ -139,6 +176,8 @@ export interface AuditRecord {
    * ≥ 0 iff selected in THIS snapshot; floored, never −Infinity (ADR-0066). Diagnostic only.
    */
   margins: readonly { path_class_id: PathClassId; log_margin: number }[];
+  /** ADR-0067 — present iff every verdict's Family A row carries `effect_cs` (see src/surface.ts). */
+  effect_intervals?: EffectIntervals;
   culprits: readonly Culprit[];
   /** firing paths the parsimonious culprit set does not explain (honest measurement). */
   unexplained_path_class_ids: readonly PathClassId[];
