@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@johnpatrickwarren-oss/deploysignal-engine':
-        specifier: github:johnpatrickwarren-oss/deploysignal-engine#v0.6.10-pre
-        version: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/c2734098b29b3a642bca88e1e4986a27a93c64f3
+        specifier: github:johnpatrickwarren-oss/deploysignal-engine#v0.6.11-pre
+        version: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/ac1b908637093a74be433781b586cf666c8f3687
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -21,9 +21,9 @@ importers:
 
 packages:
 
-  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/c2734098b29b3a642bca88e1e4986a27a93c64f3':
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/c2734098b29b3a642bca88e1e4986a27a93c64f3}
-    version: 0.6.10-pre
+  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/ac1b908637093a74be433781b586cf666c8f3687':
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/ac1b908637093a74be433781b586cf666c8f3687}
+    version: 0.6.11-pre
     hasBin: true
 
   '@types/node@22.19.20':
@@ -39,7 +39,7 @@ packages:
 
 snapshots:
 
-  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/c2734098b29b3a642bca88e1e4986a27a93c64f3': {}
+  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/ac1b908637093a74be433781b586cf666c8f3687': {}
 
   '@types/node@22.19.20':
     dependencies:
