@@ -41,6 +41,8 @@ export interface PipelineParams {
   detect?: DetectParams;
   /** e-BH FDR target. */
   q: number;
+  /** ADR-0067 — the FCR level of the surface's e-BY intervals (default: q). */
+  fcrDelta?: number;
   /** how many top culprits to act on with the (simulated) drain. On epoch'd runs "top" means
    *  tier-then-score (ADR-0023): every evidence group's rank-1 drains before any rank-2. */
   drain_top_k?: number;
@@ -279,6 +281,7 @@ export async function runPipeline(params: PipelineParams): Promise<AuditRecord> 
     snapshot,
     snapshot_hash,
     q: params.q,
+    fcr_delta: params.fcrDelta,
     verdicts,
     epochs,
     resets: seg?.resets ?? null,
@@ -344,6 +347,8 @@ export function assembleAudit(args: {
   snapshot: FaultDomainSnapshot;
   snapshot_hash: string;
   q: number;
+  /** ADR-0067 — passed to buildSurface; undefined ⇒ q. */
+  fcr_delta?: number;
   verdicts: PathClassVerdict[];
   epochs: SnapshotEpoch[] | null;
   resets: LeafReset[] | null;
@@ -362,7 +367,7 @@ export function assembleAudit(args: {
   eop_alarms?: import('./verdict').AuditEopAlarms | null;
 }): AuditRecord {
   const { snapshot, snapshot_hash, q, verdicts, epochs, resets } = args;
-  const surface = buildSurface(verdicts, q);
+  const surface = buildSurface(verdicts, q, args.fcr_delta ?? q);
 
   // Production scorer (ADR-0046 cutover, superseding the ADR-0035 z-currency flip): non-epoch'd
   // runs localize with the LINEAR t-statistic model — y = max(t, z(E)) per selected leaf (t
@@ -394,6 +399,7 @@ export function assembleAudit(args: {
     selected_path_class_ids: surface.selected_path_class_ids,
     log_threshold_e: surface.log_threshold_e,
     margins: surface.margins,
+    ...(surface.effect_intervals ? { effect_intervals: surface.effect_intervals } : {}),
     culprits: loc.culprits,
     unexplained_path_class_ids: loc.unexplained_path_class_ids,
     drain_actions,

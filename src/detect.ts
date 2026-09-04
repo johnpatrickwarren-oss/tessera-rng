@@ -39,6 +39,10 @@ export interface DetectParams {
 
 export const DEFAULT_DETECT: DetectParams = { alphaA: 0.01, alphaC: 0.01 };
 
+/** ADR-0067 — the mixing variance ρ of the confidence sequence read from `effect_cs`, on the
+ *  unit-variance standardized residual. Registered with study 2026-09-e-by-surface; do not move. */
+export const CS_SIGMA_SQUARED_PRIOR = 1;
+
 /** Calibrated detector context (ADR-0007/0009): the learned Family C Σ and the Family D nulls. */
 export interface DetectorContext {
   /** learned Family C baseline covariance cell (ADR-0007); omitted ⇒ identity Σ. */
@@ -59,9 +63,13 @@ function runFamilyA(series: readonly SignalVector[], alphaA: number): DetectorRe
   const p = SIGNALS.length;
   const states = SIGNALS.map(() => freshBettingState());
   const M = new Array<number>(p).fill(1);
+  // ADR-0067 — per-signal residual sums, accumulated in tick order (the session's csSums do the
+  // same, so the two paths stay byte-equal); the CS's level-free input.
+  const S = new Array<number>(p).fill(0);
   for (const vec of series) {
     for (let i = 0; i < p; i++) {
       M[i] = updateBettingState(states[i], vec[i], /*baselineMean*/ 0, /*sigma^2*/ 1, alphaA);
+      S[i] += vec[i];
     }
   }
   const familyE = saturateE(M.reduce((s, x) => s + x, 0) / p);
@@ -71,7 +79,10 @@ function runFamilyA(series: readonly SignalVector[], alphaA: number): DetectorRe
   // α is booked as spent iff the family rejects (spent-on-fire), matching Family C; the engine's
   // betting state.alphaConsumed is a cumulative per-tick allocation and is deliberately not used.
   const fired = familyE >= 1 / alphaA;
-  return { family: 'A', e_value: familyE, log_e_value: familyLogE, fired, alpha_allocated: alphaA, alpha_spent: fired ? alphaA : 0 };
+  return {
+    family: 'A', e_value: familyE, log_e_value: familyLogE, fired, alpha_allocated: alphaA, alpha_spent: fired ? alphaA : 0,
+    effect_cs: SIGNALS.map((signal, i) => ({ signal, S_t: S[i], t: series.length })),
+  };
 }
 
 export function detectPathClass(
@@ -145,6 +156,8 @@ function combineFamily(runs: readonly PathClassVerdict[], f: number): DetectorRe
     fired: rows.some((r) => r.fired),
     alpha_allocated: rows[0].alpha_allocated,
     alpha_spent: rows.reduce((s, r) => s + r.alpha_spent, 0),
+    // ADR-0067 — the CURRENT (last) segment's CS inputs; earlier segments' shifts are not this one's.
+    ...(rows[rows.length - 1].effect_cs ? { effect_cs: rows[rows.length - 1].effect_cs } : {}),
   };
 }
 
