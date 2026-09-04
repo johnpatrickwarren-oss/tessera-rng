@@ -1,0 +1,54 @@
+{
+  "study": "2026-09-e-by-surface",
+  "run": "run-20260904T031343Z",
+  "mode": "live",
+  "quick": false,
+  "git_sha": "a5320dbe586160a24d2d4253f0c20649598d3ff8",
+  "engine_version": "0.6.11-pre",
+  "harness_sha256": "5d51594c44d77cb96d93c22a38732f436706fa7422b9e6de761fc8e2278a564f",
+  "n": 500,
+  "T": 200,
+  "q": 0.05,
+  "deltas": [
+    0.05,
+    0.1
+  ],
+  "shifts": [
+    0,
+    2,
+    4
+  ],
+  "top": 3,
+  "seed": 20260907,
+  "truth_seed": 30000001,
+  "truth_M": 2000,
+  "calibration_ticks": 2000,
+  "calibration_seed": 827675,
+  "leaves": 400,
+  "degraded_leaves": 97,
+  "truth": [
+    {
+      "delta_shift": 2,
+      "leaves": 97,
+      "mean_theta": 1.1633138100397822,
+      "min_theta": 1.15626048691856,
+      "max_theta": 1.1674952439060706,
+      "mean_se": 0.0015912686582963496
+    },
+    {
+      "delta_shift": 4,
+      "leaves": 97,
+      "mean_theta": 2.3270712343780207,
+      "min_theta": 2.317366318811478,
+      "max_theta": 2.334172477965146,
+      "mean_se": 0.0016171956053073388
+    }
+  ],
+  "parity_checks": 3,
+  "parity_equal": 3,
+  "wall_seconds": 454,
+  "argv": [
+    "--mode",
+    "live"
+  ]
+}
