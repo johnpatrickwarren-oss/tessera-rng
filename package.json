@@ -41,7 +41,7 @@
     "resource-eprocess": "node tools/resource-eprocess.js"
   },
   "dependencies": {
-    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.11-pre"
+    "@johnpatrickwarren-oss/deploysignal-engine": "github:johnpatrickwarren-oss/deploysignal-engine#v0.6.12-pre"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
