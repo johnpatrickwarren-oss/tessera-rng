@@ -1,0 +1,50 @@
+{
+  "study": "2026-09-cascade",
+  "substrate": "tessera-rng",
+  "run": "run-20260905T054034Z",
+  "mode": "live",
+  "quick": false,
+  "git_sha": "d0744bd25d8eebd8df620a2961845129f544c62c",
+  "engine_version": "0.6.11-pre",
+  "harness_sha256": "2305bda35a0a08dcbbfc2a60bdcefddb533c89a30ceb56d8a41e4e5f90fdc7bf",
+  "registration_sha256": "67f8a660d8379337309228981402fb716cedc9bb9f7683b09feae57dfb4549f2",
+  "n": 500,
+  "seed": 20260915,
+  "truth_seed": 30000001,
+  "truth_M": 200,
+  "reroute_seed": 13261997,
+  "q": 0.05,
+  "t0": 100,
+  "censor": 300,
+  "mid_offset": 50,
+  "delta_a": 2.58,
+  "A": "pzone-0",
+  "B": "pzone-3",
+  "lags": [
+    5,
+    20,
+    50
+  ],
+  "ratios": [
+    0.5,
+    1,
+    2
+  ],
+  "fractions": [
+    0.5,
+    1
+  ],
+  "alpha_a": 0.01,
+  "calibration_ticks": 2000,
+  "calibration_seed": 827675,
+  "leaves": 400,
+  "workers": 12,
+  "cells": 12,
+  "wall_seconds": 1921,
+  "argv": [
+    "--mode",
+    "live",
+    "--workers",
+    "12"
+  ]
+}
