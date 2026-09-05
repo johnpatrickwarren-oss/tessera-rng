@@ -1,0 +1,79 @@
+{
+  "study": "2026-09-sequencing",
+  "substrate": "tessera-rng",
+  "run": "run-20260905T025749Z",
+  "mode": "live",
+  "quick": false,
+  "git_sha": "7787c6d0e3d6d606d5e7708634d84b0a9cdf4f73",
+  "engine_version": "0.6.11-pre",
+  "harness_sha256": "054b7000d8d54941771eb1829f4717c55a68e0a8d9ac6c8b81d49f574a005a90",
+  "registration_sha256": "057a3983668dd5a8ff812b7bde40066376e988f98c6af6ec2c00da02c19ee618",
+  "n": 1000,
+  "seed": 20260913,
+  "truth_seed": 30000001,
+  "truth_M": 200,
+  "truth": [
+    {
+      "delta": 2.58,
+      "leaves": 91,
+      "mean_theta": 1.5003593287087487
+    },
+    {
+      "delta": 5.16,
+      "leaves": 91,
+      "mean_theta": 3.0017682946900193
+    }
+  ],
+  "q": 0.05,
+  "nu0": 100,
+  "censor": 300,
+  "fs": [
+    3,
+    5
+  ],
+  "deltas": [
+    2.58,
+    5.16
+  ],
+  "gaps": [
+    5,
+    20,
+    50
+  ],
+  "alpha_a": 0.01,
+  "alpha_arl": 0.001,
+  "calibration_ticks": 2000,
+  "calibration_seed": 827675,
+  "leaves": 400,
+  "bundles": [
+    {
+      "resource": "bundle-0",
+      "leaves": 13
+    },
+    {
+      "resource": "bundle-1",
+      "leaves": 18
+    },
+    {
+      "resource": "bundle-2",
+      "leaves": 26
+    },
+    {
+      "resource": "bundle-3",
+      "leaves": 14
+    },
+    {
+      "resource": "bundle-4",
+      "leaves": 20
+    }
+  ],
+  "workers": 10,
+  "cells": 12,
+  "wall_seconds": 3428,
+  "argv": [
+    "--mode",
+    "live",
+    "--workers",
+    "10"
+  ]
+}
