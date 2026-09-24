@@ -25,7 +25,6 @@ import {
   combineProduct,
 } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/combine';
 import { eBenjaminiHochberg } from '@johnpatrickwarren-oss/deploysignal-engine/fleet/e-bh';
-import { computeSnapshotHash } from '@johnpatrickwarren-oss/deploysignal-engine/topology-overlay';
 
 test('Family A betting e-process: wealth grows under a real mean shift', () => {
   // Baseline N(0,1); feed a shifted stream and confirm the e-value (wealth M)
@@ -75,16 +74,5 @@ test('e-BH FDR: selects the large-evidence entities under arbitrary dependence',
   assert.ok(!out.selected.includes(3) && !out.selected.includes(4));
 });
 
-test('computeSnapshotHash is deterministic over a topology snapshot', () => {
-  const snap = {
-    nodes: [{ id: 'a', service_name: 'a', kind: 'service' as const }],
-    edges: [],
-    fetched_at_ts: 1000,
-    source_id: 's',
-    source_version: 'v',
-  };
-  const h1 = computeSnapshotHash(snap);
-  const h2 = computeSnapshotHash(snap);
-  assert.equal(h1, h2);
-  assert.match(h1, /^[0-9a-f]{64}$/);
-});
+// The topology-overlay smoke left with the overlay at engine v0.8.0-pre; the hash this repo uses is
+// its own — test/sha256.test.ts.
