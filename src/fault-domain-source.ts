@@ -3,10 +3,11 @@
  *   { id, version, fetchSnapshot(): Promise<FaultDomainSnapshot>, snapshotHash(s): string }
  * but over RNG-native fault-domain types instead of the engine's closed TopologySnapshot.
  *
- * The hash REUSES the engine's public pureJsSha256 (declared cross-platform-parity export),
- * so determinism matches the engine exactly — without forking or importing engine internals.
+ * The hash is this repo's own pure-JS SHA-256 (src/sha256.ts), byte-identical to the one the
+ * engine's topology overlay carried until v0.7.0-pre; the overlay left the engine for Tessera at
+ * v0.8.0-pre (engine ADR 0033 step 4) and this repo depends on neither for the hash.
  */
-import { pureJsSha256 } from '@johnpatrickwarren-oss/deploysignal-engine/topology-overlay';
+import { pureJsSha256 } from './sha256.js';
 import { isResourceKind } from './domain';
 import type { AggregationView, FaultDomainSnapshot, FaultDomainEdge, FaultDomainNode, ResourceKind } from './domain';
 
