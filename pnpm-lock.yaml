@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@johnpatrickwarren-oss/deploysignal-engine':
-        specifier: github:johnpatrickwarren-oss/deploysignal-engine#v0.8.0-pre
-        version: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/8daeb34b324410000b3db93057f4eda1d3ef55e0
+        specifier: github:johnpatrickwarren-oss/deploysignal-engine#v0.9.0-pre
+        version: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/f16195b7e0e21abacf99f57ef49c8fbcb10a8293
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -21,9 +21,9 @@ importers:
 
 packages:
 
-  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/8daeb34b324410000b3db93057f4eda1d3ef55e0':
-    resolution: {gitHosted: true, integrity: sha512-migmaOyyuJWdaLpSdwUMVAbb490vE+d4/Af2k72jhA/Fk/ucN8a+GLvduX0MQscOdinU3x39aMgwQ7ChUtyd7A==, tarball: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/8daeb34b324410000b3db93057f4eda1d3ef55e0}
-    version: 0.8.0-pre
+  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/f16195b7e0e21abacf99f57ef49c8fbcb10a8293':
+    resolution: {gitHosted: true, integrity: sha512-LHYPPIrv0DY486rISQ1YuaDbOGksA+96ZSD1NVLBX2ueCGpKM6WhmhVJoT/yn4hUsnvY4mt5NNGwWfRdiOW9Lw==, tarball: https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/f16195b7e0e21abacf99f57ef49c8fbcb10a8293}
+    version: 0.9.0-pre
     hasBin: true
 
   '@types/node@22.19.20':
@@ -39,7 +39,7 @@ packages:
 
 snapshots:
 
-  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/8daeb34b324410000b3db93057f4eda1d3ef55e0': {}
+  '@johnpatrickwarren-oss/deploysignal-engine@https://codeload.github.com/johnpatrickwarren-oss/deploysignal-engine/tar.gz/f16195b7e0e21abacf99f57ef49c8fbcb10a8293': {}
 
   '@types/node@22.19.20':
     dependencies:
